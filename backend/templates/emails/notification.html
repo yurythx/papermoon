@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}
+
+{% block title %}{{ subject }} — PaperMoon{% endblock %}
+
+{% block content %}
+<h1>{{ subject }}</h1>
+{% for line in body_lines %}
+<p>{{ line }}</p>
+{% endfor %}
+{% if cta_link and cta_label %}
+<a href="{{ cta_link }}" class="btn">{{ cta_label }}</a>
+{% endif %}
+{% endblock %}

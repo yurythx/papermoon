@@ -1,0 +1,60 @@
+name: CD
+
+# Triggered automatically when the CI workflow completes successfully on main.
+# Manual trigger available for hotfix deploys without waiting for CI.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_pull:
+        description: "Skip git pull on VPS (use current code)"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+
+    # For workflow_run: only deploy if CI passed.
+    # For workflow_dispatch: always deploy (operator triggered).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    # Protects this job behind GitHub Environment rules.
+    # Create "production" environment in Settings → Environments and optionally
+    # add required reviewers or deployment branch restrictions.
+    environment:
+      name: production
+      url: https://app.papermoon.com.br
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          # script runs inside the VPS — deploy.sh handles pull + build +
+          # migrate + health check + automatic rollback on failure.
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PROD_APP_DIR }}"
+            if [[ "${{ inputs.skip_pull }}" == "true" ]]; then
+              bash deploy.sh --skip-pull
+            else
+              bash deploy.sh
+            fi
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "::error::Deploy to production FAILED."
+          echo "::error::Check the VPS with: make prod-logs"
+          echo "::error::Health status: make prod-health"

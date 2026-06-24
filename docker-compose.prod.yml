@@ -1,0 +1,186 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: papermoon-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-papermoon}
+      POSTGRES_USER: ${POSTGRES_USER:-papermoon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - papermoon-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-papermoon}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: papermoon-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - papermoon-cache:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  django-api:
+    container_name: papermoon-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: always
+    volumes:
+      - papermoon-media:/app/mediafiles
+    command: >
+      gunicorn core.wsgi:application
+        --bind 0.0.0.0:8000
+        --workers 4
+        --worker-class gthread
+        --threads 2
+        --timeout 30
+        --log-level info
+        --access-logfile -
+        --error-logfile -
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -H 'Host: django-api' http://localhost:8000/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Joined to the shared tunnel network so cloudflared can reach it by service name
+    networks:
+      - default
+      - papermoon-network
+
+  celery-worker:
+    container_name: papermoon-worker
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: always
+    command: >
+      celery -A core.celery_app worker
+        -l warning
+        --concurrency 4
+        --max-tasks-per-child 1000
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A core.celery_app inspect ping --timeout 5 2>/dev/null | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  celery-beat:
+    container_name: papermoon-worker-beat
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: always
+    command: >
+      celery -A core.celery_app beat
+        -l warning
+        --scheduler django_celery_beat.schedulers:DatabaseScheduler
+        --pidfile=/tmp/celerybeat.pid
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid) 2>/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  flower:
+    container_name: papermoon-monitoring
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: always
+    command: >
+      celery -A core.celery_app flower --port=5555
+        --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD}
+        --url_prefix=flower
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+    depends_on:
+      - redis
+    expose:
+      - "5555"
+
+  nextjs:
+    container_name: papermoon-web
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://app.papermoon.com.br}
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
+      - DJANGO_INTERNAL_URL=http://django-api:8000/api/v1
+      - NEXT_TELEMETRY_DISABLED=1
+      # Internal base URL for server→server BFF calls (avoids external round-trip)
+      - SITE_INTERNAL_URL=http://localhost:3000
+      # Shared with django-api env_file — must match for ISR revalidation
+      - REVALIDATE_SECRET=${REVALIDATE_SECRET}
+    depends_on:
+      django-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Joined to the shared tunnel network so cloudflared can reach it by service name
+    networks:
+      - default
+      - papermoon-network
+
+networks:
+  # Internal default network for service-to-service communication
+  default:
+
+  # Preferred external network shared with the cloudflared container.
+  # Create once with: docker network create papermoon-network
+  # Then connect cloudflared: docker network connect papermoon-network <cloudflared-container-name>
+  papermoon-network:
+    external: true
+
+volumes:
+  papermoon-data:
+  papermoon-cache:
+  papermoon-media:
+  papermoon-backups:

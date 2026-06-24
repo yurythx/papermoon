@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Convite para {{ company_name }} — PaperMoon{% endblock %}
+
+{% block content %}
+<h1>Você foi convidado!</h1>
+<p>
+  <strong style="color:#fafafa">{{ invited_by }}</strong> convidou você para fazer parte da equipe da
+  <strong style="color:#fafafa">{{ company_name }}</strong> na plataforma PaperMoon.
+</p>
+<p>
+  Clique no botão abaixo para aceitar o convite e criar sua conta. O link é válido por
+  <strong style="color:#fafafa">{{ expiry_hours }} horas</strong>.
+</p>
+<a href="{{ accept_link }}" class="btn">Aceitar convite</a>
+<hr class="divider" />
+<p class="link-fallback">
+  Se o botão não funcionar, copie e cole este link no navegador:<br>
+  <a href="{{ accept_link }}">{{ accept_link }}</a>
+</p>
+<p style="margin-top:16px">
+  Se você não esperava este convite, pode ignorar este e-mail com segurança.
+</p>
+{% endblock %}

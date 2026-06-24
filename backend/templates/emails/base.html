@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}PaperMoon{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #e2e8f0; }
+    .wrapper { max-width: 560px; margin: 0 auto; padding: 32px 16px; }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; overflow: hidden; }
+    .header { background: linear-gradient(135deg, #0f172a, #1e293b); padding: 28px 32px; }
+    .header-logo { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .header-logo span { color: #fbbf24; }
+    .body { padding: 32px; }
+    .body h1 { font-size: 20px; font-weight: 600; color: #f8fafc; margin-bottom: 12px; }
+    .body p { font-size: 14px; line-height: 1.7; color: #cbd5e1; margin-bottom: 16px; }
+    .btn { display: inline-block; background: #fbbf24; color: #0f172a !important; text-decoration: none;
+           padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
+           margin: 8px 0 24px; }
+    .btn:hover { background: #f59e0b; }
+    .divider { border: none; border-top: 1px solid #334155; margin: 24px 0; }
+    .link-fallback { font-size: 12px; color: #94a3b8; word-break: break-all; }
+    .link-fallback a { color: #fbbf24; }
+    .footer { padding: 20px 32px; background: #0b1120; border-top: 1px solid #334155; }
+    .footer p { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .footer a { color: #fbbf24; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="header">
+        <div class="header-logo">Paper<span>Moon</span></div>
+      </div>
+      <div class="body">
+        {% block content %}{% endblock %}
+      </div>
+      <div class="footer">
+        <p>
+          Este e-mail foi enviado automaticamente pela plataforma PaperMoon.<br>
+          Se você não solicitou isso, pode ignorar esta mensagem em segurança.<br>
+          <a href="{{ frontend_url }}">{{ frontend_url }}</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

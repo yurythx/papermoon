@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (type check)
+        entry: bash -c 'docker info >/dev/null 2>&1 && docker compose exec -T django-api python -m mypy . --config-file mypy.ini 2>&1 || echo "mypy skipped — Docker not running"'
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: ^backend/

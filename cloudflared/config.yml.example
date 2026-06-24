@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloudflare Tunnel — Configuração de Ingress para o PaperMoon
+#
+# Este arquivo documenta as regras de ingress que devem ser configuradas
+# no painel Cloudflare (Zero Trust > Networks > Tunnels) ou no arquivo
+# /etc/cloudflared/config.yml do container cloudflared na VPS.
+#
+# Arquitetura:
+#   Internet → Cloudflare Edge → Tunnel → VPS
+#
+#   O container cloudflared deve estar conectado à rede Docker "papermoon-network"
+#   para alcançar os serviços pelo nome do container Docker.
+#
+#   Conectar cloudflared à rede:
+#     docker network connect papermoon-network <nome-do-container-cloudflared>
+#   Ou use: make tunnel-connect
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+tunnel: SEU-TUNNEL-ID-AQUI
+credentials-file: /etc/cloudflared/SEU-TUNNEL-ID-AQUI.json
+
+# Configurações de log
+loglevel: info
+logfile: /var/log/cloudflared.log
+
+ingress:
+  # ── Frontend (Next.js) ─────────────────────────────────────────────────────
+  # app.papermoon.example.com → container nextjs na porta 3000
+  # O Next.js já serve como BFF: as chamadas /proxy/* são encaminhadas
+  # internamente ao Django via rede Docker (sem expor o backend externamente).
+  - hostname: app.papermoon.example.com
+    service: http://nextjs:3000
+    originRequest:
+      connectTimeout: 10s
+      noTLSVerify: false
+
+  # ── www → app (redirect) ───────────────────────────────────────────────────
+  # Configure um Page Rule no Cloudflare para redirecionar www → app
+  # Ou adicione aqui se preferir gerenciar pelo tunnel:
+  # - hostname: www.papermoon.example.com
+  #   service: http://nextjs:3000
+
+  # ── Webhook Asaas (acesso direto ao backend) ───────────────────────────────
+  # O proxy BFF do Next.js (/api/proxy/*) exige JWT de usuário autenticado —
+  # o Asaas nunca teria esse token, então o webhook NÃO pode passar pelo BFF.
+  # Por isso ele precisa de um hostname dedicado, direto ao django-api.
+  # O endpoint valida o header asaas-access-token, então é seguro expô-lo.
+  - hostname: webhooks.papermoon.example.com
+    service: http://django-api:8000
+
+  # ── Regra de fallback obrigatória ──────────────────────────────────────────
+  # Qualquer hostname não mapeado acima retorna 404.
+  - service: http_status:404
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Como aplicar esta configuração:
+#
+# Opção A — Via painel Cloudflare (recomendado para primeira configuração):
+#   1. Acesse: one.dash.cloudflare.com > Zero Trust > Networks > Tunnels
+#   2. Selecione seu túnel > Configure > Public Hostname
+#   3. Adicione as regras de hostname acima
+#
+# Opção B — Via arquivo config.yml no container cloudflared:
+#   1. Copie este arquivo para o container:
+#      docker cp cloudflared/config.yml.example <container>:/etc/cloudflared/config.yml
+#   2. Edite com seu Tunnel ID real
+#   3. Reinicie o cloudflared:
+#      docker restart <container>
+#
+# Verificar se o túnel está ativo:
+#   cloudflared tunnel info SEU-TUNNEL-ID
+#   ou: docker exec <container> cloudflared tunnel info SEU-TUNNEL-ID
+# ─────────────────────────────────────────────────────────────────────────────

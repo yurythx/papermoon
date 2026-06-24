@@ -1,0 +1,32 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Novo cadastro — PaperMoon{% endblock %}
+
+{% block content %}
+<h1>Novo cadastro na plataforma</h1>
+<p>Um novo usuário se cadastrou e aguarda provisionamento.</p>
+
+<table style="width:100%;border-collapse:collapse;margin:20px 0;">
+  <tr>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#71717a;font-size:13px;width:120px;">Nome</td>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#fafafa;font-size:14px;">{{ name }}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#71717a;font-size:13px;">Empresa</td>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#fafafa;font-size:14px;">{{ company_name }}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#71717a;font-size:13px;">E-mail</td>
+    <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#fafafa;font-size:14px;">
+      <a href="mailto:{{ email }}" style="color:#a78bfa;">{{ email }}</a>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 0;color:#71717a;font-size:13px;">Telefone</td>
+    <td style="padding:10px 0;color:#fafafa;font-size:14px;">{{ phone|default:"—" }}</td>
+  </tr>
+</table>
+
+<hr class="divider" />
+<a href="{{ admin_url }}" class="btn">Provisionar no Admin</a>
+{% endblock %}

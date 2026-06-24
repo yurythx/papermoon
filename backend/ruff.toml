@@ -1,0 +1,46 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "DJ",  # flake8-django
+    "N",   # pep8-naming
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "B008",   # do not perform function calls in default arguments (DI factories)
+    "RUF012", # mutable class attributes — false-positive on Django models
+    "DJ001",  # avoid null=True on string fields — we use it intentionally in some places
+    "DJ012",  # model member order — ruff misidentifies SoftDeleteManager as non-manager
+]
+
+[lint.per-file-ignores]
+"*/migrations/*.py" = ["E501", "N806", "F401"]
+"*/settings/*.py"   = ["F405", "F403"]
+"tests/**" = [
+    "S101",   # assert is fine in tests
+    "N806",   # Mock variables conventionally use PascalCase (MockCmd, MockClient)
+    "B017",   # pytest.raises(Exception) is acceptable in integration tests
+    "SIM117", # nested with statements in tests are sometimes more readable
+    "F841",   # unused variables in test setup (object creation has DB side effects)
+    "C416",   # list comprehension vs list() — stylistic in test fixtures
+    "RUF",    # ruff-specific rules — too noisy in test fixtures
+]
+
+[lint.isort]
+known-first-party = ["apps", "shared", "core"]
+force-sort-within-sections = true
+split-on-trailing-comma = true
+
+[format]
+quote-style = "double"
+indent-style = "space"

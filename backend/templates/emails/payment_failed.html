@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Fatura vencida — PaperMoon{% endblock %}
+
+{% block content %}
+<h1>Fatura vencida</h1>
+<p>Olá, <strong style="color:#fafafa">{{ company_name }}</strong>!</p>
+<p>
+  Identificamos que uma fatura no valor de <strong style="color:#fafafa">R$ {{ amount }}</strong>,
+  com vencimento em <strong style="color:#fafafa">{{ due_date }}</strong>, ainda não foi paga.
+</p>
+<p>
+  Para evitar a suspensão dos seus serviços, regularize o pagamento o quanto antes.
+</p>
+<a href="{{ invoices_link }}" class="btn">Ver minhas faturas</a>
+<hr class="divider" />
+<p>
+  Se você já realizou o pagamento, ele pode levar até 2 dias úteis para ser confirmado.
+  Em caso de dúvidas, entre em contato com nossa equipe.
+</p>
+{% endblock %}

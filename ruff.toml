@@ -1,0 +1,36 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "DJ",  # flake8-django
+]
+ignore = [
+    "E501",  # line too long — handled by formatter
+    "B008",  # do not perform function calls in default arguments (DRF uses this pattern)
+    "DJ001", # avoid using null=True on CharField (deliberate in some models)
+    "DJ012", # model member order — ruff misidentifies SoftDeleteManager as non-manager
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "N806",  # Mock variables conventionally use PascalCase (MockCmd, MockClient)
+    "B017",  # pytest.raises(Exception) is acceptable in integration tests
+    "SIM117", # nested with statements in tests are sometimes more readable
+    "F841",  # unused variables in test setup (object creation has DB side effects)
+    "C416",  # list comprehension vs list() — stylistic in test fixtures
+]
+
+[lint.isort]
+known-first-party = ["apps", "shared", "core"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

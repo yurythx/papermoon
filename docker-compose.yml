@@ -1,0 +1,174 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: papermoon-postgres-dev
+    environment:
+      POSTGRES_DB: papermoon
+      POSTGRES_USER: papermoon
+      POSTGRES_PASSWORD: papermoon
+    ports:
+      - "5433:5432"
+    volumes:
+      - papermoon-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U papermoon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: papermoon-redis-dev
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  django-api:
+    container_name: papermoon-api-dev
+    build: ./backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - .pytest_cache/
+            - htmlcov/
+        - action: rebuild
+          path: ./backend/requirements.txt
+
+  celery-worker:
+    container_name: papermoon-worker-dev
+    build: ./backend
+    command: celery -A core.celery_app worker -l info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - .pytest_cache/
+            - htmlcov/
+        - action: rebuild
+          path: ./backend/requirements.txt
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A core.celery_app inspect ping --timeout 5 2>/dev/null | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  celery-beat:
+    container_name: papermoon-worker-beat-dev
+    build: ./backend
+    command: >
+      celery -A core.celery_app beat -l info
+        --scheduler django_celery_beat.schedulers:DatabaseScheduler
+        --pidfile=/tmp/celerybeat.pid
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - .pytest_cache/
+            - htmlcov/
+        - action: rebuild
+          path: ./backend/requirements.txt
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid) 2>/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  flower:
+    container_name: papermoon-monitoring-dev
+    build: ./backend
+    command: >
+      celery -A core.celery_app flower --port=5555
+        --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-papermoon2024}
+    ports:
+      - "5555:5555"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.local
+    depends_on:
+      - redis
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: papermoon-mailhog-dev
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — acesse http://localhost:8025
+
+  nextjs:
+    container_name: papermoon-web-dev
+    build:
+      context: ./frontend
+      args:
+        # Override the Dockerfile default (prod URL) so server→server calls
+        # stay inside Docker Compose instead of hitting production.
+        NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    environment:
+      - DJANGO_INTERNAL_URL=http://django-api:8000/api/v1
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - SECURE_COOKIES=false
+      # Shared with backend/.env — must match for ISR revalidation to work
+      - REVALIDATE_SECRET=papermoon-dev-revalidate-secret
+    depends_on:
+      - django-api
+
+volumes:
+  papermoon-data-dev:
