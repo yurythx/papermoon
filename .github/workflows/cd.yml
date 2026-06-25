@@ -31,7 +31,7 @@ jobs:
     # add required reviewers or deployment branch restrictions.
     environment:
       name: production
-      url: https://app.papermoon.com.br
+      url: https://app.papermoon.cloud
 
     steps:
       - name: Deploy via SSH

@@ -144,7 +144,7 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://app.papermoon.com.br}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://app.papermoon.cloud}
     restart: always
     environment:
       - NODE_ENV=production
