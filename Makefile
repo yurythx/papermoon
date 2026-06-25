@@ -6,6 +6,10 @@ DC      := docker compose
 EXEC    := $(DC) exec -T django-api
 BACKEND := $(EXEC)
 
+# Produção — sempre usa env-file para expandir variáveis no compose file
+PDC     := docker compose -f docker-compose.prod.yml --env-file .env.production
+PEXEC   := $(PDC) exec -T django-api
+
 .PHONY: help dev up down watch build restart logs ps \
         shell migrate migrations superuser seed seed-flush \
         test test-v test-cov check lint fmt typecheck \
@@ -15,6 +19,7 @@ BACKEND := $(EXEC)
         prod-up prod-down prod-build prod-deploy prod-deploy-skip-pull \
         prod-logs prod-ps prod-health prod-shell prod-superuser prod-generate-jwt \
         prod-backup prod-backup-list prod-restore \
+        local-prod-setup local-prod-up local-prod-down local-prod-logs \
         tunnel-network tunnel-connect setup setup-backup-cron \
         clean
 
@@ -71,6 +76,9 @@ help:
 	@echo "  prod-backup         Executa backup manual do banco agora"
 	@echo "  prod-backup-list    Lista todos os backups locais"
 	@echo "  prod-restore FILE=  Restaura backup (ex: FILE=backups/daily/papermoon_….sql.gz)"
+	@echo "  local-prod-setup    Setup automático do stack prod localmente"
+	@echo "  local-prod-up       Sobe stack prod local com portas expostas"
+	@echo "  local-prod-down     Para stack prod local"
 	@echo "  tunnel-network      Cria a rede Docker papermoon-network"
 	@echo "  tunnel-connect      Conecta container cloudflared à rede"
 	@echo "  setup               Configuração inicial da VPS (sudo)"
@@ -194,13 +202,13 @@ frontend:
 
 # ── Produção ─────────────────────────────────────────────────────────────────
 prod-up:
-	docker compose -f docker-compose.prod.yml up -d
+	$(PDC) up -d
 
 prod-down:
-	docker compose -f docker-compose.prod.yml down
+	$(PDC) down
 
 prod-build:
-	docker compose -f docker-compose.prod.yml build --no-cache
+	$(PDC) build --no-cache
 
 prod-deploy:
 	@bash deploy.sh
@@ -209,22 +217,36 @@ prod-deploy-skip-pull:
 	@bash deploy.sh --skip-pull
 
 prod-logs:
-	docker compose -f docker-compose.prod.yml logs -f django-api celery-worker celery-beat nextjs
+	$(PDC) logs -f django-api celery-worker celery-beat nextjs
 
 prod-ps:
-	docker compose -f docker-compose.prod.yml ps
+	$(PDC) ps
 
 prod-health:
-	@curl -sf http://localhost:8000/health/ | python3 -m json.tool 2>/dev/null || echo "Django não está respondendo"
+	@$(PDC) exec -T django-api curl -sf -H 'Host: django-api' http://localhost:8000/health/ \
+	  | python3 -m json.tool 2>/dev/null || echo "Django não está respondendo"
 
 prod-shell:
-	docker compose -f docker-compose.prod.yml exec django-api python manage.py shell
+	$(PDC) exec django-api python manage.py shell
 
 prod-superuser:
-	docker compose -f docker-compose.prod.yml exec django-api python manage.py createsuperuser
+	$(PDC) exec django-api python manage.py createsuperuser
 
 prod-generate-jwt:
-	docker compose -f docker-compose.prod.yml exec -T django-api python manage.py generate_jwt_keys
+	$(PEXEC) python manage.py generate_jwt_keys
+
+# ── Produção local (testa o stack prod na máquina de dev) ─────────────────────
+local-prod-setup:
+	@bash scripts/local-prod-setup.sh
+
+local-prod-up:
+	$(PDC) -f docker-compose.prod.ports.yml up -d
+
+local-prod-down:
+	$(PDC) -f docker-compose.prod.ports.yml down
+
+local-prod-logs:
+	$(PDC) -f docker-compose.prod.ports.yml logs -f django-api celery-worker nextjs
 
 tunnel-network:
 	docker network create papermoon-network 2>/dev/null || echo "Network papermoon-network already exists"

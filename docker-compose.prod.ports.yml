@@ -1,0 +1,30 @@
+# Overlay para testes locais do stack de produção.
+# Expõe portas ao host — NÃO usar em produção real.
+#
+# Uso:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.ports.yml \
+#     --env-file .env.production up -d
+#
+# Ou via Makefile:
+#   make local-prod-up
+
+services:
+  django-api:
+    ports:
+      - "8000:8000"
+
+  nextjs:
+    ports:
+      - "3000:3000"
+
+  flower:
+    ports:
+      - "5555:5555"
+
+  postgres:
+    ports:
+      - "5433:5432"
+
+  redis:
+    ports:
+      - "6380:6379"

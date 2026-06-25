@@ -29,8 +29,25 @@ COPY --from=builder /install /usr/local
 WORKDIR /app
 COPY --chown=papermoon:papermoon . .
 
-# Collect static files at build time
-RUN python manage.py collectstatic --noinput --settings=core.settings.production 2>/dev/null || true
+# Ensure writable dirs exist before switching to non-root user
+RUN mkdir -p /app/staticfiles /app/mediafiles \
+    && chown -R papermoon:papermoon /app
+
+# Collect static files at build time.
+# Uses local settings + SQLite so no real DB or JWT keys are required.
+RUN DATABASE_URL=sqlite:////tmp/build.db \
+    DJANGO_SETTINGS_MODULE=core.settings.local \
+    python manage.py collectstatic --noinput
 
 USER papermoon
 EXPOSE 8000
+
+CMD ["gunicorn", "core.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "4", \
+     "--worker-class", "gthread", \
+     "--threads", "2", \
+     "--timeout", "30", \
+     "--log-level", "info", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

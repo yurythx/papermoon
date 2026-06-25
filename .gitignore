@@ -4,7 +4,7 @@
 .env.*.local
 .env.production
 
-# Docker override (local port mappings, não vai para produção)
+# Docker overrides locais (não vão para produção)
 docker-compose.override.yml
 
 # Python
