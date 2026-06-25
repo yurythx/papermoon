@@ -1,9 +1,9 @@
 # Deployment Guide — PaperMoon
 
-Step-by-step checklist for deploying PaperMoon to production.
+Guia de deploy para produção e para testes locais do stack de produção.
 
-> Antes de executar o corte, percorra tambem a checklist operacional em
-> [production-deploy-checklist.md](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/docs/checklists/production-deploy-checklist.md).
+> Antes do corte, percorra também a checklist operacional em
+> [production-deploy-checklist.md](checklists/production-deploy-checklist.md).
 
 > **Arquitetura de rede:** Este guia usa **Cloudflare Tunnel** como único ponto de entrada.
 > Não há Nginx, Caddy ou Let's Encrypt — o TLS é terminado na borda da Cloudflare.
@@ -26,49 +26,124 @@ Usuário ──HTTPS──► Cloudflare Edge ──Tunnel──► cloudflared 
                                    celery-worker          postgres/redis
 ```
 
-- **Dominio publico**: use um hostname PaperMoon, como `app.papermoon.example.com`, como host principal para usuarios/browser. O Next.js
-  atua como BFF — todas as chamadas de API do frontend passam por `/api/proxy/*`, que injeta o
-  JWT e encaminha internamente para `django-api` pela rede Docker. O backend nunca é exposto
-  diretamente para esse tráfego.
-- **Exceção: webhook do Asaas.** O proxy BFF exige um JWT de usuário autenticado — o Asaas nunca
-  teria esse token. Por isso só o endpoint `/api/v1/webhooks/asaas/` é exposto direto ao
-  `django-api` num hostname dedicado, como `webhooks.papermoon.example.com`, protegido pela validacao do
-  header `asaas-access-token` (ver `cloudflared/config.yml.example`).
+- **Domínio principal**: `app.papermoon.cloud` → Next.js (BFF). Todas as chamadas de API do
+  frontend passam por `/api/proxy/*`, que injeta o JWT e encaminha para `django-api` pela rede
+  Docker. O backend nunca é exposto diretamente para esse tráfego.
+- **Exceção: webhook do Asaas.** O BFF exige JWT de usuário — o Asaas não teria esse token.
+  Por isso só `/api/v1/webhooks/asaas/` é exposto via `webhooks.papermoon.cloud` apontando
+  direto para `django-api`, protegido pela validação do header `asaas-access-token`.
 - **Cloudflare** termina TLS, aplica "Always Use HTTPS", gerencia certificados automaticamente.
-- **Django** recebe HTTP puro vindo do tunnel. O header `X-Forwarded-Proto: https` (injetado pelo cloudflared) instrui Django a emitir cookies `Secure` corretamente.
-- **Nenhuma porta** de `django-api` ou `nextjs` e exposta no host — acesso so pela rede compartilhada do tunnel.
+- **Django** recebe HTTP puro vindo do tunnel. O header `X-Forwarded-Proto: https` injetado pelo
+  cloudflared instrui Django a emitir cookies `Secure` corretamente.
+- **Nenhuma porta** de `django-api` ou `nextjs` é exposta no host — acesso só pela rede do tunnel.
 
-> O Compose usa `papermoon-network` como rede externa compartilhada com o cloudflared. Esse e o unico caminho suportado para o tunnel em producao.
+> O Compose usa `papermoon-network` como rede externa compartilhada com o cloudflared.
 
 ---
 
-## Prerequisites
+## Pré-requisitos
 
 - Docker Engine 24+ e Docker Compose v2 no servidor
 - Cloudflared já rodando como container (instalado previamente)
-- Dominios configurados no Cloudflare (`app.papermoon.example.com` para o app, `webhooks.papermoon.example.com`
-  só para o webhook do Asaas)
+- Domínios configurados no Cloudflare:
+  - `app.papermoon.cloud` → app principal
+  - `webhooks.papermoon.cloud` → webhook Asaas (exclusivo)
 - Conta Asaas com API key de produção
-- Instância Chatwoot
+- Repositório em `github.com/yurythx/papermoon`
 
 ---
 
-## 1. Configurar a Rede Docker do Tunnel
+## Opção A — Primeiro deploy na VPS (setup completo)
 
-Este passo conecta os containers da aplicação à mesma rede Docker do cloudflared.
+O `setup.sh` executa tudo automaticamente em 9 passos: instala Docker, cria usuário,
+**gera todos os segredos** (senhas de banco, Redis, Django, Flower, webhook token), pergunta
+apenas o que não pode ser gerado (domínio, e-mail, SMTP, chave Asaas), configura firewall,
+cria rede Docker, roda o primeiro deploy e instala o cron de backup.
 
 ```bash
-# 1. Criar a rede externa preferencial (uma única vez por servidor)
-docker network create papermoon-network
-# ou: make tunnel-network
+# Na VPS, como root
+git clone https://github.com/yurythx/papermoon.git /opt/papermoon
+cd /opt/papermoon
+sudo bash setup.sh
+```
 
-# 2. Descobrir o nome do container do cloudflared
+O script só vai te perguntar:
+
+| Pergunta | Exemplo |
+|---|---|
+| Domínio base (sem https://) | `papermoon.cloud` |
+| E-mail do administrador | `ops@papermoon.cloud` |
+| Servidor SMTP (Enter para pular) | `smtp.sendgrid.net` |
+| API Key do Asaas (Enter para pular) | `$aact_...` |
+| Usuário do Flower | `admin` |
+
+Ao final, o script exibe os 5 secrets para cadastrar no GitHub Actions.
+
+---
+
+## Opção B — Deploy subsequente (atualização)
+
+Todo push para `main` dispara o CI/CD automaticamente via GitHub Actions (`.github/workflows/cd.yml`).
+O `deploy.sh` na VPS executa: build → JWT → migrations → collectstatic → restart → health check,
+com rollback automático se qualquer passo falhar.
+
+```bash
+# Manual, se precisar forçar sem aguardar CI:
+make prod-deploy
+
+# Ou direto:
+bash deploy.sh
+
+# Rebuild sem git pull (ex: mudança só no .env.production):
+bash deploy.sh --skip-pull
+```
+
+---
+
+## Opção C — Teste local do stack de produção
+
+Para validar o stack prod na máquina de desenvolvimento antes de subir para a VPS:
+
+```bash
+make local-prod-setup
+```
+
+O script `scripts/local-prod-setup.sh` faz:
+1. Gera `.env.production` local com valores de teste (domínio = `localhost`)
+2. Cria a rede Docker `papermoon-network`
+3. Roda `bash deploy.sh --skip-pull` (build + JWT + migrate + start)
+4. Expõe portas via `docker-compose.prod.ports.yml`
+
+Após subir:
+
+| Serviço | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:8000/api/v1/ |
+| Admin Django | http://localhost:8000/admin/ |
+| API Docs (Swagger) | http://localhost:8000/api/docs/ |
+| Flower (Celery) | http://localhost:5555/flower/ |
+| Health check | http://localhost:8000/health/ |
+
+```bash
+make prod-superuser      # criar superusuário
+make local-prod-logs     # ver logs
+make local-prod-down     # parar tudo
+```
+
+---
+
+## Configuração Manual da Rede Docker (se necessário)
+
+```bash
+# Criar rede (uma única vez por servidor)
+make tunnel-network
+
+# Verificar nome do container cloudflared
 docker ps --filter "ancestor=cloudflare/cloudflared" --format "{{.Names}}"
-# Exemplo de saída: cloudflared
 
-# 3. Conectar o cloudflared à rede preferencial
-docker network connect papermoon-network cloudflared
-# ou: make tunnel-connect  (interativo — pede o nome do container)
+# Conectar cloudflared à rede
+make tunnel-connect     # interativo — pede o nome do container
 
 # Verificar
 docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}} {{end}}'
@@ -77,155 +152,74 @@ docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}
 
 ---
 
-## 2. Configurar o Tunnel no Cloudflare Dashboard
+## Configuração do Tunnel no Cloudflare Dashboard
 
 No painel da Cloudflare → **Zero Trust → Networks → Tunnels → seu tunnel → Configure**:
 
-Adicione as rotas de entrada (ingress rules):
-
 | Hostname | Serviço | Uso |
 |---|---|---|
-| `app.papermoon.example.com` | `http://nextjs:3000` | App principal — todo o trafego de usuario/browser |
-| `webhooks.papermoon.example.com` | `http://django-api:8000` | So o webhook do Asaas (`/api/v1/webhooks/asaas/`) — o BFF exige JWT, entao o Asaas nao pode chamar via `app.papermoon.example.com` |
+| `app.papermoon.cloud` | `http://nextjs:3000` | App principal — todo o tráfego de usuário |
+| `webhooks.papermoon.cloud` | `http://django-api:8000` | Só o webhook do Asaas |
 
-> Os nomes `django-api` e `nextjs` são service names do Docker Compose. O cloudflared os resolve porque está na mesma rede `papermoon-network`.
+> Os nomes `django-api` e `nextjs` são service names do Docker Compose. O cloudflared os resolve
+> porque está na mesma rede `papermoon-network`.
 
 ---
 
-## 3. Clonar e Configurar
+## Variáveis de Ambiente
 
-```bash
-git clone https://github.com/your-org/papermoon.git /opt/papermoon
-cd /opt/papermoon
-```
+O `setup.sh` gera automaticamente todos os segredos criptográficos. Os campos que precisam
+de informação humana são documentados no [.env.production.example](../.env.production.example).
 
-### `.env.production` (na raiz do projeto)
+### Prioridade real das variáveis
 
-```bash
-cp .env.production.example .env.production
-# Editar com os valores reais
-```
-
-| Variável | Valor de produção |
-|---|---|
-| `SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
-| `DEBUG` | `False` |
-| `DATABASE_URL` | `postgres://<usuario>:<senha>@postgres:5432/<database>` |
-| `ALLOWED_HOSTS` | `app.papermoon.example.com,webhooks.papermoon.example.com,django-api` |
-| `REDIS_URL` | `redis://:${REDIS_PASSWORD}@redis:6379/0` |
-| `REDIS_PASSWORD` | Senha forte gerada aleatoriamente |
-| `POSTGRES_PASSWORD` | Senha forte gerada aleatoriamente |
-| `CORS_ALLOWED_ORIGINS` | `https://app.papermoon.example.com` |
-| `FRONTEND_URL` | `https://app.papermoon.example.com` |
-| `ASAAS_API_KEY` | Chave de produção do Asaas |
-| `ASAAS_WEBHOOK_TOKEN` | Token secreto para validar webhooks |
-| `CHATWOOT_API_URL` | URL da instância Chatwoot |
-| `CHATWOOT_API_KEY` | Access token do usuário Chatwoot |
-| `JWT_PRIVATE_KEY` | Deixe vazio — gerada automaticamente (ver seção abaixo) |
-| `JWT_PUBLIC_KEY` | Deixe vazio — gerada automaticamente |
-| `SENTRY_DSN` | DSN do projeto no Sentry (opcional) |
-
-> Se o ambiente ainda estiver com identificadores legados de banco e usuario, mantenha os valores
-> atuais ate executar o runbook [db-identifier-migration.md](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/docs/db-identifier-migration.md).
-
-#### Prioridade real das variaveis
-
-Use esta classificacao para decidir o que precisa estar pronto no dia do corte:
-
-- **Obrigatorias para subir a aplicacao**: `SECRET_KEY`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `REDIS_PASSWORD`, `REDIS_URL`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `FRONTEND_URL`, `REVALIDATE_SECRET`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`.
-- **Obrigatorias para operacao comercial**: `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`.
-- **Opcionais com degradacao controlada**: `CHATWOOT_API_URL`, `CHATWOOT_API_KEY`, `N8N_API_URL`, `N8N_API_KEY`, `META_WHATSAPP_TOKEN`, `META_WABA_ID`, `GLPI_API_URL`, `GLPI_APP_TOKEN`, `GLPI_USER_TOKEN`, `ZABBIX_API_URL`, `ZABBIX_API_TOKEN`.
-- **Opcionais de observabilidade**: `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`.
-
-Notas importantes:
-
-- O backend nao sobe em producao sem `JWT_PRIVATE_KEY` e `JWT_PUBLIC_KEY`; a validacao esta em [production.py](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/backend/core/settings/production.py#L15-L23).
-- O ISR do CMS nao funciona sem `REVALIDATE_SECRET`; a rota retorna `503` em [route.ts](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/frontend/src/app/api/revalidate/route.ts#L15-L19).
-- O faturamento real depende de `ASAAS_API_KEY`; o gateway usa a credencial diretamente em [asaas_adapter.py](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/backend/apps/billing/gateway/asaas_adapter.py#L13-L30).
-- Chatwoot, n8n, GLPI, Zabbix e Meta WhatsApp entram em modo `stub` quando as credenciais nao existem; isso mantem o core da plataforma no ar, mas desabilita o provisionamento real dessas integracoes.
-- Se nao for usar Sentry no corte, deixe `SENTRY_DSN` e `NEXT_PUBLIC_SENTRY_DSN` vazios em vez de manter placeholders `CHANGE-ME`.
+- **Obrigatórias para subir**: `SECRET_KEY`, `POSTGRES_PASSWORD`, `DATABASE_URL`,
+  `REDIS_PASSWORD`, `REDIS_URL`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `FRONTEND_URL`,
+  `REVALIDATE_SECRET`. JWT é gerado automaticamente pelo `deploy.sh`.
+- **Obrigatórias para operação comercial**: `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`,
+  `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`.
+- **Opcionais com degradação controlada**: `CHATWOOT_*`, `N8N_*`, `META_*`, `GLPI_*`,
+  `ZABBIX_*`, `TRUENAS_*`, `RUSTDESK_*` — entram em modo `stub` quando ausentes.
+- **Opcionais de observabilidade**: `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`.
 
 ### Chaves JWT RS256
 
-`deploy.sh` gera o par de chaves automaticamente: antes das migrations, ele verifica se
-`JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY` estão vazias em `.env.production` e, se estiverem, roda
-`manage.py generate_jwt_keys` num container efêmero e grava o resultado direto no arquivo.
-Nenhuma ação manual é necessária no primeiro deploy.
+`deploy.sh` detecta `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY` vazias em `.env.production` e gera
+o par RSA-2048 automaticamente antes das migrations. Nenhuma ação manual é necessária.
 
-Para rotacionar as chaves manualmente (ex: suspeita de comprometimento):
+Para rotacionar (ex: suspeita de comprometimento):
 
 ```bash
 make prod-generate-jwt
-# Copiar JWT_PRIVATE_KEY e JWT_PUBLIC_KEY para .env.production e reiniciar:
-docker compose -f docker-compose.prod.yml up -d --force-recreate django-api celery-worker celery-beat
+# Copiar as chaves geradas para .env.production e reiniciar:
+make prod-up
 ```
 
 ---
 
-## 4. Build e Start
+## Comandos de Operação
+
+Todos os comandos `make prod-*` usam `--env-file .env.production` automaticamente.
 
 ```bash
-cd /opt/papermoon
-
-# Build das imagens de produção (usa Dockerfile.prod para o backend)
-docker compose -f docker-compose.prod.yml build
-
-# Subir todos os serviços
-docker compose -f docker-compose.prod.yml up -d
-
-# Aplicar migrations
-docker compose -f docker-compose.prod.yml exec django-api python manage.py migrate --noinput
-
-# Criar superusuário (primeiro deploy)
-docker compose -f docker-compose.prod.yml exec django-api python manage.py createsuperuser
-
-# ou simplesmente:
-make prod-deploy
+make prod-up             # sobe todos os serviços
+make prod-down           # para todos os serviços
+make prod-logs           # logs em tempo real (api, workers, nextjs)
+make prod-ps             # status dos containers
+make prod-health         # verifica /health/ (db, redis)
+make prod-shell          # Django shell interativo
+make prod-superuser      # cria superusuário admin
+make prod-build          # rebuild completo sem cache
 ```
 
 ---
 
-## 5. Conectar os Containers à Rede do Tunnel
-
-Após o `docker compose up -d`, o Compose conecta `django-api` e `nextjs` automaticamente na rede externa `papermoon-network`, desde que ela exista no host. Verifique:
-
-```bash
-docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}} {{end}}'
-# Deve mostrar: cloudflared papermoon-api papermoon-web
-```
-
-Se `django-api` ou `nextjs` não aparecerem:
-
-```bash
-docker network connect papermoon-network papermoon-api
-docker network connect papermoon-network papermoon-web
-```
-
----
-
-## 6. Smoke Tests
-
-```bash
-# Via Cloudflare (HTTPS externo) — o host de webhook aponta direto para o django-api
-curl https://webhooks.papermoon.example.com/health/
-# Esperado: {"success": true, "data": {"status": "ok", "db": "ok", "redis": "ok"}, "error": null}
-
-curl -I https://app.papermoon.example.com/
-# Esperado: HTTP/2 200
-
-# Verificar que o tunnel recebe os headers corretos
-curl -H "X-Forwarded-Proto: https" http://localhost:8000/health/
-# (acesso direto ao container para debug — use docker exec)
-```
-
----
-
-## 7. Webhook Asaas
+## Webhook Asaas
 
 Registrar no painel Asaas:
 
 ```
-URL: https://webhooks.papermoon.example.com/api/v1/webhooks/asaas/
+URL: https://webhooks.papermoon.cloud/api/v1/webhooks/asaas/
 ```
 
 Token: o mesmo valor de `ASAAS_WEBHOOK_TOKEN` no `.env.production`.
@@ -234,76 +228,54 @@ Eventos: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_DE
 
 ---
 
-## 8. Monitoramento
+## Smoke Tests Pós-Deploy
 
 ```bash
-# Logs em tempo real
-make prod-logs
+# Health check via Cloudflare (o hostname de webhook aponta direto para django-api)
+curl https://webhooks.papermoon.cloud/health/
+# Esperado: {"success":true,"data":{"status":"ok","db":"ok","redis":"ok"},"error":null}
 
-# Status dos containers
-docker compose -f docker-compose.prod.yml ps
-
-# Celery
-docker compose -f docker-compose.prod.yml exec celery-worker \
-  celery -A core.celery_app inspect active
+curl -I https://app.papermoon.cloud/
+# Esperado: HTTP/2 200
 
 # Verificar rede
-docker network inspect papermoon-network
+docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}} {{end}}'
+# Deve conter: cloudflared papermoon-api papermoon-web
 ```
 
 ---
 
-## 9. Atualizações
+## Atualizações (após primeiro deploy)
+
+Deploy automático via GitHub Actions em todo push para `main`. Para deploy manual:
 
 ```bash
 cd /opt/papermoon
-git pull origin main
-
-# Rebuild apenas das imagens alteradas
-docker compose -f docker-compose.prod.yml build django-api celery-worker celery-beat nextjs
-
-# Aplicar migrations e reiniciar (zero-downtime para workers e nextjs)
-docker compose -f docker-compose.prod.yml exec django-api python manage.py migrate --noinput
-docker compose -f docker-compose.prod.yml up -d --no-deps django-api celery-worker celery-beat nextjs
+bash deploy.sh           # pull + build + migrate + restart + health check
 ```
-
-> `--no-deps` garante que `postgres` e `redis` não são reiniciados enquanto a aplicação atualiza.
 
 ---
 
-## 10. Backup do Banco
+## Backup
 
 ```bash
-export $(grep -E '^(POSTGRES_DB|POSTGRES_USER)=' .env.production | xargs)
-docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres \
-  pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup_$(date +%Y%m%d).sql
+make prod-backup          # executa agora
+make prod-backup-list     # lista backups locais
+make prod-restore FILE=backups/daily/papermoon_TIMESTAMP.sql.gz
 ```
 
-Cron diário (2h da manhã):
-
-```
-0 2 * * * cd /opt/papermoon && export $$(grep -E '^(POSTGRES_DB|POSTGRES_USER)=' .env.production | xargs) && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB" > /backups/papermoon_$$(date +\%Y\%m\%d).sql
-```
-
-> Para concluir a troca dos identificadores de banco/usuario legados, siga o runbook
-> [db-identifier-migration.md](file:///c:/Users/yuri.menezes/Desktop/Projetos/papermoon/docs/db-identifier-migration.md).
+Cron de backup diário às 02:00 é instalado automaticamente pelo `setup.sh`.
 
 ---
 
 ## Rollback
 
-```bash
-git checkout <commit-sha>
-docker compose -f docker-compose.prod.yml build django-api celery-worker celery-beat nextjs
-docker compose -f docker-compose.prod.yml exec django-api python manage.py migrate --noinput
-docker compose -f docker-compose.prod.yml up -d --no-deps django-api celery-worker celery-beat nextjs
-```
-
-Reverter migration:
+O `deploy.sh` faz rollback automático em caso de falha. Para rollback manual:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec django-api \
-  python manage.py migrate <app_name> <migration_anterior>
+cd /opt/papermoon
+git checkout <commit-anterior>
+bash deploy.sh --skip-pull
 ```
 
 ---
@@ -312,10 +284,12 @@ docker compose -f docker-compose.prod.yml exec django-api \
 
 | Sintoma | Causa provável | Solução |
 |---|---|---|
-| `django-api` sai imediatamente | `.env.production` com variável faltando | `docker compose -f docker-compose.prod.yml logs django-api` |
-| 502 no Cloudflare | Container `django-api` ou `nextjs` não está up | `docker compose -f docker-compose.prod.yml ps` |
-| Cookies não marcados como Secure | `X-Forwarded-Proto` não chegando no Django | Verificar logs cloudflared; confirmar `SECURE_PROXY_SSL_HEADER` em `production.py` |
-| Tunnel não resolve `django-api` | cloudflared não está em `papermoon-network` | `docker network connect papermoon-network <cloudflared-container>` |
-| Webhook retorna 403 | `ASAAS_WEBHOOK_TOKEN` divergente | Conferir token no `.env.production` vs painel Asaas |
-| Celery tasks paradas | `celery-worker` ou `celery-beat` down | `docker compose -f docker-compose.prod.yml up -d celery-worker celery-beat` |
-| Redis `NOAUTH` | `REDIS_PASSWORD` não definido no `REDIS_URL` | Confirmar que `REDIS_URL=redis://:SENHA@redis:6379/0` |
+| `django-api` sai imediatamente | Variável faltando em `.env.production` | `make prod-logs` |
+| 502 no Cloudflare | Container `django-api` ou `nextjs` não está up | `make prod-ps` |
+| Cookies não marcados como Secure | `X-Forwarded-Proto` não chegando | Verificar logs cloudflared |
+| Tunnel não resolve `django-api` | cloudflared não está em `papermoon-network` | `make tunnel-connect` |
+| Webhook retorna 403 | `ASAAS_WEBHOOK_TOKEN` divergente | Conferir token vs painel Asaas |
+| Celery tasks paradas | `celery-worker` ou `celery-beat` down | `make prod-up` |
+| Redis `NOAUTH` | `REDIS_PASSWORD` não definido no `REDIS_URL` | Confirmar `REDIS_URL=redis://:SENHA@redis:6379/0` |
+| Postgres sem senha | `--env-file .env.production` não passado | Usar `make prod-*` (já inclui) |
+| Static files 404 | Build sem collectstatic | `make prod-build` (Dockerfile.prod coleta no build) |

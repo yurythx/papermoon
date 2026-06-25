@@ -8,10 +8,10 @@ PaperMoon e um ecossistema SaaS multi-tenant para gerenciamento de clientes, fat
 
 ---
 
-## Quickstart
+## Quickstart — Desenvolvimento
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 make dev        # sobe todos os servicos (Django, Next.js, Postgres, Redis, Celery)
 make migrate    # aplica as migrations
 make seed       # popula dados de demonstracao
@@ -26,7 +26,7 @@ Acesse:
 | Swagger UI | http://localhost:8000/api/v1/docs/ |
 | MailHog | http://localhost:8025 |
 
-Credenciais seed atuais:
+Credenciais seed:
 
 | Conta | Senha | Papel |
 |---|---|---|
@@ -34,7 +34,34 @@ Credenciais seed atuais:
 | owner@acme.com | demo123 | owner |
 | owner@techcorp.com | demo123 | owner |
 
-> O acompanhamento operacional desta plataforma esta consolidado em `docs/checklists/papermoon-rebranding-checklist.md`.
+---
+
+## Quickstart — Stack de Produção Local
+
+Para testar o stack de produção (Gunicorn, Redis com senha, Celery workers, Next.js standalone) na máquina de desenvolvimento:
+
+```bash
+make local-prod-setup   # gera .env.production, cria rede Docker, builda e sobe tudo
+make prod-superuser     # cria superusuário admin
+make local-prod-logs    # acompanhar logs
+make local-prod-down    # parar
+```
+
+Acesse em http://localhost:3000 (frontend) e http://localhost:8000/admin/ (Django admin).
+
+---
+
+## Deploy em Produção
+
+```bash
+# Na VPS (primeiro deploy):
+git clone https://github.com/yurythx/papermoon.git /opt/papermoon
+cd /opt/papermoon
+sudo bash setup.sh      # instala Docker, gera segredos, pergunta domínio/e-mail/Asaas, faz deploy
+```
+
+Deployos subsequentes são automáticos via GitHub Actions (push para `main` → CI → CD).
+Guia completo: `docs/deployment.md`.
 
 ---
 
