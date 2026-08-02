@@ -4,13 +4,15 @@ import axios from "axios";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/lib/services";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Spinner } from "@/components/ui/spinner";
 import { PaperMoonMark } from "@/components/common/papermoon-mark";
-import { Shield, Zap, HeadphonesIcon, Server, CheckCircle, AlertCircle } from "lucide-react";
+import { Shield, Zap, HeadphonesIcon, Server, CheckCircle, AlertCircle, KeyRound } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 /* ── Left-panel feature list ────────────────────────────────────────── */
@@ -34,6 +36,16 @@ function LoginForm() {
 
   const passwordReset = params.get("reset") === "1";
   const fromInvite = params.get("invited") === "1";
+  const ssoError = params.get("error");
+
+  // Runtime toggle — reflects Backoffice → Configurações, not a build-time env var.
+  // Defaults to hidden until the check resolves, so the button never flashes then disappears.
+  const { data: ssoStatus } = useQuery({
+    queryKey: ["sso-status"],
+    queryFn: authService.getSSOStatus,
+    staleTime: 30_000,
+  });
+  const ssoEnabled = ssoStatus?.enabled === true;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +79,14 @@ function LoginForm() {
         <div className="rounded-xl bg-success-muted border border-success/20 px-4 py-3 flex items-start gap-2.5">
           <CheckCircle size={15} className="text-success shrink-0 mt-0.5" />
           <p className="text-sm text-success">Conta criada! Faça login para continuar.</p>
+        </div>
+      )}
+      {ssoError && (
+        <div className="rounded-xl bg-danger-muted border border-danger/20 px-4 py-3 flex items-start gap-2.5">
+          <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
+          <p className="text-sm text-danger">
+            Não foi possível entrar com o Keycloak. Tente novamente ou use e-mail e senha.
+          </p>
         </div>
       )}
 
@@ -116,6 +136,28 @@ function LoginForm() {
       <Button type="submit" variant="primary" size="lg" disabled={loading} className="w-full mt-2">
         {loading ? "Entrando..." : "Entrar na conta"}
       </Button>
+
+      {ssoEnabled && (
+        <>
+          <div className="flex items-center gap-3 py-1">
+            <div className="h-px flex-1 bg-border-default" />
+            <span className="text-xs text-text-tertiary">ou</span>
+            <div className="h-px flex-1 bg-border-default" />
+          </div>
+
+          <a href="/api/auth/sso" className="block">
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="w-full"
+              leftIcon={<KeyRound size={16} />}
+            >
+              Entrar com Keycloak
+            </Button>
+          </a>
+        </>
+      )}
     </form>
   );
 }

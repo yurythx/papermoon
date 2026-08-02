@@ -236,6 +236,29 @@ export interface APIUsageRow {
   reset_at: string;
 }
 
+// Admin — SSO configuration (Backoffice → Configurações)
+export interface SSOConfig {
+  enabled: boolean;
+  issuer: string;
+  client_id: string;
+  client_secret_set: boolean;
+  redirect_uri: string;
+  updated_at: string | null;
+  updated_by_email: string | null;
+}
+
+export interface SSOConfigUpdatePayload {
+  enabled: boolean;
+  issuer?: string;
+  client_id?: string;
+  client_secret?: string;
+}
+
+export interface SSOTestResult {
+  reachable: boolean;
+  message: string;
+}
+
 // Admin — Audit Log
 export interface AuditLogEntry {
   id: string;

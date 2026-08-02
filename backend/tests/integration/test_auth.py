@@ -263,6 +263,109 @@ class TestPasswordResetEndpoints:
 
 
 @pytest.mark.django_db
+class TestSSOEndpoints:
+    LOGIN_URL = "/api/v1/auth/sso/login/"
+    CALLBACK_URL = "/api/v1/auth/sso/callback/"
+
+    def test_login_not_configured_returns_503(self, client):
+        from unittest.mock import patch
+
+        from apps.accounts.oidc import SSONotConfiguredError
+
+        with patch(
+            "apps.accounts.views.build_authorize_url", side_effect=SSONotConfiguredError("x")
+        ):
+            resp = client.get(self.LOGIN_URL)
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "sso_not_configured"
+
+    def test_login_returns_authorize_url(self, client):
+        from unittest.mock import patch
+
+        with patch(
+            "apps.accounts.views.build_authorize_url",
+            return_value="https://keycloak.example.com/authorize?state=abc",
+        ):
+            resp = client.get(self.LOGIN_URL)
+        assert resp.status_code == 200
+        assert resp.json()["data"]["authorize_url"].startswith("https://keycloak.example.com")
+
+    def test_callback_missing_fields_returns_400(self, client):
+        resp = client.post(self.CALLBACK_URL, {}, format="json")
+        assert resp.status_code == 400
+        assert resp.json()["error"]["code"] == "missing_fields"
+
+    def test_callback_invalid_state_returns_400(self, client):
+        from unittest.mock import patch
+
+        from apps.accounts.oidc import SSOStateInvalidError
+
+        with patch("apps.accounts.views.exchange_code", side_effect=SSOStateInvalidError("x")):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "bad"}, format="json")
+        assert resp.status_code == 400
+        assert resp.json()["error"]["code"] == "invalid_state"
+
+    def test_callback_exchange_failure_returns_400(self, client):
+        from unittest.mock import patch
+
+        from apps.accounts.oidc import SSOExchangeFailedError
+
+        with patch("apps.accounts.views.exchange_code", side_effect=SSOExchangeFailedError("x")):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+        assert resp.status_code == 400
+        assert resp.json()["error"]["code"] == "sso_exchange_failed"
+
+    def test_callback_non_staff_account_returns_403(self, client, user):
+        from unittest.mock import patch
+
+        from apps.accounts.oidc import SSOClaims
+
+        # `user` fixture is not is_staff — same account exists, but has no backoffice access.
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(email=user.email, subject="kc-sub-1"),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+        assert resp.status_code == 403
+        assert resp.json()["error"]["code"] == "sso_account_not_staff"
+
+    def test_callback_unknown_email_returns_403(self, client):
+        from unittest.mock import patch
+
+        from apps.accounts.oidc import SSOClaims
+
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(email="ghost@papermoon.com", subject="kc-sub-2"),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+        assert resp.status_code == 403
+
+    def test_callback_staff_account_issues_tokens(self, client, db):
+        from unittest.mock import patch
+
+        from apps.accounts.models import CustomUser
+        from apps.accounts.oidc import SSOClaims
+
+        staff = CustomUser.objects.create_user(
+            username="staffsso",
+            email="staff@papermoon.com",
+            password="unused-password",
+            is_staff=True,
+        )
+
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(email=staff.email, subject="kc-sub-3"),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert "access" in data
+        assert "refresh" in data
+
+
+@pytest.mark.django_db
 class TestRegisterEndpoint:
     URL = "/api/v1/auth/register/"
 

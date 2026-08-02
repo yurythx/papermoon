@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes, force_str
@@ -6,7 +5,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,25 +13,47 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.accounts.models import SSOConfiguration
+from apps.accounts.oidc import (
+    SSOExchangeFailedError,
+    SSONotConfiguredError,
+    SSOStateInvalidError,
+    build_authorize_url,
+    exchange_code,
+    test_issuer_connectivity,
+)
 from apps.accounts.security import LoginAttemptGuard
 from apps.accounts.serializers import RegisterSerializer
+from apps.accounts.sso_config import get_sso_config, update_sso_config
+from apps.audit.utils import log_action
 from shared.email import send_html_email
 from shared.public_urls import build_frontend_url
 from shared.schemas import (
+    AuthorizeUrlResponseSerializer,
     ChangePasswordRequestSerializer,
     LogoutRequestSerializer,
     MeResponseSerializer,
     MessageResponseSerializer,
     PasswordResetConfirmRequestSerializer,
+    SSOCallbackRequestSerializer,
+    SSOConfigResponseSerializer,
+    SSOConfigUpdateRequestSerializer,
+    SSOStatusResponseSerializer,
+    SSOTestRequestSerializer,
+    SSOTestResponseSerializer,
+    TokenPairResponseSerializer,
 )
 from shared.schemas import (
     PasswordResetRequestSerializer as PasswordResetRequestBodySerializer,
 )
 from shared.throttling import (
+    AdminWriteThrottle,
     LoginRateThrottle,
     PasswordResetRateThrottle,
     RefreshRateThrottle,
     RegisterRateThrottle,
+    SSORateThrottle,
+    SSOTestRateThrottle,
 )
 
 User = get_user_model()
@@ -454,3 +475,260 @@ class ChangePasswordView(APIView):
         request.user.set_password(new_password)
         request.user.save(update_fields=["password"])
         return Response({"message": "Senha alterada com sucesso."})
+
+
+@extend_schema(tags=["Auth"])
+class SSOLoginView(APIView):
+    """
+    Inicia o fluxo OIDC de SSO (staff only). Só deve ser chamado server-to-server
+    pelo BFF (app/api/auth/sso/route.ts) — nunca diretamente pelo browser.
+    Ver docs/adrs/0002-sso-keycloak-staff.md.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [SSORateThrottle]
+
+    @extend_schema(
+        summary="Iniciar login SSO via Keycloak",
+        description=(
+            "Gera state/nonce/PKCE e retorna a authorize URL do Keycloak. Devolve JSON "
+            "em vez de um 302 de verdade porque quem chama isto é o Next.js server-side "
+            "(não o browser) — deixa o redirecionamento real do browser a cargo do BFF, "
+            "evitando depender de como cada runtime de fetch trata `redirect: 'manual''."
+        ),
+        responses={200: AuthorizeUrlResponseSerializer, 503: None},
+    )
+    def get(self, request: Request) -> Response:
+        try:
+            authorize_url = build_authorize_url()
+        except SSONotConfiguredError:
+            return Response(
+                {
+                    "code": "sso_not_configured",
+                    "message": "SSO não está configurado.",
+                    "details": [],
+                },
+                status=503,
+            )
+        return Response({"authorize_url": authorize_url})
+
+
+@extend_schema(tags=["Auth"])
+class SSOCallbackView(APIView):
+    """
+    Recebe `code`/`state` do BFF (não do Keycloak diretamente — ver ADR 0002),
+    troca pelo id_token, valida e emite o par de tokens RS256 de sempre.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [SSORateThrottle]
+
+    @extend_schema(
+        summary="Concluir login SSO via Keycloak",
+        description=(
+            "Troca o authorization code pelo id_token, valida as claims e emite "
+            "access/refresh no mesmo formato do /auth/login/. Só autentica contas "
+            "com is_staff=True — não faz JIT provisioning de conta nova."
+        ),
+        request=SSOCallbackRequestSerializer,
+        responses={200: TokenPairResponseSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        code = request.data.get("code", "")
+        state = request.data.get("state", "")
+        if not code or not state:
+            return Response(
+                {
+                    "code": "missing_fields",
+                    "message": "code e state são obrigatórios.",
+                    "details": [],
+                },
+                status=400,
+            )
+
+        try:
+            claims = exchange_code(code, state)
+        except SSOStateInvalidError:
+            return Response(
+                {
+                    "code": "invalid_state",
+                    "message": "Sessão de login expirada ou inválida. Tente novamente.",
+                    "details": [],
+                },
+                status=400,
+            )
+        except SSOExchangeFailedError:
+            return Response(
+                {
+                    "code": "sso_exchange_failed",
+                    "message": "Não foi possível validar o login via Keycloak.",
+                    "details": [],
+                },
+                status=400,
+            )
+        except SSONotConfiguredError:
+            return Response(
+                {
+                    "code": "sso_not_configured",
+                    "message": "SSO não está configurado.",
+                    "details": [],
+                },
+                status=503,
+            )
+
+        user = User.objects.filter(
+            email__iexact=claims.email, is_staff=True, is_active=True
+        ).first()
+        if not user:
+            return Response(
+                {
+                    "code": "sso_account_not_staff",
+                    "message": "Esta conta não tem acesso de staff ao backoffice.",
+                    "details": [],
+                },
+                status=403,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
+
+
+@extend_schema(tags=["Auth"])
+class SSOStatusView(APIView):
+    """Endpoint público — a tela de login usa isso pra decidir se mostra o botão de SSO."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Status público do SSO",
+        description="Só expõe se o SSO está ativado — nunca issuer/client_id/secret.",
+        responses={200: SSOStatusResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        config = get_sso_config()
+        return Response({"enabled": config.enabled})
+
+
+def _serialize_sso_config(row: SSOConfiguration) -> dict:
+    from django.conf import settings
+
+    return {
+        "enabled": row.enabled,
+        "issuer": row.issuer,
+        "client_id": row.client_id,
+        "client_secret_set": bool(row.client_secret_encrypted),
+        "redirect_uri": f"{settings.FRONTEND_URL}/api/auth/sso/callback",
+        "updated_at": row.updated_at,
+        "updated_by_email": row.updated_by.email if row.updated_by else None,
+    }
+
+
+@extend_schema(tags=["Admin — SSO"])
+class SSOConfigAdminView(APIView):
+    """Ver/editar a configuração de SSO de staff. Ver docs/backend/sso-keycloak-integration.md."""
+
+    permission_classes = [IsAdminUser]
+
+    def get_throttles(self) -> list:
+        if self.request.method == "PATCH":
+            return [AdminWriteThrottle()]
+        return super().get_throttles()
+
+    @extend_schema(
+        summary="Ver configuração de SSO",
+        description="client_secret nunca é retornado em texto puro — só client_secret_set.",
+        responses={200: SSOConfigResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        row = SSOConfiguration.get_solo()
+        return Response(_serialize_sso_config(row))
+
+    @extend_schema(
+        summary="Atualizar configuração de SSO",
+        description=(
+            "client_secret em branco mantém o segredo já salvo. Ativar (enabled=true) "
+            "exige issuer, client_id e um client_secret (novo ou já salvo)."
+        ),
+        request=SSOConfigUpdateRequestSerializer,
+        responses={200: SSOConfigResponseSerializer},
+    )
+    def patch(self, request: Request) -> Response:
+        serializer = SSOConfigUpdateRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # Campos ausentes do body (não apenas em branco) mantêm o valor já salvo —
+        # desativar o SSO com só {"enabled": false} não pode apagar issuer/client_id.
+        existing = SSOConfiguration.get_solo()
+        issuer = data.get("issuer", existing.issuer)
+        client_id = data.get("client_id", existing.client_id)
+        has_secret = bool(data.get("client_secret") or existing.client_secret_encrypted)
+
+        if data["enabled"] and not (issuer and client_id and has_secret):
+            return Response(
+                {
+                    "code": "validation_error",
+                    "message": "issuer, client_id e client_secret são obrigatórios para ativar o SSO.",
+                    "details": [],
+                },
+                status=400,
+            )
+
+        row = update_sso_config(
+            enabled=data["enabled"],
+            issuer=issuer,
+            client_id=client_id,
+            client_secret=data.get("client_secret") or None,
+            user=request.user,
+        )
+
+        log_action(
+            "sso_config.updated",
+            "SSOConfiguration",
+            row.pk,
+            user=request.user,
+            request=request,
+            changes={
+                "enabled": row.enabled,
+                "issuer": row.issuer,
+                "client_id": row.client_id,
+                "client_secret_changed": bool(data.get("client_secret")),
+            },
+        )
+        return Response(_serialize_sso_config(row))
+
+
+@extend_schema(tags=["Admin — SSO"])
+class SSOConfigTestView(APIView):
+    """Testa conectividade com o Keycloak — não valida client_id/secret nem faz login completo."""
+
+    permission_classes = [IsAdminUser]
+    throttle_classes = [SSOTestRateThrottle]
+
+    @extend_schema(
+        summary="Testar conectividade com o Keycloak",
+        description=(
+            "Confirma que o issuer é alcançável e expõe um discovery document OIDC "
+            'válido. Não é um teste de login completo — para isso, use "Entrar com '
+            'Keycloak" em /login.'
+        ),
+        request=SSOTestRequestSerializer,
+        responses={200: SSOTestResponseSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        issuer = (request.data.get("issuer") or "").strip()
+        if not issuer:
+            issuer = SSOConfiguration.get_solo().issuer
+
+        if not issuer:
+            return Response(
+                {
+                    "code": "missing_fields",
+                    "message": "Informe o issuer para testar.",
+                    "details": [],
+                },
+                status=400,
+            )
+
+        result = test_issuer_connectivity(issuer)
+        return Response(result)

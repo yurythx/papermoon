@@ -26,6 +26,9 @@ import type {
   Pricing,
   Product,
   ServiceAccess,
+  SSOConfig,
+  SSOConfigUpdatePayload,
+  SSOTestResult,
   Subscription,
   TeamMember,
 } from "@/types";
@@ -62,6 +65,11 @@ export const authService = {
         current_password: currentPassword,
         new_password: newPassword,
       })
+      .then(unwrap),
+
+  getSSOStatus: (): Promise<{ enabled: boolean }> =>
+    api
+      .get<{ success: boolean; data: { enabled: boolean }; error: null }>("/auth/sso/status")
       .then(unwrap),
 };
 
@@ -412,6 +420,20 @@ export const adminService = {
 
   deleteCmsGalleryImage: (slug: string, pk: number): Promise<void> =>
     api.delete(`/proxy/admin/cms/pages/${slug}/gallery/${pk}/`).then(() => undefined),
+
+  // SSO (Configurações)
+  getSSOConfig: (): Promise<SSOConfig> =>
+    api.get<{ success: boolean; data: SSOConfig; error: null }>("/proxy/admin/sso-config/").then(unwrap),
+
+  updateSSOConfig: (data: SSOConfigUpdatePayload): Promise<SSOConfig> =>
+    api
+      .patch<{ success: boolean; data: SSOConfig; error: null }>("/proxy/admin/sso-config/", data)
+      .then(unwrap),
+
+  testSSOConfig: (issuer?: string): Promise<SSOTestResult> =>
+    api
+      .post<{ success: boolean; data: SSOTestResult; error: null }>("/proxy/admin/sso-config/test/", { issuer })
+      .then(unwrap),
 };
 
 export const notificationService = {

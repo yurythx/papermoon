@@ -105,6 +105,7 @@ const ADMIN_NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { href: "/backoffice/audit", label: "Auditoria", icon: Shield },
       { href: "/backoffice/health", label: "Status", icon: Activity },
+      { href: "/backoffice/settings", label: "Configurações", icon: Settings },
     ],
   },
 ];

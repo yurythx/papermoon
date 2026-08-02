@@ -3239,7 +3239,9 @@ class Command(BaseCommand):
             # Responsibilities
             ServiceResponsibility.objects.filter(page=page).delete()
             for i, text in enumerate(page_data["papermoon_does"], 1):
-                ServiceResponsibility.objects.create(page=page, side="papermoon", text=text, order=i)
+                ServiceResponsibility.objects.create(
+                    page=page, side="papermoon", text=text, order=i
+                )
             for i, text in enumerate(page_data["client_does"], 1):
                 ServiceResponsibility.objects.create(page=page, side="client", text=text, order=i)
 

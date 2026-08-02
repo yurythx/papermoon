@@ -157,6 +157,67 @@ class LogoutRequestSerializer(serializers.Serializer):
     refresh = serializers.CharField(help_text="Refresh token JWT a ser invalidado.")
 
 
+class SSOCallbackRequestSerializer(serializers.Serializer):
+    code = serializers.CharField(help_text="Authorization code retornado pelo Keycloak.")
+    state = serializers.CharField(help_text="state gerado por /auth/sso/login/.")
+
+
+class TokenPairResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class AuthorizeUrlResponseSerializer(serializers.Serializer):
+    authorize_url = serializers.URLField()
+
+
+class SSOStatusResponseSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+
+
+class SSOConfigResponseSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    issuer = serializers.CharField(allow_blank=True)
+    client_id = serializers.CharField(allow_blank=True)
+    client_secret_set = serializers.BooleanField()
+    redirect_uri = serializers.CharField()
+    updated_at = serializers.DateTimeField(allow_null=True)
+    updated_by_email = serializers.EmailField(allow_null=True)
+
+
+class SSOConfigUpdateRequestSerializer(serializers.Serializer):
+    """
+    PATCH parcial de verdade: `issuer`/`client_id`/`client_secret` ausentes do body
+    mantêm o valor já salvo (sem `default=""` — um campo ausente não aparece em
+    `validated_data`, então a view consegue distinguir "omitido" de "enviado em
+    branco"). A validação de "enabled exige issuer/client_id/secret" fica na view,
+    que é quem tem acesso ao valor já salvo no banco para fazer o fallback.
+    """
+
+    enabled = serializers.BooleanField()
+    issuer = serializers.CharField(required=False, allow_blank=True)
+    client_id = serializers.CharField(required=False, allow_blank=True)
+    client_secret = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Omitido (ou em branco) mantém o segredo já salvo.",
+    )
+
+
+class SSOTestRequestSerializer(serializers.Serializer):
+    issuer = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Se omitido, testa o issuer já salvo.",
+    )
+
+
+class SSOTestResponseSerializer(serializers.Serializer):
+    reachable = serializers.BooleanField()
+    message = serializers.CharField()
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

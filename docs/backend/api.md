@@ -108,6 +108,69 @@ Cria `Customer` + `CustomerProfile` para o usuário pendente.
 
 **Auth:** `is_staff=True`
 
+### `GET /auth/sso/login/`
+Inicia o fluxo OIDC de SSO (staff only, via Keycloak). Gera `state`/PKCE/`nonce` e
+retorna `200 { "authorize_url": "..." }`. **Chamado apenas server-to-server pelo BFF**
+(`app/api/auth/sso/route.ts`, que faz o redirect de verdade para o browser) — nunca
+diretamente pelo browser. Ver `docs/backend/sso-keycloak-integration.md`.
+
+**Auth:** `AllowAny`. Retorna `503 sso_not_configured` se o SSO estiver desativado ou
+incompleto em `SSOConfiguration` (editável em Backoffice → Configurações).
+
+### `POST /auth/sso/callback/`
+Troca o `code` recebido do Keycloak pelo `id_token`, valida claims (`iss`, `aud`,
+`exp`, `nonce`, assinatura via JWKS) e emite o par JWT de sempre — **só para contas
+com `is_staff=True`** (sem JIT provisioning). Chamado pelo BFF
+(`app/api/auth/sso/callback/route.ts`), não pelo Keycloak diretamente.
+
+**Body:** `{ "code": "...", "state": "..." }`
+
+**Response 200:** `{ "access": "...", "refresh": "..." }`
+
+**Erros:** `400 invalid_state` (state expirado/reutilizado) · `400 sso_exchange_failed`
+(id_token inválido) · `403 sso_account_not_staff` (e-mail não é staff) ·
+`503 sso_not_configured`
+
+### `GET /auth/sso/status/`
+Endpoint público — só expõe `{ "enabled": true|false }`, nunca issuer/client_id/secret.
+Consultado pela tela `/login` (via `GET /api/auth/sso/status` no BFF) pra decidir se
+mostra o botão "Entrar com Keycloak". Reflete o toggle do backoffice em até 30s (TTL do
+cache — ver `apps/accounts/sso_config.py`).
+
+**Auth:** `AllowAny`
+
+---
+
+## Admin — SSO
+
+> Requer `is_staff=True`. Ver `docs/backend/sso-keycloak-integration.md` para o guia
+> completo de configuração (criar client no Keycloak, preencher aqui, testar).
+
+### `GET /admin/sso-config/`
+Estado atual da configuração de SSO. `client_secret` nunca é retornado — só
+`client_secret_set: bool`.
+
+**Response:** `{ "enabled": bool, "issuer": str, "client_id": str, "client_secret_set": bool, "redirect_uri": str, "updated_at": str|null, "updated_by_email": str|null }`
+
+### `PATCH /admin/sso-config/`
+Atualiza a configuração. **PATCH parcial de verdade**: `issuer`/`client_id`/
+`client_secret` ausentes do body mantêm o valor já salvo (ex: `{"enabled": false}`
+sozinho só desliga o toggle, não apaga o resto). Ativar (`enabled: true`) exige
+`issuer` + `client_id` + um `client_secret` (novo ou já salvo) — senão
+`400 validation_error`. Grava `AuditLog(sso_config.updated)` sem o valor do segredo.
+
+**Body:** `{ "enabled": bool, "issuer"?: str, "client_id"?: str, "client_secret"?: str }`
+
+### `POST /admin/sso-config/test/`
+Testa conectividade com o Keycloak: busca `{issuer}/.well-known/openid-configuration` e
+confirma que os endpoints OIDC existem e o `issuer` bate. **Não valida
+client_id/client_secret nem faz um login completo** — para isso, use o botão "Entrar
+com Keycloak" em `/login` de verdade.
+
+**Body:** `{ "issuer"?: str }` — se omitido, testa o issuer já salvo.
+
+**Response:** `{ "reachable": bool, "message": str }`
+
 ---
 
 ## Convites

@@ -11,6 +11,9 @@ from apps.accounts.views import (
     ProvisionUserView,
     RefreshTokenView,
     RegisterView,
+    SSOCallbackView,
+    SSOLoginView,
+    SSOStatusView,
 )
 
 urlpatterns = [
@@ -36,4 +39,7 @@ urlpatterns = [
         ProvisionUserView.as_view(),
         name="auth-provision-user",
     ),
+    path("sso/login/", SSOLoginView.as_view(), name="auth-sso-login"),
+    path("sso/callback/", SSOCallbackView.as_view(), name="auth-sso-callback"),
+    path("sso/status/", SSOStatusView.as_view(), name="auth-sso-status"),
 ]

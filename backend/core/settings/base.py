@@ -148,6 +148,8 @@ REST_FRAMEWORK = {
         "password_reset": "5/hour",  # Previne bomba de e-mail e força-bruta de tokens
         "contact": "5/hour",
         "register": "5/hour",
+        "sso": "20/minute",
+        "sso_test": "10/minute",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": [
@@ -194,6 +196,12 @@ ASAAS_WEBHOOK_TOKEN = env("ASAAS_WEBHOOK_TOKEN", default="")
 # --- Chatwoot ---
 CHATWOOT_API_URL = env("CHATWOOT_API_URL", default="")
 CHATWOOT_API_KEY = env("CHATWOOT_API_KEY", default="")
+
+# --- Keycloak SSO (login de staff via OIDC) ---
+# Não há mais KEYCLOAK_SSO_* aqui: a config (enabled/issuer/client_id/client_secret)
+# é editável em runtime pelo backoffice (Configurações) e vive em SSOConfiguration
+# (apps.accounts.models) — ver docs/backend/sso-keycloak-integration.md. O redirect_uri
+# é derivado de FRONTEND_URL (abaixo), não é um campo configurável separado.
 
 # --- Cache (Redis) ---
 CACHES = {

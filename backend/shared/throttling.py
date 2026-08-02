@@ -36,3 +36,16 @@ class RegisterRateThrottle(ScopedRateThrottle):
     """5 cadastros por hora por IP — impede criação em massa de contas."""
 
     scope = "register"
+
+
+class SSORateThrottle(ScopedRateThrottle):
+    """20 tentativas/minuto por IP nos endpoints de SSO (login e callback)."""
+
+    scope = "sso"
+
+
+class SSOTestRateThrottle(ScopedRateThrottle):
+    """10 testes de conectividade/minuto — mais folgado que admin_write pois é
+    diagnóstico (o admin pode querer testar algumas vezes seguidas ajustando a URL)."""
+
+    scope = "sso_test"
