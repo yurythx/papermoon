@@ -5,6 +5,7 @@ import {
   Layers,
   Cpu,
   Archive,
+  Container,
   Check,
   Users,
   Award,
@@ -99,6 +100,22 @@ const SPECIALTIES = [
       "Testes regulares de restauração para validar o DRP (Disaster Recovery Plan)",
     ],
   },
+  {
+    icon: Container,
+    color: "text-brand-accent",
+    bg: "bg-brand-accent/10",
+    border: "border-brand-accent/20",
+    title: "DevOps e infraestrutura como código",
+    description:
+      "Além da infraestrutura física, atuamos na camada de automação e orquestração que sustenta ambientes modernos — containerização, provisionamento declarativo e engenharia de software sob medida quando a operação exige mais do que configuração manual.",
+    items: [
+      "Containerização com Docker e orquestração de múltiplos serviços via Docker Compose",
+      "Infraestrutura como código com Terraform — provisionamento declarativo e versionado",
+      "Gerência de configuração e automação de servidores com Ansible",
+      "Backend enterprise em Python/Django (DRF, Celery, arquitetura orientada a domínio)",
+      "Serviços de alta performance em Go para cargas sensíveis a latência",
+    ],
+  },
 ];
 
 const VALUES = [
@@ -162,7 +179,7 @@ export default function SobrePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 max-w-2xl mx-auto">
             {[
               { value: "10+", label: "Anos de experiência" },
-              { value: "4", label: "Especialidades técnicas" },
+              { value: "5", label: "Especialidades técnicas" },
               { value: "100%", label: "Open-source" },
               { value: "∞", label: "Suporte incluso" },
             ].map((stat) => (

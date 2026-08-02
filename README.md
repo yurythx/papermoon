@@ -124,5 +124,6 @@ Regras de arquitetura:
 - Arquitetura backend: `docs/backend/architecture.md`
 - Arquitetura frontend: `docs/frontend/architecture.md`
 - Deploy: `docs/deployment.md`
+- Stack tecnica e capacidades (Python/Django, Docker, Terraform, Ansible, Go): `docs/tech-stack.md`
 - ADR de rebranding: `docs/adrs/0001-papermoon-rebranding.md`
 - Checklist de migracao: `docs/checklists/papermoon-rebranding-checklist.md`
