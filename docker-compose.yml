@@ -27,6 +27,15 @@ services:
       timeout: 3s
       retries: 5
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: papermoon-jaeger-dev
+    ports:
+      - "16686:16686"  # UI — http://localhost:16686
+      - "4317:4317"    # OTLP gRPC receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
   django-api:
     container_name: papermoon-api-dev
     build: ./backend
@@ -39,11 +48,16 @@ services:
       - ./backend/.env
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.local
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-django
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     develop:
       watch:
         - action: sync
@@ -67,11 +81,16 @@ services:
       - ./backend/.env
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.local
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-celery-worker
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     develop:
       watch:
         - action: sync+restart
@@ -104,11 +123,16 @@ services:
       - ./backend/.env
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.local
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-celery-beat
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     develop:
       watch:
         - action: sync+restart

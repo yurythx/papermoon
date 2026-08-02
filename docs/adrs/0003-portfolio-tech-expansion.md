@@ -21,7 +21,12 @@ Todas as quatro entram no roadmap (Fase 5 do `CLAUDE.md`), na ordem de prioridad
 Ordem reflete relação esforço/risco vs. valor — não é obrigatório seguir em sequência, mas
 cada uma depois da primeira assume que a anterior está em produção.
 
-### 5.1 OpenTelemetry + tracing distribuído (prioridade mais alta)
+### 5.1 OpenTelemetry + tracing distribuído (prioridade mais alta) — Implementado
+
+> Backend implementado (Django, Celery, Postgres, Redis, requests + linking do
+> OutboxEvent). Detalhes completos, como rodar localmente e status de produção:
+> `docs/backend/observability.md`. Frontend (Next.js/`@vercel/otel`) ainda não
+> feito — próximo incremento desta seção, não bloqueia o resto.
 
 **Problema real que resolve:** a cadeia `View → OutboxEvent → Celery task → Provisioner →
 API externa` é hoje impossível de rastrear ponta a ponta. Quando um `customer.created`
@@ -37,8 +42,10 @@ correlação com o request HTTP que originou tudo.
   um deles é invisível até virar `OutboxEvent.last_error`.
 - Exportação OTLP para um collector (Grafana Tempo ou equivalente self-hosted — não SaaS,
   para não introduzir custo recorrente).
-- Trace ID propagado no `OutboxEvent.payload` (campo `trace_id`) para linkar o request
-  original à task assíncrona que o processa — ponto que hoje simplesmente não existe.
+- Trace ID propagado para linkar o request original à task assíncrona que o processa.
+  Implementado como colunas dedicadas `trace_id`/`span_id` no `OutboxEvent` (não
+  dentro de `payload`, que é dado de negócio dos handlers) — capturadas automaticamente
+  em `save()`, sem tocar nenhum dos 30+ call sites que criam `OutboxEvent` pelo código.
 - Next.js: `@vercel/otel` ou instrumentação manual nas rotas BFF, propagando `traceparent`
   para o Django via header.
 

@@ -134,3 +134,73 @@ class TestProcessOutboxEvents:
             assert received["event_id"] == str(event.id)
         finally:
             _REGISTRY.get("test.payload", []).clear()
+
+
+@pytest.mark.django_db
+class TestOutboxEventTraceCapture:
+    """OutboxEvent.save() auto-captures the active OTel span — see shared/models.py."""
+
+    def test_no_active_span_leaves_trace_fields_empty(self):
+        from shared.models import OutboxEvent
+
+        event = OutboxEvent.objects.create(event_type="test.no_span", payload={})
+        assert event.trace_id == ""
+        assert event.span_id == ""
+
+    def test_creating_inside_an_active_span_captures_trace_and_span_id(self):
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from shared.models import OutboxEvent
+
+        tracer = TracerProvider().get_tracer(__name__)
+        with tracer.start_as_current_span("http-request-span"):
+            event = OutboxEvent.objects.create(event_type="test.with_span", payload={})
+
+        assert len(event.trace_id) == 32
+        assert len(event.span_id) == 16
+
+    def test_trace_id_is_not_overwritten_on_subsequent_saves(self):
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from shared.models import OutboxEvent
+
+        tracer = TracerProvider().get_tracer(__name__)
+        with tracer.start_as_current_span("http-request-span"):
+            event = OutboxEvent.objects.create(event_type="test.resave", payload={})
+        original_trace_id = event.trace_id
+
+        with tracer.start_as_current_span("a-different-later-span"):
+            event.processed = True
+            event.save()
+
+        assert event.trace_id == original_trace_id
+
+
+class TestOutboxSpanLinks:
+    """_outbox_span_links() — see apps/notifications/tasks.py."""
+
+    def _fake_event(self, trace_id="", span_id=""):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(trace_id=trace_id, span_id=span_id)
+
+    def test_no_trace_id_returns_empty_links(self):
+        from apps.notifications.tasks import _outbox_span_links
+
+        assert _outbox_span_links(self._fake_event()) == []
+
+    def test_valid_ids_produce_one_link(self):
+        from apps.notifications.tasks import _outbox_span_links
+
+        links = _outbox_span_links(self._fake_event(trace_id="a" * 32, span_id="b" * 16))
+        assert len(links) == 1
+        assert links[0].context.trace_id == int("a" * 32, 16)
+        assert links[0].context.span_id == int("b" * 16, 16)
+        assert links[0].context.is_remote is True
+
+    def test_malformed_hex_returns_empty_links_not_exception(self):
+        from apps.notifications.tasks import _outbox_span_links
+
+        assert (
+            _outbox_span_links(self._fake_event(trace_id="not-hex", span_id="also-not-hex")) == []
+        )

@@ -3,6 +3,8 @@ import logging
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
+from opentelemetry import trace
+from opentelemetry.trace import Link, SpanContext, TraceFlags
 
 from shared.email import send_html_email
 from shared.public_urls import build_frontend_url, sanitize_payment_url
@@ -10,6 +12,30 @@ from shared.public_urls import build_frontend_url, sanitize_payment_url
 logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 5
+
+# Tracer da API do OpenTelemetry — sem SDK configurado (OTEL_ENABLED=False), é um
+# stub sem custo real; com o SDK configurado (ver shared/tracing.py), produz spans
+# de verdade. Mesmo objeto, dois comportamentos — não precisa de código duplicado.
+_tracer = trace.get_tracer(__name__)
+
+
+def _outbox_span_links(event) -> list[Link]:
+    """Link do span de processamento pro trace HTTP que criou o OutboxEvent (ver
+    shared.models.OutboxEvent.save) — permite ir do request original até aqui no
+    Jaeger. Lista vazia se o evento não tem trace/span capturados (OTel estava
+    desativado quando o evento foi criado, ou é um evento antigo)."""
+    if not (event.trace_id and event.span_id):
+        return []
+    try:
+        span_context = SpanContext(
+            trace_id=int(event.trace_id, 16),
+            span_id=int(event.span_id, 16),
+            is_remote=True,
+            trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        )
+    except ValueError:
+        return []
+    return [Link(span_context)]
 
 
 @shared_task
@@ -21,6 +47,8 @@ def process_outbox_events() -> None:
     Uses select_for_update(skip_locked=True) so multiple Celery workers can run
     concurrently without processing the same event twice.
     Handlers receive (payload, event_id) — event_id enables idempotency at the handler level.
+    Each event is processed inside its own span, linked back to the HTTP request
+    that created it — see _outbox_span_links (no-op when OTEL_ENABLED=False).
     """
     from apps.notifications.registry import get_handlers
     from shared.models import OutboxEvent
@@ -40,23 +68,30 @@ def process_outbox_events() -> None:
                 event.save()
                 continue
 
-            try:
-                for handler in handlers:
-                    handler(event.payload, str(event.id))
-                event.processed = True
-                event.processed_at = timezone.now()
-            except Exception as exc:
-                event.retry_count += 1
-                event.last_error = str(exc)
-                if event.retry_count >= _MAX_RETRIES:
-                    event.failed_at = timezone.now()
-                    logger.error(
-                        "notifications.process_outbox_events max_retries "
-                        "event_id=%s event_type=%s error=%s",
-                        event.id,
-                        event.event_type,
-                        exc,
-                    )
+            with _tracer.start_as_current_span(
+                f"outbox.process.{event.event_type}",
+                links=_outbox_span_links(event),
+            ) as span:
+                span.set_attribute("outbox.event_id", str(event.id))
+                span.set_attribute("outbox.event_type", event.event_type)
+                try:
+                    for handler in handlers:
+                        handler(event.payload, str(event.id))
+                    event.processed = True
+                    event.processed_at = timezone.now()
+                except Exception as exc:
+                    span.record_exception(exc)
+                    event.retry_count += 1
+                    event.last_error = str(exc)
+                    if event.retry_count >= _MAX_RETRIES:
+                        event.failed_at = timezone.now()
+                        logger.error(
+                            "notifications.process_outbox_events max_retries "
+                            "event_id=%s event_type=%s error=%s",
+                            event.id,
+                            event.event_type,
+                            exc,
+                        )
             event.save()
 
 
@@ -67,7 +102,6 @@ def process_outbox_events() -> None:
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_payment_due_soon_email(self, invoice_id: str, outbox_event_id: str) -> None:
-
     from apps.billing.models import Invoice
     from apps.notifications.models import Notification
 
@@ -127,7 +161,6 @@ def send_payment_due_soon_email(self, invoice_id: str, outbox_event_id: str) -> 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_payment_overdue_email(self, invoice_id: str, outbox_event_id: str) -> None:
-
     from apps.billing.models import Invoice
     from apps.notifications.models import Notification
 
@@ -184,7 +217,6 @@ def send_payment_overdue_email(self, invoice_id: str, outbox_event_id: str) -> N
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_payment_confirmed_email(self, invoice_id: str, outbox_event_id: str) -> None:
-
     from apps.billing.models import Invoice
     from apps.notifications.models import Notification
 
@@ -305,7 +337,6 @@ def send_customer_cancelled_email(self, customer_id: str, outbox_event_id: str) 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_invitation_email(self, invitation_id: str, outbox_event_id: str) -> None:
-
     from apps.customers.models import Invitation
     from apps.notifications.models import Notification
 
@@ -365,7 +396,6 @@ def send_invitation_email(self, invitation_id: str, outbox_event_id: str) -> Non
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_subscription_grace_period_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -424,7 +454,6 @@ def send_subscription_grace_period_email(self, subscription_id: str, outbox_even
 def send_subscription_expiring_soon_email(
     self, subscription_id: str, outbox_event_id: str, days_remaining: int = 3
 ) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -489,7 +518,6 @@ def send_quota_warning_email(
     usage_pct: float,
     threshold: int,
 ) -> None:
-
     from apps.customers.models import Customer
     from apps.notifications.models import Notification
 
@@ -546,7 +574,6 @@ def send_quota_warning_email(
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_subscription_renewed_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -657,7 +684,6 @@ def send_subscription_cancelled_email(self, subscription_id: str, outbox_event_i
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_plan_changed_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -717,7 +743,6 @@ def send_plan_changed_email(self, subscription_id: str, outbox_event_id: str) ->
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_subscription_suspended_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -774,7 +799,6 @@ def send_subscription_suspended_email(self, subscription_id: str, outbox_event_i
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_subscription_expired_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -831,7 +855,6 @@ def send_subscription_expired_email(self, subscription_id: str, outbox_event_id:
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_customer_suspended_email(self, customer_id: str, outbox_event_id: str) -> None:
-
     from apps.customers.models import Customer
     from apps.notifications.models import Notification
 
@@ -892,7 +915,6 @@ def send_customer_suspended_email(self, customer_id: str, outbox_event_id: str) 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_customer_reactivated_email(self, customer_id: str, outbox_event_id: str) -> None:
-
     from apps.customers.models import Customer
     from apps.notifications.models import Notification
 
@@ -953,7 +975,6 @@ def send_customer_reactivated_email(self, customer_id: str, outbox_event_id: str
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_invitation_accepted_email(self, invitation_id: str, outbox_event_id: str) -> None:
-
     from apps.customers.models import Invitation
     from apps.notifications.models import Notification
 
@@ -1012,7 +1033,6 @@ def send_invitation_accepted_email(self, invitation_id: str, outbox_event_id: st
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_subscription_created_email(self, subscription_id: str, outbox_event_id: str) -> None:
-
     from apps.notifications.models import Notification
     from apps.subscriptions.models import Subscription
 
@@ -1074,7 +1094,6 @@ def send_subscription_created_email(self, subscription_id: str, outbox_event_id:
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def send_customer_created_email(self, customer_id: str, outbox_event_id: str) -> None:
-
     from apps.customers.models import Customer
     from apps.notifications.models import Notification
 
@@ -1219,5 +1238,3 @@ def _owner_email(customer) -> str | None:
         .first()
     )
     return profile.user.email if profile else None
-
-

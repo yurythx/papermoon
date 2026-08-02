@@ -20,6 +20,12 @@ class OutboxEvent(models.Model):
     retry_count = models.IntegerField(default=0)
     last_error = models.TextField(null=True, blank=True)
     failed_at = models.DateTimeField(null=True, blank=True)
+    # Capturados automaticamente do span OpenTelemetry ativo no momento da criação
+    # (ver save() abaixo e shared/tracing.py) — permitem ao consumer do outbox
+    # (apps/notifications/tasks.py) linkar o processamento assíncrono de volta ao
+    # request HTTP que originou o evento. Vazios quando OTEL_ENABLED=False.
+    trace_id = models.CharField(max_length=32, blank=True, db_index=True)
+    span_id = models.CharField(max_length=16, blank=True)
 
     class Meta:
         db_table = "shared_outbox_events"
@@ -31,3 +37,10 @@ class OutboxEvent(models.Model):
 
     def __str__(self) -> str:
         return f"OutboxEvent({self.event_type} processed={self.processed})"
+
+    def save(self, *args, **kwargs) -> None:
+        if self._state.adding and not self.trace_id:
+            from shared.tracing import current_trace_context
+
+            self.trace_id, self.span_id = current_trace_context()
+        super().save(*args, **kwargs)

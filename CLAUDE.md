@@ -553,7 +553,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 > Ver `docs/adrs/0002-sso-keycloak-staff.md` e `docs/adrs/0003-portfolio-tech-expansion.md` para o racional completo de cada item.
 
 - [x] SSO Keycloak para staff — config runtime via **Backoffice → Configurações** (não é mais env var), com toggle, campos issuer/client_id/client_secret e teste de conectividade embutido. Guia completo: `docs/backend/sso-keycloak-integration.md`. Falta apenas criar o client OIDC de verdade no Keycloak (passo 5.1 do guia) e preencher no backoffice em produção.
-- [ ] OpenTelemetry: tracing em Django, Celery, Redis, Postgres + `trace_id` propagado no `OutboxEvent.payload`
+- [x] OpenTelemetry: tracing em Django, Celery, Redis, Postgres, `requests` + `trace_id`/`span_id` no `OutboxEvent` linkando o request original à task assíncrona. Jaeger local via `docker-compose.yml`. Guia: `docs/backend/observability.md`. Falta só a instrumentação do Next.js (frontend).
 - [ ] Feature flags por customer (Unleash self-hosted ou tabela `FeatureFlag` própria — decidir no momento da implementação)
 - [ ] Terraform para camada de infra hoje coberta por `setup.sh` (VPS/DNS, e registro do client OIDC no Keycloak)
 - [ ] Medir p99 de `/validate-key` com dados reais de OTel antes de decidir sobre o serviço Go/gRPC (item avaliativo, não comprometido)

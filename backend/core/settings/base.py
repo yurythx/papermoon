@@ -11,6 +11,7 @@ _env_file = BASE_DIR / ".env"
 if _env_file.exists():
     environ.Env.read_env(_env_file)
 
+
 def _env_first(*names: str, default: str = "") -> str:
     for name in names:
         value = env(name, default="")
@@ -231,6 +232,16 @@ SPECTACULAR_SETTINGS = {
 
 # --- Sentry ---
 SENTRY_DSN = env("SENTRY_DSN", default="")
+
+# --- OpenTelemetry (tracing distribuído — ver docs/backend/observability.md) ---
+# Desativado por padrão: testes/CI não devem instrumentar nem tentar exportar para
+# um coletor que não existe. docker-compose.yml liga OTEL_ENABLED=true em dev.
+# A instrumentação em si roda em shared/apps.py::SharedConfig.ready() — NÃO aqui,
+# nunca chame setup_tracing() durante o carregamento das próprias settings (ver
+# comentário em shared/apps.py sobre por que isso quebra silenciosamente).
+OTEL_ENABLED = env.bool("OTEL_ENABLED", default=False)
+OTEL_SERVICE_NAME = env("OTEL_SERVICE_NAME", default="papermoon-backend")
+OTEL_EXPORTER_OTLP_ENDPOINT = env("OTEL_EXPORTER_OTLP_ENDPOINT", default="http://jaeger:4317")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

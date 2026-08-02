@@ -10,6 +10,12 @@ app = Celery("papermoon")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
+# Tracing (Django/DB/Redis/requests/Celery) é instrumentado em
+# shared/apps.py::SharedConfig.ready() — não aqui. Esse arquivo é importado bem
+# cedo (via core/__init__.py), antes do app registry do Django estar populado;
+# ready() é o único ponto garantido de rodar depois disso. Ver
+# docs/backend/observability.md.
+
 app.conf.timezone = "America/Sao_Paulo"
 app.conf.enable_utc = True
 
