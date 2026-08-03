@@ -35,7 +35,10 @@ RUN mkdir -p /app/staticfiles /app/mediafiles \
 
 # Collect static files at build time.
 # Uses local settings + SQLite so no real DB or JWT keys are required.
+# SECRET_KEY is a throwaway value — Django refuses to boot with an empty one,
+# but nothing at this build step signs or verifies anything with it.
 RUN DATABASE_URL=sqlite:////tmp/build.db \
+    SECRET_KEY=build-time-placeholder-not-used-at-runtime \
     DJANGO_SETTINGS_MODULE=core.settings.local \
     python manage.py collectstatic --noinput
 
