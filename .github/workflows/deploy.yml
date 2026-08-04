@@ -1,0 +1,49 @@
+name: Deploy (Proxmox homelab / CT 102)
+
+# Pipeline SEPARADO do cd.yml (que faz deploy na VPS de produção via
+# deploy.sh). Este aqui dispara direto no push em main e aciona o playbook
+# Ansible declarativo do monorepo de infra (PaperMoon-Platform), que roda
+# no control node (o próprio host Proxmox) e faz todo o fluxo build ->
+# migrate -> collectstatic -> up -> prune contra o LXC 102.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy via Ansible no Proxmox
+    runs-on: ubuntu-latest
+    environment:
+      name: proxmox-homelab
+
+    steps:
+      # O Proxmox está numa LAN privada (sem IP público) — a Action entra
+      # na tailnet temporariamente pra alcançar o IP Tailscale do host.
+      - name: Conectar na Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # A chave usada aqui tem um 'command=' forçado no authorized_keys do
+      # servidor — mesmo que este secret vaze, só é possível rodar
+      # exatamente o playbook de deploy do PaperMoon, nada mais (ver
+      # docs/ci-cd.md no monorepo de infra para o comando exato).
+      # 'script' abaixo é ignorado pelo servidor (o forced command manda),
+      # mas o step exige algum valor.
+      - name: Disparar o playbook Ansible (build + migrate + collectstatic + up)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROXMOX_TAILSCALE_IP }}
+          username: root
+          key: ${{ secrets.PROXMOX_CI_SSH_KEY }}
+          command_timeout: 15m
+          script: "true # comando real é o 'command=' forçado no servidor"
+
+      - name: Reportar falha
+        if: failure()
+        run: |
+          echo "::error::Deploy no Proxmox (CT 102) FALHOU."
+          echo "::error::Verifique: ssh root@<tailscale-ip> 'pct exec 102 -- docker compose -f /opt/docker/papermoon/docker-compose.prod.yml --env-file /opt/docker/papermoon/.env.production logs --tail=100'"
