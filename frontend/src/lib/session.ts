@@ -52,5 +52,9 @@ export async function djangoFetch(
   };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  return fetch(`${DJANGO_URL}${path}`, { ...init, headers });
+  // Sem isso, o fetch cache do Next.js 14 (App Router) pode reter respostas
+  // antigas mesmo em rotas com `dynamic = "force-dynamic"` — esse fetch
+  // reflete estado mutável do backend (config de SSO, sessão, etc.) e nunca
+  // deve ser servido do cache.
+  return fetch(`${DJANGO_URL}${path}`, { ...init, headers, cache: "no-store" });
 }
