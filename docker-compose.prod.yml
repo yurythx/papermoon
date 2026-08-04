@@ -156,6 +156,12 @@ services:
       - SITE_INTERNAL_URL=http://localhost:3000
       # Shared with django-api env_file — must match for ISR revalidation
       - REVALIDATE_SECRET=${REVALIDATE_SECRET}
+      # Sem isso, o cookie de sessão sai sempre "Secure" (por causa de
+      # NODE_ENV=production) e o navegador o descarta em qualquer acesso
+      # sem HTTPS (ex: IP puro na LAN, antes do Cloudflare Tunnel estar no
+      # ar). Deixe "true" (ou remova) assim que o acesso real for via
+      # HTTPS. Ver frontend/src/lib/session.ts.
+      - SECURE_COOKIES=${SECURE_COOKIES:-true}
     depends_on:
       django-api:
         condition: service_healthy
