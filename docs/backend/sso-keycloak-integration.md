@@ -97,9 +97,13 @@ modelo de sessão diferente do BFF+JWT da PaperMoon (ver ADR 0002).
   sempre falha.
 - **Validação completa do `id_token`**: assinatura (via JWKS), `iss`, `aud`, `exp`,
   `nonce` — qualquer falha é `SSOExchangeFailedError`, nunca um "passa mesmo assim".
-- **Sem JIT provisioning**: login SSO só autentica e-mails que já existem como
-  `CustomUser` com `is_staff=True`. Um client Keycloak mal configurado (ou
-  comprometido) não cria contas novas nem promove ninguém a staff.
+- **JIT provisioning condicionado a grupo (opt-in)**: por padrão (`staff_group`
+  em branco), login SSO só autentica e-mails que já existem como `CustomUser` com
+  `is_staff=True` — um client Keycloak mal configurado (ou comprometido) não cria
+  contas novas nem promove ninguém a staff. Se `staff_group` estiver configurado,
+  um e-mail novo só vira staff automaticamente quando a claim `groups` do
+  id_token contiver esse grupo — nunca por autenticar com sucesso sozinho. Ver
+  seção "Atualização — JIT provisioning condicionado a grupo" no ADR 0002.
 - **`client_secret` nunca trafega pro frontend em texto puro** — a API só retorna
   `client_secret_set: bool`. No banco, fica criptografado (Fernet). No Django Admin,
   o campo é `readonly`.
@@ -136,6 +140,14 @@ modelo de sessão diferente do BFF+JWT da PaperMoon (ver ADR 0002).
 4. (Opcional, recomendado) Restrinja quem pode logar nesse client a usuários/grupos que
    correspondem a e-mails de staff cadastrados na PaperMoon — a PaperMoon já rejeita
    quem não é `is_staff=True`, mas ter os dois lados alinhados evita confusão.
+5. **Só se for usar JIT provisioning** (realm compartilhado com outras aplicações/AD,
+   onde nem toda conta que autentica deve virar staff): crie um grupo dedicado (ex:
+   `papermoon-staff`), adicione a ele só quem deve ter acesso, e anexe ao client um
+   mapper de grupo — *Client scopes → (dedicated scope do client) → Add mapper → By
+   configuration → Group Membership* — com **"Add to ID token"** ligado e **"Full
+   group path"** desligado (nome simples, sem `/` na frente). Sem esse mapper, a
+   claim `groups` nunca chega no id_token e o JIT nunca dispara, mesmo com
+   `staff_group` preenchido no backoffice.
 
 ### 5.2 No Backoffice
 
@@ -144,6 +156,8 @@ modelo de sessão diferente do BFF+JWT da PaperMoon (ver ADR 0002).
    - **Issuer:** `https://<seu-keycloak>/realms/papermoon-staff`
    - **Client ID:** o mesmo do passo 5.1
    - **Client Secret:** cole o segredo copiado
+   - **Staff group** (opcional): nome do grupo criado no passo 5.1.5, se for usar JIT.
+     Em branco = só quem já existe como `is_staff=True` consegue logar via SSO.
 3. Clique em **Testar conexão** — confirma que o issuer é alcançável e expõe um
    discovery document OIDC válido (**não** testa login completo, ver seção 6).
 4. Ative o toggle e clique em **Salvar**.
@@ -178,7 +192,8 @@ status tem TTL de 30s) sem precisar de deploy nem mexer em variável de ambiente
 | Botão de SSO não aparece em `/login` | Toggle desativado, ou cache do status (30s) ainda não expirou | Backoffice → Configurações → toggle. Aguardar até 30s ou recarregar a página de login de novo. |
 | "Testar conexão" falha com timeout/connection refused | Keycloak não alcançável a partir do container Django (rede/firewall) | Testar `curl {issuer}/.well-known/openid-configuration` a partir do host onde o Django roda. |
 | Login redireciona pro Keycloak mas volta com `sso_failed` | `redirect_uri` cadastrado no client do Keycloak não bate com o da PaperMoon, ou `client_secret` errado | Conferir o campo "Redirect URI" na tela de Configurações contra o client do Keycloak, caractere por caractere. |
-| Login funciona no Keycloak mas volta com "conta não tem acesso de staff" | O e-mail do usuário no Keycloak não corresponde a nenhum `CustomUser.is_staff=True` na PaperMoon | Confirmar o e-mail retornado pelo Keycloak (claim `email`) contra `CustomUser` no Django Admin. |
+| Login funciona no Keycloak mas volta com "conta não tem acesso de staff" | O e-mail não existe como `CustomUser.is_staff=True`, **e** (`staff_group` está em branco OU o id_token não trouxe a claim `groups` com esse grupo) | Se for pra criar a conta na hora (JIT): confirmar `staff_group` preenchido em Configurações e o mapper de grupo anexado ao client no Keycloak (passo 5.1.5). Se for pra usar uma conta já existente: confirmar o e-mail retornado pelo Keycloak (claim `email`) contra `CustomUser` no Django Admin. |
+| JIT configurado (`staff_group` preenchido) mas conta continua não sendo criada | Mapper de grupo não está anexado ao client, ou "Add to ID token" desligado, ou o nome do grupo não bate (path `/nome` vs nome simples) | Decodificar o id_token (jwt.io) de um login de teste e conferir se a claim `groups` aparece e com qual valor exato; `staff_group` é comparado sem diferenciar `/nome` de `nome`, mas precisa bater no nome. |
 | `sso_not_configured` mesmo com tudo preenchido | `SECRET_KEY` girou desde o último save (ver seção 6), ou `enabled=false` | Reabrir Configurações, conferir o toggle, resalvar o `client_secret`. |
 
 ---

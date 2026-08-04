@@ -28,6 +28,7 @@ class SSOConfigurationAdmin(admin.ModelAdmin):
         "issuer",
         "client_id",
         "client_secret_encrypted",
+        "staff_group",
         "updated_by",
         "updated_at",
     )

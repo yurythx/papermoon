@@ -158,7 +158,36 @@ ativar/desativar o SSO ou trocar credenciais. Isso foi substituído: a configura
 em **Backoffice → Configurações**, sem deploy.
 
 As decisões de arquitetura desta ADR (Keycloak como IdP só pra staff, PaperMoon
-continua emissora do JWT, sem JIT provisioning, PKCE, coexistência com login por
+continua emissora do JWT, PKCE, coexistência com login por
 senha) **continuam todas válidas** — só a *fonte* da configuração mudou, não o fluxo
 OIDC em si. Detalhes completos da implementação atual, passo a passo de configuração e
 troubleshooting: `docs/backend/sso-keycloak-integration.md`.
+
+## Atualização — JIT provisioning condicionado a grupo (`staff_group`)
+
+A decisão original ("Não faz JIT provisioning automático de conta nova") partia do
+pressuposto de que o Keycloak seria uma instância corporativa da própria PaperMoon,
+com um realm dedicado só para a equipe interna — nesse cenário, qualquer conta capaz
+de autenticar já era, por definição, staff.
+
+Isso deixou de ser verdade quando o Keycloak testado na prática passou a ser uma
+instância de terceiro com Active Directory integrado (múltiplos usuários que não têm
+nenhuma relação com a PaperMoon). Autenticar com sucesso no Keycloak deixou de
+implicar "é staff da PaperMoon" — passou a significar só "é alguém desse AD".
+Manter o comportamento antigo (criar conta staff pra qualquer e-mail autenticado)
+teria sido uma escalada de privilégio real, não hipotética.
+
+Correção: `SSOConfiguration.staff_group` (editável em **Backoffice → Configurações**
+ou Django Admin) guarda o nome de um grupo do Keycloak. O client precisa de um
+mapper de grupo anexado (Client scope → mapper "Group Membership", "Add to ID
+token" ligado) para que o id_token carregue a claim `groups`. No callback:
+
+- E-mail já existe como `is_staff=True` → login normal, sem mudança.
+- E-mail não existe **e** `groups` do id_token contém `staff_group` → cria o
+  `CustomUser` na hora (`is_staff=True`, senha inutilizável — só loga via SSO) e
+  audita como `sso_jit_provisioned`.
+- Qualquer outro caso (e-mail não existe e sem o grupo; ou e-mail existe mas não é
+  staff/está inativo) → `403 sso_account_not_staff`, igual antes.
+
+`staff_group` em branco (padrão) preserva o comportamento original desta ADR —
+JIT fica desligado por default, é opt-in por realm.

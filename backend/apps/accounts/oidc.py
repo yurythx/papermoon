@@ -54,6 +54,23 @@ class SSOExchangeFailedError(Exception):
 class SSOClaims:
     email: str
     subject: str
+    groups: tuple[str, ...] = ()
+
+
+def _normalize_group(name: str) -> str:
+    # O mapper de grupo do Keycloak pode emitir path completo ("/papermoon-staff")
+    # ou só o nome ("papermoon-staff") dependendo de como foi configurado —
+    # normaliza os dois lados da comparação pra não depender de qual dos dois.
+    return name.strip().lstrip("/").lower()
+
+
+def group_authorizes_staff(configured_group: str, token_groups: tuple[str, ...]) -> bool:
+    """True se `configured_group` (SSOConfiguration.staff_group) aparecer nas claim
+    `groups` do id_token — usado pra JIT provisioning (ver SSOCallbackView)."""
+    if not configured_group:
+        return False
+    target = _normalize_group(configured_group)
+    return any(_normalize_group(g) == target for g in token_groups)
 
 
 def _require_config() -> SSOConfig:
@@ -100,7 +117,11 @@ def build_authorize_url() -> str:
         "response_type": "code",
         "client_id": config.client_id,
         "redirect_uri": config.redirect_uri,
-        "scope": "openid email profile",
+        # "groups" só tem efeito se existir um client scope com esse nome no realm
+        # (comum quando o mapper de grupo foi anexado a um client scope dedicado,
+        # em vez de direto no client) — pedir um scope que não existe no realm é
+        # ignorado pelo Keycloak, não quebra o fluxo.
+        "scope": "openid email profile groups",
         "state": state,
         "nonce": nonce,
         "code_challenge": code_challenge,
@@ -173,7 +194,13 @@ def exchange_code(code: str, state: str) -> SSOClaims:
     if not email:
         raise SSOExchangeFailedError("id_token não incluiu a claim 'email'.")
 
-    return SSOClaims(email=email, subject=claims["sub"])
+    # Claim opcional — só existe se o realm tiver um mapper de grupo anexado ao
+    # client (ou a um client scope solicitado). Ausência é normal e não é erro:
+    # só significa que o e-mail precisa já existir como staff (sem JIT).
+    raw_groups = claims.get("groups") or []
+    groups = tuple(raw_groups) if isinstance(raw_groups, list) else ()
+
+    return SSOClaims(email=email, subject=claims["sub"], groups=groups)
 
 
 def test_issuer_connectivity(issuer: str) -> dict[str, bool | str]:

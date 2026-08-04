@@ -26,6 +26,7 @@ class SSOConfig:
     client_id: str
     client_secret: str
     redirect_uri: str
+    staff_group: str
 
 
 def _redirect_uri() -> str:
@@ -44,6 +45,7 @@ def get_sso_config() -> SSOConfig:
         client_id=row.client_id,
         client_secret=decrypt_secret(row.client_secret_encrypted),
         redirect_uri=_redirect_uri(),
+        staff_group=row.staff_group,
     )
     cache.set(_CACHE_KEY, config, timeout=_CACHE_TTL)
     return config
@@ -60,6 +62,7 @@ def update_sso_config(
     client_id: str,
     client_secret: str | None,
     user: CustomUser,
+    staff_group: str | None = None,
 ) -> SSOConfiguration:
     """`client_secret=None` (ou "") mantém o segredo já salvo — só troca quando um
     valor novo é enviado, para o admin não precisar redigitar o segredo a cada save."""
@@ -69,6 +72,8 @@ def update_sso_config(
     row.client_id = client_id
     if client_secret:
         row.client_secret_encrypted = encrypt_secret(client_secret)
+    if staff_group is not None:
+        row.staff_group = staff_group.strip()
     row.updated_by = user
     row.save()
     invalidate_sso_config_cache()

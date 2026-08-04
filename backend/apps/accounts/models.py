@@ -28,6 +28,11 @@ class SSOConfiguration(models.Model):
     issuer = models.CharField(max_length=500, blank=True)
     client_id = models.CharField(max_length=255, blank=True)
     client_secret_encrypted = models.TextField(blank=True)
+    # Nome do grupo/role do Keycloak (claim "groups" do id_token) que autoriza
+    # criar automaticamente (JIT) uma conta staff no primeiro login SSO de um
+    # e-mail ainda não cadastrado. Vazio = JIT desativado (só quem já existe
+    # como staff consegue logar via SSO) — ver ADR 0002.
+    staff_group = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         "accounts.CustomUser",

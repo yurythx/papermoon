@@ -180,6 +180,7 @@ class SSOConfigResponseSerializer(serializers.Serializer):
     issuer = serializers.CharField(allow_blank=True)
     client_id = serializers.CharField(allow_blank=True)
     client_secret_set = serializers.BooleanField()
+    staff_group = serializers.CharField(allow_blank=True)
     redirect_uri = serializers.CharField()
     updated_at = serializers.DateTimeField(allow_null=True)
     updated_by_email = serializers.EmailField(allow_null=True)
@@ -201,6 +202,14 @@ class SSOConfigUpdateRequestSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         help_text="Omitido (ou em branco) mantém o segredo já salvo.",
+    )
+    staff_group = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text=(
+            "Grupo do Keycloak (claim 'groups') que autoriza criar conta staff "
+            "automaticamente no primeiro login. Em branco desativa o JIT."
+        ),
     )
 
 

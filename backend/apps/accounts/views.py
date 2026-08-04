@@ -20,6 +20,7 @@ from apps.accounts.oidc import (
     SSOStateInvalidError,
     build_authorize_url,
     exchange_code,
+    group_authorizes_staff,
     test_issuer_connectivity,
 )
 from apps.accounts.security import LoginAttemptGuard
@@ -527,8 +528,10 @@ class SSOCallbackView(APIView):
         summary="Concluir login SSO via Keycloak",
         description=(
             "Troca o authorization code pelo id_token, valida as claims e emite "
-            "access/refresh no mesmo formato do /auth/login/. Só autentica contas "
-            "com is_staff=True — não faz JIT provisioning de conta nova."
+            "access/refresh no mesmo formato do /auth/login/. Autentica contas "
+            "com is_staff=True já existentes; se o e-mail não existir, cria a conta "
+            "na hora (JIT) só quando a claim 'groups' do id_token incluir o grupo "
+            "configurado em staff_group — ver ADR 0002."
         ),
         request=SSOCallbackRequestSerializer,
         responses={200: TokenPairResponseSerializer},
@@ -576,18 +579,43 @@ class SSOCallbackView(APIView):
                 status=503,
             )
 
-        user = User.objects.filter(
-            email__iexact=claims.email, is_staff=True, is_active=True
-        ).first()
-        if not user:
-            return Response(
-                {
-                    "code": "sso_account_not_staff",
-                    "message": "Esta conta não tem acesso de staff ao backoffice.",
-                    "details": [],
-                },
-                status=403,
+        config = get_sso_config()
+        denied = Response(
+            {
+                "code": "sso_account_not_staff",
+                "message": "Esta conta não tem acesso de staff ao backoffice.",
+                "details": [],
+            },
+            status=403,
+        )
+
+        # Busca por e-mail sozinho (sem filtrar is_staff/is_active ainda) — precisa
+        # saber se a conta já existe de qualquer jeito, pra nunca tentar um JIT
+        # create() em cima de um e-mail que já está em uso (ex: cliente
+        # autocadastrado com o mesmo e-mail de alguém do AD) e estourar
+        # IntegrityError. Nesse caso o comportamento é o mesmo de antes: nega.
+        user = User.objects.filter(email__iexact=claims.email).first()
+
+        if user is None:
+            if not group_authorizes_staff(config.staff_group, claims.groups):
+                return denied
+            user = User.objects.create(
+                email=claims.email,
+                username=claims.email,
+                is_staff=True,
+                is_active=True,
             )
+            user.set_unusable_password()  # só loga via SSO — nunca via /auth/login/
+            user.save(update_fields=["password"])
+            log_action(
+                "sso_jit_provisioned",
+                "CustomUser",
+                str(user.pk),
+                changes={"email": user.email, "staff_group": config.staff_group},
+                request=request,
+            )
+        elif not (user.is_staff and user.is_active):
+            return denied
 
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
@@ -617,6 +645,7 @@ def _serialize_sso_config(row: SSOConfiguration) -> dict:
         "issuer": row.issuer,
         "client_id": row.client_id,
         "client_secret_set": bool(row.client_secret_encrypted),
+        "staff_group": row.staff_group,
         "redirect_uri": f"{settings.FRONTEND_URL}/api/auth/sso/callback",
         "updated_at": row.updated_at,
         "updated_by_email": row.updated_by.email if row.updated_by else None,
@@ -679,6 +708,7 @@ class SSOConfigAdminView(APIView):
             issuer=issuer,
             client_id=client_id,
             client_secret=data.get("client_secret") or None,
+            staff_group=data.get("staff_group"),
             user=request.user,
         )
 
@@ -693,6 +723,7 @@ class SSOConfigAdminView(APIView):
                 "issuer": row.issuer,
                 "client_id": row.client_id,
                 "client_secret_changed": bool(data.get("client_secret")),
+                "staff_group": row.staff_group,
             },
         )
         return Response(_serialize_sso_config(row))
