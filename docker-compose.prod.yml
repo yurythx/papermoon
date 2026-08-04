@@ -60,10 +60,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    # Joined to the shared tunnel network so cloudflared can reach it by service name
-    networks:
-      - default
-      - papermoon-network
+    # Publicada para o Cloudflare Tunnel alcançar (roda em outra LXC, 192.168.1.101,
+    # não mais no mesmo host Docker) — restrito via ufw só a esse IP.
+    # Ver docs/docker.md "Cloudflare Tunnel <-> PaperMoon".
+    ports:
+      - "8000:8000"
 
   celery-worker:
     container_name: papermoon-worker
@@ -164,20 +165,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # Joined to the shared tunnel network so cloudflared can reach it by service name
-    networks:
-      - default
-      - papermoon-network
+    # Publicada para o Cloudflare Tunnel alcançar (roda em outra LXC, 192.168.1.101,
+    # não mais no mesmo host Docker) — restrito via ufw só a esse IP.
+    # Ver docs/docker.md "Cloudflare Tunnel <-> PaperMoon".
+    ports:
+      - "3000:3000"
 
 networks:
-  # Internal default network for service-to-service communication
+  # Rede interna padrão para comunicação entre os serviços desta stack
+  # (django-api, nextjs, celery, etc.) — inalterada.
   default:
-
-  # Preferred external network shared with the cloudflared container.
-  # Create once with: docker network create papermoon-network
-  # Then connect cloudflared: docker network connect papermoon-network <cloudflared-container-name>
-  papermoon-network:
-    external: true
 
 volumes:
   papermoon-data:
