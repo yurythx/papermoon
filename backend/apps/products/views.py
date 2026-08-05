@@ -84,18 +84,38 @@ class ProductDetailView(APIView):
         )
         if deactivating:
             self._check_no_active_subscriptions(product)
+        was_active = product.is_active
         ser = ProductWriteSerializer(product, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         ser.save()
+        if product.is_active != was_active:
+            self._revalidate_public_pages(product.slug)
         return Response(ProductSerializer(product).data)
 
     @extend_schema(summary="Desativar produto (soft delete)", responses={204: None})
     def delete(self, request: Request, pk: str) -> Response:
         product = self._get_product(pk)
         self._check_no_active_subscriptions(product)
+        was_active = product.is_active
         product.is_active = False
         product.save(update_fields=["is_active", "updated_at"])
+        if was_active:
+            self._revalidate_public_pages(product.slug)
         return Response(status=204)
+
+    @staticmethod
+    def _revalidate_public_pages(slug: str) -> None:
+        # Reaproveita a mesma task do app cms (post_save de ServicePage já
+        # dispara nela) — ligar/desligar disponibilidade também precisa
+        # purgar o ISR na hora, senão o site fica até 60s (ou indefinidamente,
+        # se a página não receber outra visita nesse meio tempo — o
+        # stale-while-revalidate só regenera na próxima requisição àquele
+        # path específico) mostrando um serviço que acabou de ser
+        # desativado. Achado testando ao vivo: /servicos atualizou rápido,
+        # mas / e /servicos/<slug> ficaram em cache stale sem essa chamada.
+        from apps.cms.tasks import revalidate_service_page
+
+        revalidate_service_page.delay(slug)
 
     @staticmethod
     def _check_no_active_subscriptions(product: Product) -> None:
