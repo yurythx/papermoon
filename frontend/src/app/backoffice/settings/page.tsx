@@ -55,6 +55,7 @@ export default function BackofficeSettingsPage() {
   const [issuer, setIssuer] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
+  const [staffGroup, setStaffGroup] = useState("");
   const [testResult, setTestResult] = useState<{ reachable: boolean; message: string } | null>(null);
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function BackofficeSettingsPage() {
     setIssuer(config.issuer);
     setClientId(config.client_id);
     setClientSecret("");
+    setStaffGroup(config.staff_group);
   }, [config]);
 
   const saveMutation = useMutation({
@@ -72,6 +74,7 @@ export default function BackofficeSettingsPage() {
         issuer,
         client_id: clientId,
         client_secret: clientSecret || undefined,
+        staff_group: staffGroup,
       }),
     onSuccess: (updated: SSOConfig) => {
       queryClient.setQueryData(["sso-config"], updated);
@@ -178,6 +181,26 @@ export default function BackofficeSettingsPage() {
               placeholder={config?.client_secret_set ? "•••••••• (deixe em branco para manter)" : "Cole o client secret do Keycloak"}
               autoComplete="off"
             />
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="sso_staff_group" className="block text-sm font-medium text-text-secondary">
+              Staff group
+              <span className="ml-1.5 text-xs font-normal text-text-tertiary">(opcional)</span>
+            </label>
+            <Input
+              id="sso_staff_group"
+              type="text"
+              value={staffGroup}
+              onChange={(e) => setStaffGroup(e.target.value)}
+              placeholder="papermoon-staff"
+            />
+            <p className="text-xs text-text-tertiary mt-1 max-w-md">
+              Nome do grupo do Keycloak (claim <code className="text-[11px]">groups</code> do id_token)
+              que autoriza criar uma conta staff automaticamente no primeiro login de um e-mail novo
+              (JIT provisioning). Em branco: só e-mails já cadastrados como staff conseguem entrar via
+              SSO — nenhuma conta é criada sozinha.
+            </p>
           </div>
 
           <div className="space-y-1">

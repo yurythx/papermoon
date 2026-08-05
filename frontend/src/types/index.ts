@@ -242,6 +242,7 @@ export interface SSOConfig {
   issuer: string;
   client_id: string;
   client_secret_set: boolean;
+  staff_group: string;
   redirect_uri: string;
   updated_at: string | null;
   updated_by_email: string | null;
@@ -252,6 +253,7 @@ export interface SSOConfigUpdatePayload {
   issuer?: string;
   client_id?: string;
   client_secret?: string;
+  staff_group?: string;
 }
 
 export interface SSOTestResult {
