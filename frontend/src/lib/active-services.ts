@@ -2,8 +2,16 @@
  * Fonte única da verdade sobre quais serviços estão disponíveis publicamente
  * (Product.is_active no backend, já usado pelo toggle da página Produtos e
  * do editor CMS). Todo lugar do site que "anuncia" um serviço — home,
- * listagem, página individual, dropdown do contato — consulta isto antes de
- * renderizar, em vez de assumir que um slug hardcoded ainda está disponível.
+ * listagem, página individual (via middleware), dropdown do contato —
+ * consulta isto antes de renderizar, em vez de assumir que um slug
+ * hardcoded ainda está disponível.
+ *
+ * Usa /products/active-slugs/ (sem throttle), não /products/catalog/ — o
+ * catalog tem AnonRateThrottle padrão (200/dia) porque é feito pra consumo
+ * externo real; isto aqui é chamado a cada request de página de serviço
+ * (inclusive pelo middleware), o mesmo tráfego servidor-a-servidor que
+ * justificou tirar o throttle do health check. Confirmado ao vivo: usar o
+ * catalog aqui estourava a cota em minutos de teste.
  *
  * Retorna `null` (não um Set vazio) quando o Django está inalcançável — os
  * chamadores devem tratar `null` como "não filtrar" (fail-open: mostra tudo).
@@ -15,22 +23,18 @@ const DJANGO_URL = process.env.DJANGO_INTERNAL_URL ?? "http://localhost:8000/api
 
 export async function fetchActiveServiceSlugs(): Promise<Set<string> | null> {
   try {
-    const res = await fetch(`${DJANGO_URL}/products/catalog/`, {
+    const res = await fetch(`${DJANGO_URL}/products/active-slugs/`, {
       // Mesma janela do resto do conteúdo de /servicos — não precisa ser
       // mais fresco que isso, e cache indefinido esconderia um "desativar"
       // por tempo demais.
       next: { revalidate: 60, tags: ["active-services"] },
     });
-    if (!res.ok) {
-      console.log(`[active-services] non-ok response: ${res.status} url=${DJANGO_URL}/products/catalog/`);
-      return null;
-    }
+    if (!res.ok) return null;
     const json = await res.json();
-    const products: { slug: string }[] = json?.data ?? json ?? [];
-    if (!Array.isArray(products)) return null;
-    return new Set(products.map((p) => p.slug));
-  } catch (err) {
-    console.log(`[active-services] fetch threw: ${String(err)} url=${DJANGO_URL}/products/catalog/`);
+    const slugs: string[] = json?.data ?? json ?? [];
+    if (!Array.isArray(slugs)) return null;
+    return new Set(slugs);
+  } catch {
     return null;
   }
 }

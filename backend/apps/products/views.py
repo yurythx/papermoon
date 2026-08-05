@@ -15,6 +15,32 @@ from apps.products.serializers import (
 
 
 @extend_schema(tags=["Products — Catálogo Público"])
+class ActiveServiceSlugsView(APIView):
+    """
+    Só os slugs ativos — pra checagens internas de alta frequência (frontend
+    consulta isso a cada request de página de serviço, via middleware, pra
+    decidir se um serviço desativado deve virar 404 na hora — ver
+    frontend/src/lib/active-services.ts). Sem throttle de propósito, mesmo
+    padrão do HealthCheckView: é tráfego servidor-a-servidor, não abuso de
+    usuário anônimo. Reaproveitar ProductCatalogView (que tem AnonRateThrottle
+    padrão, 200/dia) pra isso esgotava a cota rapidinho — confirmado ao vivo,
+    o middleware sozinho estourou em minutos de teste.
+    """
+
+    permission_classes = []
+    authentication_classes = []
+    throttle_classes = []
+
+    @extend_schema(
+        summary="Slugs de produtos ativos (público, sem throttle)",
+        responses={200: None},
+    )
+    def get(self, request: Request) -> Response:
+        slugs = list(Product.objects.filter(is_active=True).values_list("slug", flat=True))
+        return Response(slugs)
+
+
+@extend_schema(tags=["Products — Catálogo Público"])
 class ProductCatalogView(APIView):
     """Public read-only product listing for clients to browse before subscribing."""
 
