@@ -283,3 +283,56 @@ class TestTestIssuerConnectivity:
             result = test_issuer_connectivity(ISSUER)
         assert result["reachable"] is True
         assert "não bate" in result["message"]
+
+
+class TestGroupAuthorizesStaff:
+    """staff_group aceita uma lista separada por vírgula (ex: TI + admins de domínio
+    autorizando juntos) — ver docs/backend/sso-keycloak-integration.md."""
+
+    def test_single_configured_group_matches(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("papermoon-staff", ("papermoon-staff",)) is True
+
+    def test_no_match_denies(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("papermoon-staff", ("outro-grupo",)) is False
+
+    def test_empty_configured_group_always_denies(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("", ("qualquer-grupo",)) is False
+
+    def test_leading_slash_path_is_normalized(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("papermoon-staff", ("/papermoon-staff",)) is True
+
+    def test_case_is_normalized(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("Papermoon-Staff", ("papermoon-staff",)) is True
+
+    def test_duplicated_internal_whitespace_is_normalized(self):
+        # Caso real encontrado em produção: grupo sincronizado do AD com espaço
+        # duplo ("Grupo TI  - HelpDesk") que é visualmente idêntico ao configurado
+        # no backoffice mas byte-a-byte diferente sem a normalização.
+        from apps.accounts.oidc import group_authorizes_staff
+
+        assert group_authorizes_staff("Grupo TI - HelpDesk", ("Grupo TI  - HelpDesk",)) is True
+
+    def test_comma_separated_list_matches_any_group(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        configured = "Grupo Nucleo de TI,Grupo TI - Administradores,Administrators,Domain Admins"
+        assert group_authorizes_staff(configured, ("Domain Admins",)) is True
+        assert group_authorizes_staff(configured, ("/Administrators",)) is True
+        assert group_authorizes_staff(configured, ("Financeiro",)) is False
+
+    def test_user_with_multiple_groups_matches_if_any_is_allowed(self):
+        from apps.accounts.oidc import group_authorizes_staff
+
+        configured = "Grupo Nucleo de TI,Administrators"
+        token_groups = ("Financeiro", "Grupo Nucleo de TI", "RH")
+        assert group_authorizes_staff(configured, token_groups) is True

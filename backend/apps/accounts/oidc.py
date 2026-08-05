@@ -61,16 +61,22 @@ def _normalize_group(name: str) -> str:
     # O mapper de grupo do Keycloak pode emitir path completo ("/papermoon-staff")
     # ou só o nome ("papermoon-staff") dependendo de como foi configurado —
     # normaliza os dois lados da comparação pra não depender de qual dos dois.
-    return name.strip().lstrip("/").lower()
+    # Também colapsa espaços internos duplicados: nomes de grupo sincronizados de AD
+    # real já apareceram com espaço duplo (ex: "Grupo TI  - HelpDesk") — visualmente
+    # idêntico ao configurado no backoffice, mas byte-a-byte diferente sem isso.
+    return " ".join(name.strip().lstrip("/").lower().split())
 
 
 def group_authorizes_staff(configured_group: str, token_groups: tuple[str, ...]) -> bool:
-    """True se `configured_group` (SSOConfiguration.staff_group) aparecer nas claim
-    `groups` do id_token — usado pra JIT provisioning (ver SSOCallbackView)."""
-    if not configured_group:
+    """True se algum grupo de `configured_group` (SSOConfiguration.staff_group,
+    lista separada por vírgula — várias equipes/grupos do AD podem autorizar staff,
+    ex: TI + administradores de domínio) aparecer nas claims `groups` do id_token —
+    usado pra JIT provisioning (ver SSOCallbackView)."""
+    targets = {_normalize_group(g) for g in configured_group.split(",") if g.strip()}
+    if not targets:
         return False
-    target = _normalize_group(configured_group)
-    return any(_normalize_group(g) == target for g in token_groups)
+    normalized_token_groups = {_normalize_group(g) for g in token_groups}
+    return not targets.isdisjoint(normalized_token_groups)
 
 
 def _require_config() -> SSOConfig:
