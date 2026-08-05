@@ -99,20 +99,27 @@ class Command(BaseCommand):
     def _create_admin(self):
         from apps.accounts.models import CustomUser
 
-        user, created = CustomUser.objects.get_or_create(
+        # get_or_create(email=...) só evita colisão de e-mail — se um superusuário
+        # de verdade já existe com username="admin" mas outro e-mail (ex: criado via
+        # `createsuperuser` antes deste seed rodar), a criação abaixo ainda tenta
+        # inserir username="admin" de novo e estoura IntegrityError (unique
+        # constraint), mesmo o comando sendo idempotente pra tudo mais. Reaproveitar
+        # qualquer superusuário já existente evita o choque e também é o
+        # comportamento mais sensato: não faz sentido ter dois admins de demo.
+        existing = CustomUser.objects.filter(is_superuser=True).order_by("id").first()
+        if existing:
+            self.stdout.write(f"  · Superusuário já existe, reaproveitando: {existing.email}")
+            return existing
+
+        user = CustomUser.objects.create(
             email="admin@papermoon.com",
-            defaults={
-                "username": "admin",
-                "is_staff": True,
-                "is_superuser": True,
-            },
+            username="admin",
+            is_staff=True,
+            is_superuser=True,
         )
-        if created:
-            user.set_password("admin123")
-            user.save()
-            self.stdout.write("  ✓ Admin criado: admin@papermoon.com / admin123")
-        else:
-            self.stdout.write("  · Admin já existe: admin@papermoon.com")
+        user.set_password("admin123")
+        user.save()
+        self.stdout.write("  ✓ Admin criado: admin@papermoon.com / admin123")
         return user
 
     # ------------------------------------------------------------------
