@@ -17,7 +17,11 @@ export async function middleware(req: NextRequest) {
   const match = req.nextUrl.pathname.match(SERVICE_SLUG_RE);
   if (match) {
     const activeSlugs = await fetchActiveServiceSlugs();
-    if (!isServiceVisible(match[1], activeSlugs)) {
+    const visible = isServiceVisible(match[1], activeSlugs);
+    console.log(
+      `[middleware] slug=${match[1]} activeSlugs=${activeSlugs === null ? "null(fetch failed)" : JSON.stringify([...activeSlugs])} visible=${visible}`
+    );
+    if (!visible) {
       return new NextResponse(null, { status: 404 });
     }
   }
