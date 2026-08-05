@@ -1,7 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function middleware() {
+const SERVICE_SLUG_RE = /^\/servicos\/([^/]+)\/?$/;
+
+export async function middleware(req: NextRequest) {
+  // Checado aqui, não só dentro da própria página, porque revalidatePath()
+  // não substitui de forma confiável o HTML de uma página ISR já
+  // estaticamente gerada quando a nova renderização chamaria notFound() —
+  // confirmado ao vivo: editar conteúdo do CMS revalida na hora (troca uma
+  // versão "sucesso" por outra), mas desativar um serviço manteve a versão
+  // "sucesso" antiga servindo (x-nextjs-cache: HIT) mesmo minutos depois e
+  // várias requisições adiante. Middleware roda a cada request, antes do
+  // cache de página ser consultado, então não tem esse problema — o custo
+  // é uma chamada a mais ao Django por request de página de serviço, aceitável
+  // no tráfego desta plataforma.
+  const match = req.nextUrl.pathname.match(SERVICE_SLUG_RE);
+  if (match) {
+    const activeSlugs = await fetchActiveServiceSlugs();
+    if (!isServiceVisible(match[1], activeSlugs)) {
+      return new NextResponse(null, { status: 404 });
+    }
+  }
+
   const isProduction = process.env.NODE_ENV === "production";
 
   // CSP note: nonce-based CSP is incompatible with Next.js App Router out of the box.
