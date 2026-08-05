@@ -181,3 +181,39 @@ class PricingListCreateView(APIView):
         ser.is_valid(raise_exception=True)
         pricing = ser.save(product=product)
         return Response(PricingSerializer(pricing).data, status=201)
+
+
+@extend_schema(tags=["Admin — Products"])
+class PricingDetailView(APIView):
+    """
+    Faltava esta view — o frontend (PricingManagerModal) já chamava
+    PATCH .../pricings/<pricing_pk>/ pra editar uma precificação existente,
+    mas só existia list+create em PricingListCreateView. Toda tentativa de
+    editar um pricing batia 404. Achado auditando o backoffice.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def _get_pricing(self, product_pk: str, pricing_pk: str) -> Pricing:
+        from django.shortcuts import get_object_or_404
+
+        return get_object_or_404(Pricing, pk=pricing_pk, product_id=product_pk)
+
+    @extend_schema(
+        summary="Atualizar pricing do produto",
+        request=PricingSerializer,
+        responses={200: PricingSerializer},
+    )
+    def patch(self, request: Request, product_pk: str, pricing_pk: str) -> Response:
+        from django.db import IntegrityError
+
+        pricing = self._get_pricing(product_pk, pricing_pk)
+        ser = PricingSerializer(pricing, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        try:
+            ser.save()
+        except IntegrityError as exc:
+            raise ValidationError(
+                {"billing_cycle": "Já existe uma precificação com este ciclo de cobrança neste produto."}
+            ) from exc
+        return Response(PricingSerializer(pricing).data)
