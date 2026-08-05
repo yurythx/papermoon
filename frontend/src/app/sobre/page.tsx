@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
 import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { fetchActiveServiceSlugs } from "@/lib/active-services";
 
 export const metadata: Metadata = {
   title: "Sobre a PaperMoon — 10+ anos em infraestrutura de TI",
@@ -141,10 +142,12 @@ const VALUES = [
 
 /* ------------------------------------------------------------------ */
 
-export default function SobrePage() {
+export default async function SobrePage() {
+  const activeSlugs = await fetchActiveServiceSlugs();
+
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
-      <LandingNav />
+      <LandingNav activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">

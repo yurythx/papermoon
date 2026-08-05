@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Check, AlertTriangle, Shield, Server, CreditCard, Wrench } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
+import { fetchActiveServiceSlugs } from "@/lib/active-services";
 
 export const metadata: Metadata = {
   title: "Termos de Uso — PaperMoon",
@@ -10,10 +11,12 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = "10 de junho de 2026";
 
-export default function TermosPage() {
+export default async function TermosPage() {
+  const activeSlugs = await fetchActiveServiceSlugs();
+
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
-      <LandingNav />
+      <LandingNav activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-24">
         {/* Header */}

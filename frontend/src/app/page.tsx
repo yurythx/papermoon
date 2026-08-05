@@ -506,7 +506,7 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-surface-0 text-text-primary">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(_orgSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(_faqSchema) }} />
-      <LandingNav />
+      <LandingNav activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative min-h-[90vh] flex flex-col justify-center pt-16 overflow-hidden">

@@ -159,7 +159,7 @@ export default async function ServicePage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <LandingNav />
+      <LandingNav activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
 
       {/* ── 1. HEPO ────────────────────────────────────────────────── */}
       <section className="relative pt-24 pb-16 sm:pt-32 sm:pb-20 border-b border-border-subtle overflow-hidden">

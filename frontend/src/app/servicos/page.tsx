@@ -67,7 +67,7 @@ export default async function ServicosPage() {
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(_breadcrumbSchema) }} />
-      <LandingNav />
+      <LandingNav activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
 
       {/* Hero */}
       <section className="pt-32 pb-16 border-b border-border-subtle">

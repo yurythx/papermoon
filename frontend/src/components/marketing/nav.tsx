@@ -70,13 +70,23 @@ const LINKS = [
   { label: "Contato",        href: "/#contato" },
 ];
 
-export function LandingNav() {
+export function LandingNav({
+  activeSlugs,
+}: {
+  /** null (ou omitido) = fail-open, mostra tudo — ver lib/active-services.ts */
+  activeSlugs?: string[] | null;
+} = {}) {
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const servicesMenuId = useId();
   const mobileMenuId = useId();
+
+  const activeSet = activeSlugs == null ? null : new Set(activeSlugs);
+  const visibleServices = SERVICES_NAV.filter(
+    (svc) => activeSet === null || activeSet.has(svc.href.replace("/servicos/", ""))
+  );
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -147,7 +157,7 @@ export function LandingNav() {
                 className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] rounded-2xl border border-border-subtle bg-surface-1/95 backdrop-blur-xl shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
               >
                 <div className="grid grid-cols-4 gap-0.5">
-                  {SERVICES_NAV.map((svc) => {
+                  {visibleServices.map((svc) => {
                     const Icon = svc.icon;
                     return (
                       <Link
@@ -228,7 +238,7 @@ export function LandingNav() {
           <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest px-2 pb-2">
             Serviços
           </p>
-          {SERVICES_NAV.map((svc) => {
+          {visibleServices.map((svc) => {
             const Icon = svc.icon;
             return (
               <Link
