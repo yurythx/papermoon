@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 
 const DJANGO_URL = process.env.DJANGO_INTERNAL_URL ?? "http://localhost:8000/api/v1";
 
+// Django monta health/contato fora do prefixo /api/v1 (core/urls.py) — o único
+// caso assim hoje. DJANGO_URL sem o sufixo, pra rotas que precisam chamar algo
+// fora de /api/v1 sem duplicar a string base em outro arquivo.
+const DJANGO_ROOT_URL = DJANGO_URL.replace(/\/api\/v1\/?$/, "");
+
 export const ACCESS_COOKIE = "rs_access";
 export const REFRESH_COOKIE = "rs_refresh";
 
@@ -57,4 +62,11 @@ export async function djangoFetch(
   // reflete estado mutável do backend (config de SSO, sessão, etc.) e nunca
   // deve ser servido do cache.
   return fetch(`${DJANGO_URL}${path}`, { ...init, headers, cache: "no-store" });
+}
+
+// Mesma coisa que djangoFetch, mas para os poucos endpoints montados fora de
+// /api/v1 (hoje só /health/) — usar djangoFetch para eles bateria em
+// /api/v1/health/, que não existe.
+export async function djangoRootFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${DJANGO_ROOT_URL}${path}`, { ...init, cache: "no-store" });
 }

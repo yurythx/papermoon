@@ -333,8 +333,11 @@ export const adminService = {
   updateCustomerQuota: (customerId: string, maxApiCalls: number): Promise<CustomerQuota> =>
     api.patch<{ success: boolean; data: CustomerQuota; error: null }>(`/proxy/admin/customers/${customerId}/quota/`, { max_api_calls: maxApiCalls }).then(unwrap),
 
+  // Não usa /proxy/[...path] de propósito — /health/ do Django vive fora de
+  // /api/v1, que é o prefixo que o proxy genérico sempre monta. Ver
+  // app/api/admin/health/route.ts.
   getHealthStatus: (): Promise<{ db: string; redis: string; celery: string }> =>
-    api.get<{ success: boolean; data: { db: string; redis: string; celery: string }; error: null }>("/proxy/health/").then(unwrap),
+    api.get<{ success: boolean; data: { db: string; redis: string; celery: string }; error: null }>("/admin/health").then(unwrap),
 
   getSubscription: (id: string): Promise<Subscription> =>
     api.get<{ success: boolean; data: Subscription; error: null }>(`/proxy/admin/subscriptions/${id}/`).then(unwrap),
