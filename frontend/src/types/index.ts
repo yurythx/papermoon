@@ -349,8 +349,10 @@ export interface CmsImage {
 }
 
 export interface CmsPageAdmin {
+  product_id: string;
   slug: string;
   product_name: string;
+  is_active: boolean;
   hero_image_url: string | null;
   hero_image_alt: string;
   tagline: string;
@@ -366,10 +368,12 @@ export interface CmsPageAdmin {
 }
 
 export interface CmsPageAdminListItem {
+  product_id: string;
   slug: string;
   product_name: string;
   has_page: boolean;
+  is_active: boolean;
   updated_at: string | null;
 }
 
-export type CmsPageAdminPayload = Omit<CmsPageAdmin, "slug" | "product_name" | "hero_image_url" | "images" | "updated_at">;
+export type CmsPageAdminPayload = Omit<CmsPageAdmin, "product_id" | "slug" | "product_name" | "is_active" | "hero_image_url" | "images" | "updated_at">;

@@ -149,8 +149,14 @@ class ServiceFAQWriteSerializer(serializers.ModelSerializer):
 class ServicePageAdminSerializer(serializers.ModelSerializer):
     """Read + write serializer for the backoffice CMS editor."""
 
+    product_id = serializers.UUIDField(source="product.id", read_only=True)
     slug = serializers.CharField(source="product.slug", read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
+    # Read-only aqui de propósito: disponibilidade pública é gerenciada via
+    # PATCH /admin/products/<id>/ (adminService.toggleProduct), não por este
+    # serializer — evita duplicar a validação de "não desativar com
+    # assinatura ativa" que já vive em ProductDetailView.
+    is_active = serializers.BooleanField(source="product.is_active", read_only=True)
     hero_image_url = serializers.SerializerMethodField()
     responsibilities = ServiceResponsibilitySerializer(many=True, default=list)
     steps = ServiceStepWriteSerializer(many=True, default=list)
@@ -161,8 +167,10 @@ class ServicePageAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServicePage
         fields = [
+            "product_id",
             "slug",
             "product_name",
+            "is_active",
             "hero_image_url",
             "hero_image_alt",
             "tagline",
@@ -176,7 +184,15 @@ class ServicePageAdminSerializer(serializers.ModelSerializer):
             "images",
             "updated_at",
         ]
-        read_only_fields = ["slug", "product_name", "hero_image_url", "images", "updated_at"]
+        read_only_fields = [
+            "product_id",
+            "slug",
+            "product_name",
+            "is_active",
+            "hero_image_url",
+            "images",
+            "updated_at",
+        ]
 
     def get_hero_image_url(self, obj: ServicePage) -> str | None:
         request = self.context.get("request")
@@ -224,7 +240,9 @@ class ServicePageAdminSerializer(serializers.ModelSerializer):
 class ServicePageAdminListSerializer(serializers.Serializer):
     """Lightweight list row — product + CMS page status."""
 
+    product_id = serializers.UUIDField()
     slug = serializers.CharField()
     product_name = serializers.CharField()
     has_page = serializers.BooleanField()
+    is_active = serializers.BooleanField()
     updated_at = serializers.DateTimeField(allow_null=True)

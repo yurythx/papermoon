@@ -20,6 +20,7 @@ import { ServiceGallery } from "@/components/marketing/service-lightbox";
 import { SERVICES, getService } from "@/lib/services-content";
 import { fetchCmsServicePage } from "@/lib/cms";
 import { mergeService } from "@/lib/merge-service";
+import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
 /* ── ISR — revalidate every 60s; on-demand via /api/revalidate ── */
 export const revalidate = 60;
@@ -113,6 +114,13 @@ export default async function ServicePage({
   const { slug } = await params;
   const base = getService(slug);
   if (!base) notFound();
+
+  // Cobre o caso de um serviço desativado depois do build estático: a rota
+  // já existe (gerada quando ele ainda estava ativo), mas não deve mais
+  // responder. generateStaticParams já evita gerar novas páginas pra
+  // serviços inativos — isto aqui cobre as que já existem.
+  const activeSlugs = await fetchActiveServiceSlugs();
+  if (!isServiceVisible(slug, activeSlugs)) notFound();
 
   const cms = await fetchCmsServicePage(slug);
   const svc = mergeService(base, cms);

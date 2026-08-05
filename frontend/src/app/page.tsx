@@ -36,6 +36,7 @@ import { LogosMarquee } from "@/components/marketing/logos-marquee";
 import { PaperMoonMark } from "@/components/common/papermoon-mark";
 import { ContactForm } from "@/components/marketing/contact-form";
 import { LANDING_FAQS } from "@/lib/faq-content";
+import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
 const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
 const _ogHome =
@@ -495,7 +496,12 @@ const _faqSchema = {
   })),
 };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const activeSlugs = await fetchActiveServiceSlugs();
+  const visibleServicesLanding = SERVICES_LANDING.filter((svc) =>
+    isServiceVisible(svc.href.replace("/servicos/", ""), activeSlugs)
+  );
+
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(_orgSchema) }} />
@@ -601,7 +607,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5" id="servicos-grid">
-            {SERVICES_LANDING.map((svc, i) => {
+            {visibleServicesLanding.map((svc, i) => {
               const Icon = svc.icon;
               return (
                 <Link

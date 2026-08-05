@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { adminService } from "@/lib/services";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -155,6 +156,26 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
   const [metaDesc, setMetaDesc] = useState(initial.meta_description);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(initial.hero_image_url);
 
+  // Disponibilidade pública (Product.is_active) — mesmo flag da página
+  // Produtos, gerenciado aqui por conveniência já que é onde o conteúdo é
+  // editado. Estado local pra refletir o toggle sem esperar refetch.
+  const [isActive, setIsActive] = useState(initial.is_active);
+
+  const availabilityMutation = useMutation({
+    mutationFn: (nextActive: boolean) => adminService.toggleProduct(initial.product_id, nextActive),
+    onSuccess: (updated) => {
+      setIsActive(updated.is_active);
+      qc.invalidateQueries({ queryKey: ["admin-cms-pages"] });
+      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      toast.success(
+        updated.is_active
+          ? "Serviço disponível novamente — volta a aparecer no site."
+          : "Serviço indisponível — some da home, da listagem e da página pública."
+      );
+    },
+    onError: () => toast.error("Erro ao atualizar disponibilidade."),
+  });
+
   // Gallery images (managed separately via individual API calls)
   const [galleryImages, setGalleryImages] = useState<CmsImage[]>(initial.images);
 
@@ -255,7 +276,12 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
             <ArrowLeft size={18} />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-text-primary truncate">{initial.product_name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-text-primary truncate">{initial.product_name}</h1>
+              <Badge variant={isActive ? "success" : "muted"}>
+                {isActive ? "Disponível" : "Indisponível"}
+              </Badge>
+            </div>
             <p className="text-xs text-text-tertiary font-mono">{slug}</p>
           </div>
         </div>
@@ -270,6 +296,14 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
             Ver página
           </a>
           <Button
+            variant={isActive ? "secondary" : "primary"}
+            size="sm"
+            disabled={availabilityMutation.isPending}
+            onClick={() => availabilityMutation.mutate(!isActive)}
+          >
+            {isActive ? "Desativar serviço" : "Ativar serviço"}
+          </Button>
+          <Button
             size="sm"
             onClick={handleSave}
             disabled={mutation.isPending}
@@ -280,6 +314,14 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
           </Button>
         </div>
       </div>
+
+      {!isActive && (
+        <div className="rounded-xl border border-warning/20 bg-warning-muted px-4 py-3 text-sm text-warning">
+          Este serviço está indisponível — não aparece na home, na listagem de
+          serviços nem tem página pública própria (a URL retorna 404). O
+          conteúdo abaixo continua editável normalmente.
+        </div>
+      )}
 
       {/* Conteúdo principal */}
       <Section title="Conteúdo principal">

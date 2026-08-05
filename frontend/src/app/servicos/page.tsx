@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
 import { PaperMoonMark } from "@/components/common/papermoon-mark";
 import { SERVICES } from "@/lib/services-content";
+import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
 const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
 const _serviceCount = SERVICES.length;
@@ -60,7 +61,9 @@ const CATEGORIES = [
 
 const bySlug = Object.fromEntries(SERVICES.map((s) => [s.slug, s]));
 
-export default function ServicosPage() {
+export default async function ServicosPage() {
+  const activeSlugs = await fetchActiveServiceSlugs();
+
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(_breadcrumbSchema) }} />
@@ -113,7 +116,9 @@ export default function ServicosPage() {
       {/* Categorias */}
       <div className="max-w-5xl mx-auto px-6 py-16 space-y-16">
         {CATEGORIES.map((cat) => {
-          const services = cat.slugs.map((s) => bySlug[s]).filter(Boolean);
+          const services = cat.slugs
+            .map((s) => bySlug[s])
+            .filter((svc) => svc && isServiceVisible(svc.slug, activeSlugs));
           if (!services.length) return null;
 
           return (

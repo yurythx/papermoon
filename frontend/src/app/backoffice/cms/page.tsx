@@ -1,12 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { toast } from "sonner";
 import { adminService } from "@/lib/services";
 import { PageHeader } from "@/components/compound/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, Clock, FileEdit } from "lucide-react";
-import type { CmsPageAdminListItem } from "@/types";
+import { cn } from "@/lib/utils";
+import type { CmsPageAdminListItem, Product } from "@/types";
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -19,11 +23,22 @@ function relativeTime(iso: string): string {
   return `${d} dia${d !== 1 ? "s" : ""} atrás`;
 }
 
-function CmsRow({ item }: { item: CmsPageAdminListItem }) {
+function CmsRow({
+  item,
+  toggling,
+  onToggle,
+}: {
+  item: CmsPageAdminListItem;
+  toggling: boolean;
+  onToggle: (isActive: boolean) => void;
+}) {
   return (
     <Link
       href={`/backoffice/cms/${item.slug}`}
-      className="flex items-center justify-between px-5 py-4 rounded-xl border border-border-subtle bg-surface-1 hover:border-border-default hover:bg-surface-2 transition-colors group"
+      className={cn(
+        "flex items-center justify-between px-5 py-4 rounded-xl border border-border-subtle bg-surface-1 hover:border-border-default hover:bg-surface-2 transition-colors group",
+        !item.is_active && "opacity-60"
+      )}
     >
       <div className="flex items-center gap-4 min-w-0">
         <div className="shrink-0">
@@ -34,14 +49,17 @@ function CmsRow({ item }: { item: CmsPageAdminListItem }) {
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-text-primary group-hover:text-brand-accent transition-colors truncate">
-            {item.product_name}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-text-primary group-hover:text-brand-accent transition-colors truncate">
+              {item.product_name}
+            </p>
+            {!item.is_active && <Badge variant="muted">Indisponível</Badge>}
+          </div>
           <p className="text-xs text-text-tertiary font-mono mt-0.5">{item.slug}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 shrink-0 ml-4">
+      <div className="flex items-center gap-3 shrink-0 ml-4">
         {item.has_page ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
             <CheckCircle2 size={11} />
@@ -61,6 +79,21 @@ function CmsRow({ item }: { item: CmsPageAdminListItem }) {
           </span>
         )}
 
+        {/* Disponibilidade pública — mesmo Product.is_active da página Produtos.
+            preventDefault/stopPropagation pra não navegar pro editor ao clicar. */}
+        <Button
+          variant={item.is_active ? "ghost" : "secondary"}
+          size="sm"
+          disabled={toggling}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggle(!item.is_active);
+          }}
+        >
+          {item.is_active ? "Desativar" : "Ativar"}
+        </Button>
+
         <FileEdit
           size={15}
           className="text-text-tertiary group-hover:text-brand-accent transition-colors"
@@ -71,10 +104,30 @@ function CmsRow({ item }: { item: CmsPageAdminListItem }) {
 }
 
 export default function BackofficeCmsPage() {
+  const queryClient = useQueryClient();
+
   const { data: pages = [], isLoading } = useQuery<CmsPageAdminListItem[]>({
     queryKey: ["admin-cms-pages"],
     queryFn: adminService.listCmsPages,
     staleTime: 30_000,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      adminService.toggleProduct(id, isActive),
+    onSuccess: (updated: Product) => {
+      queryClient.setQueryData<CmsPageAdminListItem[]>(["admin-cms-pages"], (prev) =>
+        prev?.map((p) =>
+          p.product_id === updated.id ? { ...p, is_active: updated.is_active } : p
+        ) ?? []
+      );
+      toast.success(
+        updated.is_active
+          ? "Serviço disponível novamente — volta a aparecer no site."
+          : "Serviço indisponível — some da home, da listagem e da página pública."
+      );
+    },
+    onError: () => toast.error("Erro ao atualizar disponibilidade."),
   });
 
   const configured = pages.filter((p) => p.has_page).length;
@@ -104,7 +157,14 @@ export default function BackofficeCmsPage() {
       ) : (
         <div className="space-y-2">
           {pages.map((item) => (
-            <CmsRow key={item.slug} item={item} />
+            <CmsRow
+              key={item.slug}
+              item={item}
+              toggling={toggleMutation.isPending}
+              onToggle={(isActive) =>
+                toggleMutation.mutate({ id: item.product_id, isActive })
+              }
+            />
           ))}
         </div>
       )}

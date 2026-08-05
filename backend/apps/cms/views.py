@@ -83,17 +83,22 @@ class ServicePageAdminListView(APIView):
         responses={200: ServicePageAdminListSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
-        products = (
-            Product.objects.prefetch_related("cms_page").filter(is_active=True).order_by("name")
-        )
+        # Não filtra is_active=True de propósito: um admin precisa continuar
+        # vendo (e conseguindo reabrir) a página CMS de um serviço que ele
+        # mesmo desativou — filtrar aqui escondia o item da própria tela que
+        # deveria reativá-lo. is_active vai no payload pra UI mostrar o
+        # estado, não pra decidir o que aparece na lista.
+        products = Product.objects.prefetch_related("cms_page").order_by("name")
         rows = []
         for product in products:
             page = getattr(product, "cms_page", None)
             rows.append(
                 {
+                    "product_id": product.id,
                     "slug": product.slug,
                     "product_name": product.name,
                     "has_page": page is not None,
+                    "is_active": product.is_active,
                     "updated_at": page.updated_at if page else None,
                 }
             )
