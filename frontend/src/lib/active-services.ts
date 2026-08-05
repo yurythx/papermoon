@@ -21,12 +21,16 @@ export async function fetchActiveServiceSlugs(): Promise<Set<string> | null> {
       // por tempo demais.
       next: { revalidate: 60, tags: ["active-services"] },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`[active-services] non-ok response: ${res.status} url=${DJANGO_URL}/products/catalog/`);
+      return null;
+    }
     const json = await res.json();
     const products: { slug: string }[] = json?.data ?? json ?? [];
     if (!Array.isArray(products)) return null;
     return new Set(products.map((p) => p.slug));
-  } catch {
+  } catch (err) {
+    console.log(`[active-services] fetch threw: ${String(err)} url=${DJANGO_URL}/products/catalog/`);
     return null;
   }
 }
