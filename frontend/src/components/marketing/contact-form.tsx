@@ -3,24 +3,36 @@
 import { useState } from "react";
 import { Send, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
-const SERVICES = [
-  "Tailscale — VPN / Mesh Network",
-  "n8n — Automação de Processos",
-  "Chatwoot — Atendimento Multicanal",
-  "GLPI — Helpdesk / ITSM",
-  "Zabbix — Monitoramento",
-  "Proxmox VE — Virtualização",
-  "TrueNAS — NAS / Storage",
-  "Nextcloud — Nuvem privada",
-  "AAPanel — Hospedagem web",
-  "Redes e cabeamento estruturado",
-  "Manutenção de servidores / computadores",
-  "Outro / Dúvida geral",
+// slugs: quais Product.slug essa opção representa — some do dropdown se
+// NENHUM deles estiver ativo (ver lib/active-services.ts). "Redes e
+// cabeamento estruturado" cobre 2 produtos de propósito (mantém a lista
+// curada/agrupada em vez de 1 opção por produto, como o resto do site já
+// faz na home/listagem). slugs: [] = opção sempre visível (não é produto).
+const SERVICES: { label: string; slugs: string[] }[] = [
+  { label: "Tailscale — VPN / Mesh Network", slugs: ["tailscale"] },
+  { label: "n8n — Automação de Processos", slugs: ["n8n"] },
+  { label: "Chatwoot — Atendimento Multicanal", slugs: ["chatwoot"] },
+  { label: "GLPI — Helpdesk / ITSM", slugs: ["glpi"] },
+  { label: "Zabbix — Monitoramento", slugs: ["zabbix"] },
+  { label: "Proxmox VE — Virtualização", slugs: ["proxmox"] },
+  { label: "TrueNAS — NAS / Storage", slugs: ["truenas"] },
+  { label: "Nextcloud — Nuvem privada", slugs: ["nextcloud"] },
+  { label: "AAPanel — Hospedagem web", slugs: ["aapanel"] },
+  { label: "Redes e cabeamento estruturado", slugs: ["redes", "cabeamento"] },
+  { label: "Manutenção de servidores / computadores", slugs: ["manutencao"] },
+  { label: "Outro / Dúvida geral", slugs: [] },
 ];
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export function ContactForm() {
+// Array, não Set — props de Server pra Client Component precisam ser
+// serializáveis pelo RSC, e Set não tem esse suporte garantido.
+export function ContactForm({ activeSlugs }: { activeSlugs: string[] | null }) {
+  const activeSet = activeSlugs === null ? null : new Set(activeSlugs);
+  const visibleServices = SERVICES.filter(
+    (s) => s.slugs.length === 0 || s.slugs.some((slug) => activeSet === null || activeSet.has(slug))
+  );
+
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [form, setForm] = useState({
@@ -138,8 +150,8 @@ export function ContactForm() {
           </label>
           <select value={form.service} onChange={set("service")} className={inputClass}>
             <option value="">Selecione...</option>
-            {SERVICES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {visibleServices.map((s) => (
+              <option key={s.label} value={s.label}>{s.label}</option>
             ))}
           </select>
         </div>

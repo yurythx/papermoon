@@ -844,7 +844,7 @@ export default async function LandingPage() {
             </div>
 
             <div className="rounded-2xl border border-border-subtle bg-surface-1/60 backdrop-blur-sm p-6">
-              <ContactForm />
+              <ContactForm activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
             </div>
           </div>
         </div>
