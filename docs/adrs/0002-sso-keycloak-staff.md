@@ -191,3 +191,35 @@ token" ligado) para que o id_token carregue a claim `groups`. No callback:
 
 `staff_group` em branco (padrão) preserva o comportamento original desta ADR —
 JIT fica desligado por default, é opt-in por realm.
+
+## Atualização — `staff_group` vira lista (múltiplos grupos autorizam)
+
+A correção anterior ("JIT provisioning condicionado a grupo") assumia implicitamente
+um único grupo de referência — cenário razoável quando o Keycloak é operado pela
+própria PaperMoon. Na prática com um cliente real (Keycloak com AD/LDAP integrado),
+duas coisas ficaram claras:
+
+1. **Não existe, e não deve ser criado, um grupo com nome relacionado à PaperMoon**
+   na árvore organizacional de um terceiro — pedir isso significaria a PaperMoon
+   ditar como o cliente organiza o próprio Active Directory.
+2. **A autorização correta usa grupos que já existem e já têm dono** (ex: o time de
+   TI decide quem entra em "Grupo Nucleo de TI"), e normalmente mais de um grupo
+   deveria contar (ex: TI **e** administradores de domínio, dois grupos distintos).
+
+`SSOConfiguration.staff_group` passou de "nome de um grupo" para **lista separada
+por vírgula**, com semântica `OR`: login autoriza se a claim `groups` do id_token
+contiver **qualquer um** dos grupos configurados. `group_authorizes_staff()`
+(`apps/accounts/oidc.py`) split a string por vírgula e compara contra o conjunto de
+grupos do token — um único nome configurado (sem vírgula) continua funcionando
+exatamente como antes, então essa mudança é compatível com qualquer configuração
+existente.
+
+De brinde, a normalização de nome de grupo (`_normalize_group`) ganhou colapso de
+espaços internos duplicados — um grupo real sincronizado de um AD apareceu como
+`"Grupo TI  - HelpDesk"` (espaço duplo), visualmente idêntico ao que se digitaria no
+backoffice mas byte-a-byte diferente sem essa normalização.
+
+Runbook completo (incluindo dois bugs de infraestrutura relacionados — domínio
+público desatualizado no `redirect_uri`, e ausência de um *client scope* `groups`
+no realm, ambos bloqueando o login **antes** mesmo da checagem de grupo) está em
+`docs/backend/sso-keycloak-integration.md`, seção 8.
