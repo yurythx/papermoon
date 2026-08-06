@@ -83,7 +83,13 @@ const NotificationBellMenu = memo(function NotificationBellMenu() {
           id="topbar-notifications-menu"
           role="menu"
           aria-label="Notificações"
-          className="absolute right-0 top-full mt-2 w-80 bg-surface-2 border border-border-default rounded-xl shadow-lg z-50 animate-slide-up overflow-hidden"
+          // Este botão não é o elemento mais à direita da topbar (o UserMenu fica
+          // depois dele) — um dropdown w-80 ancorado em right-0 relativo a ele
+          // ultrapassa a borda esquerda da viewport em telas ~360px ou menores
+          // (confirmado por cálculo de layout, não hipotético). fixed+inset-x-4
+          // resolve isso no mobile ancorando nas bordas reais da tela; a partir de
+          // sm (640px) volta ao posicionamento absoluto de sempre, que já cabe.
+          className="fixed inset-x-4 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 bg-surface-2 border border-border-default rounded-xl shadow-lg z-50 animate-slide-up overflow-hidden"
         >
           <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
             <span className="text-sm font-semibold text-text-primary">Notificações</span>
