@@ -6,8 +6,8 @@ Pattern per task:
 """
 
 import datetime
-import uuid
 from unittest.mock import patch
+import uuid
 
 from django.test import override_settings
 from django.utils import timezone
@@ -421,7 +421,9 @@ class TestSendInvoiceReadyEmail:
         with patch("apps.notifications.tasks.send_html_email") as mock_send:
             send_invoice_ready_email(str(invoice.id), _cid())
 
-        assert mock_send.call_args.kwargs["context"]["cta_link"] == "https://www.asaas.com/c/pay-123"
+        assert (
+            mock_send.call_args.kwargs["context"]["cta_link"] == "https://www.asaas.com/c/pay-123"
+        )
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",

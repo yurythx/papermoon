@@ -3,10 +3,10 @@
 import logging
 
 from apps.notifications.registry import register
-from shared.public_urls import build_frontend_url
 
 # Import provisioning handlers so they register their subscriptions at Django startup.
 import apps.provisioning.handlers  # noqa: F401
+from shared.public_urls import build_frontend_url
 
 logger = logging.getLogger(__name__)
 

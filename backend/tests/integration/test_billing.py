@@ -370,7 +370,9 @@ class TestAdminInvoiceList:
         resp = client.get(self.BASE_URL)
 
         assert resp.status_code == 200
-        result = next(item for item in resp.json()["data"]["results"] if item["id"] == str(invoice.id))
+        result = next(
+            item for item in resp.json()["data"]["results"] if item["id"] == str(invoice.id)
+        )
         assert result["payment_url"] is None
 
     def test_soft_deleted_invoice_excluded_from_list(self):

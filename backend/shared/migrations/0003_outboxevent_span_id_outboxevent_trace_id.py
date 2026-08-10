@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('shared', '0002_outbox_pending_composite_index'),
+        ("shared", "0002_outbox_pending_composite_index"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='outboxevent',
-            name='span_id',
+            model_name="outboxevent",
+            name="span_id",
             field=models.CharField(blank=True, max_length=16),
         ),
         migrations.AddField(
-            model_name='outboxevent',
-            name='trace_id',
+            model_name="outboxevent",
+            name="trace_id",
             field=models.CharField(blank=True, db_index=True, max_length=32),
         ),
     ]

@@ -36,9 +36,9 @@ class RegisterChargeCommand:
         result = self._gateway.create_charge(invoice.customer, invoice)
         asaas_id = result.get("id", "")
         # invoiceUrl is the Asaas-hosted payment page (works for boleto and PIX).
-        payment_url = sanitize_payment_url(
-            result.get("invoiceUrl") or result.get("bankSlipUrl") or ""
-        ) or ""
+        payment_url = (
+            sanitize_payment_url(result.get("invoiceUrl") or result.get("bankSlipUrl") or "") or ""
+        )
 
         with transaction.atomic():
             invoice = Invoice.objects.select_for_update(skip_locked=True).get(pk=self._invoice_id)

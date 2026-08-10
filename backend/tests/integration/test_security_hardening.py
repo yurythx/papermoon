@@ -229,9 +229,9 @@ class TestJwtSettingsContract:
     def test_signing_key_is_set_in_local_settings(self):
         from django.conf import settings
 
-        assert settings.SIMPLE_JWT.get("SIGNING_KEY"), (
-            "JWT SIGNING_KEY is empty — local.py should auto-generate dev keys"
-        )
+        assert settings.SIMPLE_JWT.get(
+            "SIGNING_KEY"
+        ), "JWT SIGNING_KEY is empty — local.py should auto-generate dev keys"
 
 
 # ---------------------------------------------------------------------------

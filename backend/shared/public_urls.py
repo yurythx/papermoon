@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import ipaddress
-from typing import Mapping
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from django.conf import settings

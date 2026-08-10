@@ -260,6 +260,8 @@ class PricingDetailView(APIView):
             ser.save()
         except IntegrityError as exc:
             raise ValidationError(
-                {"billing_cycle": "Já existe uma precificação com este ciclo de cobrança neste produto."}
+                {
+                    "billing_cycle": "Já existe uma precificação com este ciclo de cobrança neste produto."
+                }
             ) from exc
         return Response(PricingSerializer(pricing).data)

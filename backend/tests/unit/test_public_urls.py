@@ -93,5 +93,7 @@ def test_sanitize_public_url_restricts_domains():
 
 
 def test_sanitize_payment_url_allows_only_asaas_hosts():
-    assert sanitize_payment_url("https://www.asaas.com/c/pay-123") == "https://www.asaas.com/c/pay-123"
+    assert (
+        sanitize_payment_url("https://www.asaas.com/c/pay-123") == "https://www.asaas.com/c/pay-123"
+    )
     assert sanitize_payment_url("https://checkout.evil.com/pay-123") is None

@@ -255,7 +255,7 @@ def _make_subscription(customer):
         amount="499.00",
         trial_days=0,
     )
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     sub = Subscription.objects.create(
         customer=customer,
         product=product,
@@ -287,7 +287,9 @@ class TestSendSubscriptionCreatedEmail:
 
         send_subscription_created_email(str(sub.id), event_id)
 
-        notif = Notification.objects.get(outbox_event_id=event_id, channel=Notification.Channel.EMAIL)
+        notif = Notification.objects.get(
+            outbox_event_id=event_id, channel=Notification.Channel.EMAIL
+        )
         assert notif.status == Notification.Status.SENT
         assert notif.event_type == "subscription.created"
 
@@ -338,7 +340,9 @@ class TestSendCustomerCreatedEmail:
 
         send_customer_created_email(str(customer.id), event_id)
 
-        notif = Notification.objects.get(outbox_event_id=event_id, channel=Notification.Channel.EMAIL)
+        notif = Notification.objects.get(
+            outbox_event_id=event_id, channel=Notification.Channel.EMAIL
+        )
         assert notif.status == Notification.Status.SENT
         assert notif.event_type == "customer.created"
 

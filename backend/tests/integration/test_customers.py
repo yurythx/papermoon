@@ -204,7 +204,9 @@ class TestClientInvoices:
         # ClientInvoiceListView uses paginator, so results key exists
         assert len(resp.json()["data"]["results"]) == 1
 
-    def test_client_invoice_list_hides_untrusted_payment_url(self, customer_client, customer_with_profile):
+    def test_client_invoice_list_hides_untrusted_payment_url(
+        self, customer_client, customer_with_profile
+    ):
         import datetime
 
         from apps.billing.models import Invoice

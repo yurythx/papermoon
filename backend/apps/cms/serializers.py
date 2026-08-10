@@ -96,11 +96,15 @@ class ServicePageSerializer(serializers.ModelSerializer):
 
     def get_hero_image_url(self, obj: ServicePage) -> str | None:
         request = self.context.get("request")
-        return build_public_media_url(obj.hero_image.url if obj.hero_image else None, request=request)
+        return build_public_media_url(
+            obj.hero_image.url if obj.hero_image else None, request=request
+        )
 
     def get_papermoon_does(self, obj: ServicePage) -> list[str]:
         return [
-            r.text for r in obj.responsibilities.all() if r.side == ServiceResponsibility.Side.PAPERMOON
+            r.text
+            for r in obj.responsibilities.all()
+            if r.side == ServiceResponsibility.Side.PAPERMOON
         ]
 
     def get_client_does(self, obj: ServicePage) -> list[str]:
@@ -196,7 +200,9 @@ class ServicePageAdminSerializer(serializers.ModelSerializer):
 
     def get_hero_image_url(self, obj: ServicePage) -> str | None:
         request = self.context.get("request")
-        return build_public_media_url(obj.hero_image.url if obj.hero_image else None, request=request)
+        return build_public_media_url(
+            obj.hero_image.url if obj.hero_image else None, request=request
+        )
 
     @transaction.atomic
     def update(self, instance: ServicePage, validated_data: dict) -> ServicePage:
