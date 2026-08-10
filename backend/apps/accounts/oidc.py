@@ -198,7 +198,20 @@ def exchange_code(code: str, state: str) -> SSOClaims:
 
     email = claims.get("email")
     if not email:
-        raise SSOExchangeFailedError("id_token não incluiu a claim 'email'.")
+        # Muitas contas do AD (contas de serviço, e também a maioria dos
+        # servidores de ponta — saúde, educação — confirmado: 91% dos
+        # ~7.600 usuários do realm rondonopolis não têm "mail" preenchido
+        # no AD) não têm e-mail cadastrado. Sem isso, o SSO nunca autentica
+        # essas contas. Sintetiza um e-mail previsível a partir do username
+        # (mesmo padrão observado nas contas que JÁ têm mail: usuario em
+        # minúsculas @rondonopolis.mt.gov.br) só para servir de chave de
+        # identificação/JIT no papermoon — não é um endereço que recebe
+        # e-mail de verdade.
+        username = claims.get("preferred_username")
+        if username:
+            email = f"{username.lower()}@rondonopolis.mt.gov.br"
+        else:
+            raise SSOExchangeFailedError("id_token não incluiu a claim 'email'.")
 
     # Claim opcional — só existe se o realm tiver um mapper de grupo anexado ao
     # client (ou a um client scope solicitado). Ausência é normal e não é erro:

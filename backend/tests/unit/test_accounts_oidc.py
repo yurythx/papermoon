@@ -234,6 +234,37 @@ class TestExchangeCode:
             with pytest.raises(SSOExchangeFailedError):
                 exchange_code("auth-code", state)
 
+    def test_missing_email_falls_back_to_username_at_gov_domain(self):
+        # Muitas contas do AD (contas de serviço, e a maioria dos servidores de
+        # ponta — saúde, educação) não têm "mail" no AD, só "userPrincipalName"
+        # (que vira a claim preferred_username) — ver docs/backend/sso-keycloak-integration.md.
+        from apps.accounts.oidc import (
+            _STATE_CACHE_PREFIX,
+            build_authorize_url,
+            exchange_code,
+        )
+
+        _configure_sso()
+        url = build_authorize_url()
+        state = _state_from_url(url)
+        nonce = cache.get(f"{_STATE_CACHE_PREFIX}{state}")["nonce"]
+
+        with (
+            patch("apps.accounts.oidc.requests.post", return_value=_mock_token_response()),
+            patch("apps.accounts.oidc._get_jwks_client") as mock_jwks,
+            patch("apps.accounts.oidc.jwt.decode") as mock_decode,
+        ):
+            mock_jwks.return_value.get_signing_key_from_jwt.return_value = MagicMock(key="fake-key")
+            mock_decode.return_value = {
+                "sub": "kc-sub-1",
+                "nonce": nonce,
+                "preferred_username": "ADM.YURI",
+            }  # no email, has preferred_username
+            claims = exchange_code("auth-code", state)
+
+        assert claims.email == "adm.yuri@rondonopolis.mt.gov.br"
+        assert claims.subject == "kc-sub-1"
+
 
 class TestTestIssuerConnectivity:
     def test_rejects_non_http_scheme(self):
