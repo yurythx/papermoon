@@ -1,4 +1,9 @@
+import logging
+
+from django.db import IntegrityError
+from django.utils.text import slugify
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+import requests
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -6,24 +11,41 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.utils import log_action
+from apps.provisioning.keycloak import (
+    KeycloakClientAlreadyExistsError,
+    KeycloakConnectionUnavailableError,
+    KeycloakProvisioner,
+)
 from apps.subscriptions.commands import (
     CancelSubscriptionCommand,
     ChangeSubscriptionPlanCommand,
     ReactivateSubscriptionCommand,
     compute_proration,
 )
-from apps.subscriptions.keycloak_guide import build_integration_guide
-from apps.subscriptions.keycloak_integration_content import LANGUAGE_PACKS
-from apps.subscriptions.models import Subscription
+from apps.subscriptions.keycloak_guide import (
+    build_integration_guide,
+    render_code_snippet,
+    resolve_endpoints,
+    resolve_keycloak_context,
+)
+from apps.subscriptions.keycloak_integration_content import DEFAULT_SCOPES, LANGUAGE_PACKS
+from apps.subscriptions.models import KeycloakClientIntegration, Subscription
 from apps.subscriptions.repositories import DjangoLicenseRepository
 from apps.subscriptions.serializers import LicenseClientSerializer, SubscriptionSerializer
 from shared.schemas import (
     ChangePlanRequestSerializer,
+    KeycloakIntegrationCreateRequestSerializer,
+    KeycloakIntegrationCreateResponseSerializer,
     KeycloakIntegrationGuideResponseSerializer,
+    KeycloakIntegrationListResponseSerializer,
+    KeycloakIntegrationSecretResponseSerializer,
     SubscribeRequestSerializer,
     SuspendReasonRequestSerializer,
     ValidateLicenseResponseSerializer,
 )
+from shared.throttling import KeycloakClientCreateRateThrottle
+
+logger = logging.getLogger(__name__)
 
 
 def _customer_from_request(request):
@@ -395,7 +417,8 @@ class ClientKeycloakIntegrationGuideView(APIView):
     """
     Gera um guia de integração OIDC (URLs + snippet de código) pro sistema do
     cliente se conectar ao realm Keycloak provisionado pra ele. Só leitura —
-    não cria nada no Keycloak nem salva nada aqui. Ver
+    não cria nada no Keycloak nem salva nada aqui. Pra criar um client de
+    verdade, ver ClientKeycloakIntegrationListCreateView abaixo. Ver também
     apps/subscriptions/keycloak_guide.py e keycloak_integration_content.py.
     """
 
@@ -407,9 +430,10 @@ class ClientKeycloakIntegrationGuideView(APIView):
         description=(
             "Devolve issuer/URLs/scopes reais do realm do cliente (com discovery "
             "confirmado quando possível) mais um snippet de código pronto pra "
-            "colar, na stack escolhida. Se o cliente não tem um ServiceAccess "
-            "'keycloak' ativo (ou KEYCLOAK_API_URL não está configurado neste "
-            "ambiente), devolve {'available': false} em vez de erro."
+            "colar, na stack escolhida. Se o PaperMoon não tem uma conexão "
+            "central ativa com o Keycloak, ou se o cliente não tem um "
+            "ServiceAccess 'keycloak' ativo, devolve {'available': false, "
+            "'reason': ...} em vez de erro."
         ),
         parameters=[
             OpenApiParameter(
@@ -447,3 +471,314 @@ class ClientKeycloakIntegrationGuideView(APIView):
             redirect_path=redirect_path,
         )
         return Response(guide)
+
+
+def _keycloak_integrations_queryset(customer):
+    """Isolamento de tenant: só integrações de ServiceAccess 'keycloak' que
+    pertencem a uma license deste customer — mesmo raciocínio de
+    DjangoLicenseRepository.get_for_customer."""
+    return KeycloakClientIntegration.objects.filter(
+        service_access__license__customer=customer,
+        service_access__service_key="keycloak",
+    )
+
+
+def _serialize_keycloak_integration(integration: KeycloakClientIntegration) -> dict:
+    return {
+        "id": integration.id,
+        "client_id": integration.client_id,
+        "realm": integration.realm,
+        "app_name": integration.app_name,
+        "base_url": integration.base_url,
+        "redirect_uri": integration.redirect_uri,
+        "language": integration.language,
+        "public_client": integration.public_client,
+        "created_at": integration.created_at,
+    }
+
+
+# Mensagem única pro cliente final independente do motivo real — não faz
+# sentido expor "o PaperMoon ainda não configurou o Keycloak dele" como se
+# fosse um problema do plano do cliente. `reason` continua distinto na
+# resposta (e nos logs) pra suporte diagnosticar.
+_UNAVAILABLE_MESSAGE = (
+    "Integração com o Keycloak ainda não está disponível para sua conta. "
+    "Fale com o suporte do PaperMoon."
+)
+
+
+@extend_schema(tags=["Client — Assinaturas"])
+class ClientKeycloakIntegrationListCreateView(APIView):
+    """
+    GET: lista as integrações Keycloak (clients OIDC) já criadas de verdade
+    pra este cliente, mais o status de disponibilidade da funcionalidade.
+
+    POST: cria um client OIDC DE VERDADE no realm do cliente via Admin REST
+    API do Keycloak (apps.provisioning.keycloak.KeycloakProvisioner) e
+    devolve client_id/client_secret reais. Pré-requisito checado nesta ordem:
+    (1) o PaperMoon precisa ter uma conexão central ativa com o Keycloak
+    (apps.provisioning.keycloak_config — configurável em backoffice/settings),
+    (2) o cliente precisa ter um ServiceAccess 'keycloak' ativo. Nunca cria
+    nada localmente sem o client existir de verdade no Keycloak primeiro.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_throttles(self) -> list:
+        if self.request.method == "POST":
+            return [KeycloakClientCreateRateThrottle()]
+        return super().get_throttles()
+
+    @extend_schema(
+        operation_id="client_keycloak_integrations_list",
+        summary="Listar minhas integrações Keycloak",
+        responses={200: KeycloakIntegrationListResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        customer = _customer_from_request(request)
+        _ctx, reason = resolve_keycloak_context(customer)
+        integrations = _keycloak_integrations_queryset(customer).order_by("-created_at")
+        return Response(
+            {
+                "available": reason is None,
+                "reason": reason,
+                "integrations": [_serialize_keycloak_integration(i) for i in integrations],
+            }
+        )
+
+    @extend_schema(
+        operation_id="client_keycloak_integrations_create",
+        summary="Criar integração Keycloak (client OIDC de verdade)",
+        request=KeycloakIntegrationCreateRequestSerializer,
+        responses={201: KeycloakIntegrationCreateResponseSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        customer = _customer_from_request(request)
+
+        language = (request.data.get("language") or "").strip()
+        if language not in LANGUAGE_PACKS:
+            raise ValidationError({"language": f"Deve ser um de: {', '.join(LANGUAGE_PACKS)}"})
+
+        base_url = (request.data.get("base_url") or "").strip()
+        if not base_url.startswith(("http://", "https://")):
+            raise ValidationError({"base_url": "Informe uma URL http(s) completa."})
+        base_url = base_url.rstrip("/")
+
+        app_name = (request.data.get("app_name") or "").strip() or "minha-aplicacao"
+        redirect_path = (request.data.get("redirect_path") or "").strip() or None
+
+        ctx, reason = resolve_keycloak_context(customer)
+        if ctx is None:
+            # platform_not_configured é um problema da plataforma (nada que o
+            # cliente fez) — 409. no_service_access é falta de direito de
+            # acesso deste cliente ao serviço — 403.
+            status_code = 409 if reason == "platform_not_configured" else 403
+            return Response(
+                {"code": reason, "message": _UNAVAILABLE_MESSAGE, "details": []},
+                status=status_code,
+            )
+
+        pack = LANGUAGE_PACKS[language]
+        public_client = pack["public_client"]
+        resolved_redirect_path = redirect_path or pack.get(
+            "default_redirect_path", "/auth/callback"
+        )
+        redirect_uri = base_url + resolved_redirect_path
+        client_id = slugify(app_name) or "minha-aplicacao"
+
+        if _keycloak_integrations_queryset(customer).filter(client_id=client_id).exists():
+            return Response(
+                {
+                    "code": "client_already_exists",
+                    "message": (
+                        f"Já existe uma integração com o identificador '{client_id}' — "
+                        "escolha outro nome de aplicação."
+                    ),
+                    "details": [],
+                },
+                status=409,
+            )
+
+        provisioner = KeycloakProvisioner()
+        try:
+            result = provisioner.create_oidc_client(
+                realm=ctx.realm,
+                client_id=client_id,
+                name=app_name,
+                redirect_uris=[redirect_uri],
+                web_origins=[base_url],
+                public_client=public_client,
+                base_url=base_url,
+            )
+        except KeycloakConnectionUnavailableError:
+            return Response(
+                {"code": "platform_not_configured", "message": _UNAVAILABLE_MESSAGE, "details": []},
+                status=409,
+            )
+        except KeycloakClientAlreadyExistsError:
+            return Response(
+                {
+                    "code": "client_already_exists",
+                    "message": (
+                        f"Já existe um client '{client_id}' nesse realm do Keycloak — "
+                        "escolha outro nome de aplicação."
+                    ),
+                    "details": [],
+                },
+                status=409,
+            )
+        except requests.RequestException as exc:
+            logger.warning("Falha ao criar client OIDC no Keycloak: %s", exc)
+            return Response(
+                {
+                    "code": "keycloak_unreachable",
+                    "message": "Não foi possível conectar ao Keycloak agora. Tente novamente em instantes.",
+                    "details": [],
+                },
+                status=502,
+            )
+
+        try:
+            integration = KeycloakClientIntegration.objects.create(
+                service_access=ctx.service_access,
+                client_id=result["client_id"],
+                kc_uuid=result["kc_uuid"],
+                realm=ctx.realm,
+                app_name=app_name,
+                base_url=base_url,
+                redirect_uri=redirect_uri,
+                language=language,
+                public_client=public_client,
+                created_by=request.user,
+            )
+        except IntegrityError:
+            # Corrida rara: o client já foi criado no Keycloak (acima) mas a
+            # linha local colidiu — o client fica órfão no Keycloak (sem
+            # tracking local); aceitável para este escopo, não crítico.
+            return Response(
+                {
+                    "code": "client_already_exists",
+                    "message": (
+                        f"Já existe uma integração com o identificador '{client_id}' — "
+                        "escolha outro nome de aplicação."
+                    ),
+                    "details": [],
+                },
+                status=409,
+            )
+
+        log_action(
+            "keycloak_client_integration.created",
+            "KeycloakClientIntegration",
+            str(integration.pk),
+            user=request.user,
+            request=request,
+            changes={
+                "client_id": integration.client_id,
+                "realm": integration.realm,
+                "language": integration.language,
+                "public_client": integration.public_client,
+            },
+        )
+
+        endpoints, verified = resolve_endpoints(ctx.issuer)
+        code_snippet = render_code_snippet(
+            language=language,
+            issuer=ctx.issuer,
+            client_id=integration.client_id,
+            redirect_uri=redirect_uri,
+            redirect_path=resolved_redirect_path,
+            base_url=base_url,
+            endpoints=endpoints,
+            client_secret=result["client_secret"],
+            scopes=DEFAULT_SCOPES,
+        )
+
+        return Response(
+            {
+                "id": integration.id,
+                "client_id": integration.client_id,
+                "client_secret": result["client_secret"],
+                "public_client": public_client,
+                "verified": verified,
+                "issuer": ctx.issuer,
+                "authorization_endpoint": endpoints["authorization_endpoint"],
+                "token_endpoint": endpoints["token_endpoint"],
+                "userinfo_endpoint": endpoints["userinfo_endpoint"],
+                "jwks_uri": endpoints["jwks_uri"],
+                "end_session_endpoint": endpoints["end_session_endpoint"],
+                "redirect_uri": redirect_uri,
+                "scopes": DEFAULT_SCOPES,
+                "language": language,
+                "package": pack["package"],
+                "install_command": pack["install_command"],
+                "steps": pack["steps"],
+                "code_snippet": code_snippet,
+            },
+            status=201,
+        )
+
+
+@extend_schema(tags=["Client — Assinaturas"])
+class ClientKeycloakIntegrationSecretView(APIView):
+    """Rebusca o client_secret fresco no Keycloak — nunca fica persistido
+    localmente (ver KeycloakClientIntegration), então toda visualização passa
+    por uma chamada real ao Admin REST API."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="client_keycloak_integration_secret",
+        summary="Ver client_secret de uma integração",
+        description="400 se o client for público (PKCE, sem secret). 404 se a integração não é sua.",
+        responses={200: KeycloakIntegrationSecretResponseSerializer},
+    )
+    def get(self, request: Request, pk: str) -> Response:
+        from django.shortcuts import get_object_or_404
+
+        customer = _customer_from_request(request)
+        integration = get_object_or_404(_keycloak_integrations_queryset(customer), pk=pk)
+
+        if integration.public_client:
+            raise ValidationError(
+                {"detail": "Este client é público (PKCE) — não tem client_secret."}
+            )
+
+        _ctx, reason = resolve_keycloak_context(customer)
+        if reason is not None:
+            status_code = 409 if reason == "platform_not_configured" else 403
+            return Response(
+                {"code": reason, "message": _UNAVAILABLE_MESSAGE, "details": []},
+                status=status_code,
+            )
+
+        provisioner = KeycloakProvisioner()
+        try:
+            client_secret = provisioner.get_client_secret(
+                realm=integration.realm, kc_uuid=integration.kc_uuid
+            )
+        except KeycloakConnectionUnavailableError:
+            return Response(
+                {"code": "platform_not_configured", "message": _UNAVAILABLE_MESSAGE, "details": []},
+                status=409,
+            )
+        except requests.RequestException as exc:
+            logger.warning("Falha ao rebuscar client_secret no Keycloak: %s", exc)
+            return Response(
+                {
+                    "code": "keycloak_unreachable",
+                    "message": "Não foi possível conectar ao Keycloak agora. Tente novamente em instantes.",
+                    "details": [],
+                },
+                status=502,
+            )
+
+        log_action(
+            "keycloak_client_integration.secret_viewed",
+            "KeycloakClientIntegration",
+            str(integration.pk),
+            user=request.user,
+            request=request,
+            changes={"client_id": integration.client_id},
+        )
+        return Response({"client_secret": client_secret})

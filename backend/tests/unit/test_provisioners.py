@@ -4,7 +4,8 @@ HTTP calls are mocked via unittest.mock. The "disabled" (no credentials) paths
 are exercised by leaving settings blank.
 """
 
-from unittest.mock import MagicMock
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -970,121 +971,295 @@ class TestCrowdSecRegistry:
 
 
 # ---------------------------------------------------------------------------
-# KeycloakProvisioner — disabled paths (no credentials)
+# KeycloakProvisioner — a conexão central agora é resolvida por
+# apps.provisioning.keycloak_config.open_admin_session() a cada chamada (não
+# mais em __init__ — ver comentário na classe), então os testes mockam essa
+# função em vez de empurrar atributos direto na instância.
 # ---------------------------------------------------------------------------
 
 
-def _make_keycloak_provisioner(enabled=False):
+@contextmanager
+def _keycloak_admin(enabled=False):
     from apps.provisioning.keycloak import KeycloakProvisioner
 
-    p = KeycloakProvisioner.__new__(KeycloakProvisioner)
-    p._api_url = "https://keycloak.example.com" if enabled else ""
-    p._admin_token = "admin-tok" if enabled else ""
-    p._enabled = enabled
-    if enabled:
-        mock_session = MagicMock()
-        p._session = mock_session
-        return p, mock_session
-    return p, None
+    p = KeycloakProvisioner()
+    mock_session = MagicMock() if enabled else None
+    return_value = (mock_session, "https://keycloak.example.com") if enabled else (None, "")
+    with patch("apps.provisioning.keycloak.open_admin_session", return_value=return_value):
+        yield p, mock_session
 
 
 class TestKeycloakProvisionerDisabled:
     def test_provision_returns_stub_id(self):
-        p, _ = _make_keycloak_provisioner(enabled=False)
-        result = p.provision("cust-abcdefgh", "sa-1", {})
-        assert result.startswith("keycloak_stub_")
+        with _keycloak_admin(enabled=False) as (p, _):
+            result = p.provision("cust-abcdefgh", "sa-1", {})
+            assert result.startswith("keycloak_stub_")
 
     def test_suspend_is_noop(self):
-        p, _ = _make_keycloak_provisioner(enabled=False)
-        p.suspend("realm-1", "cust-1")
+        with _keycloak_admin(enabled=False) as (p, _):
+            p.suspend("realm-1", "cust-1")
 
     def test_reactivate_is_noop(self):
-        p, _ = _make_keycloak_provisioner(enabled=False)
-        p.reactivate("realm-1", "cust-1")
+        with _keycloak_admin(enabled=False) as (p, _):
+            p.reactivate("realm-1", "cust-1")
 
     def test_deprovision_is_noop(self):
-        p, _ = _make_keycloak_provisioner(enabled=False)
-        p.deprovision("realm-1", "cust-1")
+        with _keycloak_admin(enabled=False) as (p, _):
+            p.deprovision("realm-1", "cust-1")
+
+    def test_find_client_uuid_raises_connection_unavailable(self):
+        from apps.provisioning.keycloak import KeycloakConnectionUnavailableError
+
+        with _keycloak_admin(enabled=False) as (p, _):
+            with pytest.raises(KeycloakConnectionUnavailableError):
+                p.find_client_uuid(realm="tenant-abc", client_id="minha-app")
+
+    def test_create_oidc_client_raises_connection_unavailable(self):
+        from apps.provisioning.keycloak import KeycloakConnectionUnavailableError
+
+        with _keycloak_admin(enabled=False) as (p, _):
+            with pytest.raises(KeycloakConnectionUnavailableError):
+                p.create_oidc_client(
+                    realm="tenant-abc",
+                    client_id="minha-app",
+                    name="Minha App",
+                    redirect_uris=["https://app.example.com/callback"],
+                    web_origins=["https://app.example.com"],
+                    public_client=False,
+                    base_url="https://app.example.com",
+                )
 
 
 class TestKeycloakProvisionerEnabled:
     def test_provision_creates_realm_and_returns_realm_name(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.raise_for_status.return_value = None
-        mock_session.post.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 201
+            mock_resp.raise_for_status.return_value = None
+            mock_session.post.return_value = mock_resp
 
-        result = p.provision("cust-123", "sa-1", {"realm_name": "tenant-abc"})
-        assert result == "tenant-abc"
-        mock_session.post.assert_called_once()
-        assert "/admin/realms" in mock_session.post.call_args[0][0]
+            result = p.provision("cust-123", "sa-1", {"realm_name": "tenant-abc"})
+            assert result == "tenant-abc"
+            mock_session.post.assert_called_once()
+            assert "/admin/realms" in mock_session.post.call_args[0][0]
+            assert mock_session.post.call_args.kwargs["timeout"] == 10
 
     def test_provision_uses_default_realm_name_when_not_in_config(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.raise_for_status.return_value = None
-        mock_session.post.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 201
+            mock_resp.raise_for_status.return_value = None
+            mock_session.post.return_value = mock_resp
 
-        result = p.provision("cust-abcdefgh", "sa-1", {})
-        assert result.startswith("tenant-")
+            result = p.provision("cust-abcdefgh", "sa-1", {})
+            assert result.startswith("tenant-")
 
     def test_provision_handles_409_realm_already_exists(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 409
-        mock_session.post.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 409
+            mock_session.post.return_value = mock_resp
 
-        result = p.provision("cust-123", "sa-1", {"realm_name": "existing-realm"})
-        assert result == "existing-realm"
-        mock_resp.raise_for_status.assert_not_called()
+            result = p.provision("cust-123", "sa-1", {"realm_name": "existing-realm"})
+            assert result == "existing-realm"
+            mock_resp.raise_for_status.assert_not_called()
 
     def test_suspend_disables_realm(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        mock_session.put.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 204
+            mock_session.put.return_value = mock_resp
 
-        p.suspend("realm-xyz", "cust-1")
-        mock_session.put.assert_called_once()
-        payload = mock_session.put.call_args[1]["json"]
-        assert payload["enabled"] is False
-        assert "realm-xyz" in mock_session.put.call_args[0][0]
+            p.suspend("realm-xyz", "cust-1")
+            mock_session.put.assert_called_once()
+            payload = mock_session.put.call_args[1]["json"]
+            assert payload["enabled"] is False
+            assert "realm-xyz" in mock_session.put.call_args[0][0]
 
     def test_reactivate_enables_realm(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        mock_session.put.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 204
+            mock_session.put.return_value = mock_resp
 
-        p.reactivate("realm-xyz", "cust-1")
-        payload = mock_session.put.call_args[1]["json"]
-        assert payload["enabled"] is True
+            p.reactivate("realm-xyz", "cust-1")
+            payload = mock_session.put.call_args[1]["json"]
+            assert payload["enabled"] is True
 
     def test_deprovision_deletes_realm(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        mock_session.delete.return_value = mock_resp
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 204
+            mock_session.delete.return_value = mock_resp
 
-        p.deprovision("realm-xyz", "cust-1")
-        mock_session.delete.assert_called_once()
-        assert "realm-xyz" in mock_session.delete.call_args[0][0]
+            p.deprovision("realm-xyz", "cust-1")
+            mock_session.delete.assert_called_once()
+            assert "realm-xyz" in mock_session.delete.call_args[0][0]
 
     def test_suspend_ignores_404(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-        mock_session.put.return_value = mock_resp
-        p.suspend("realm-xyz", "cust-1")  # should not raise
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 404
+            mock_session.put.return_value = mock_resp
+            p.suspend("realm-xyz", "cust-1")  # should not raise
 
     def test_deprovision_ignores_404(self):
-        p, mock_session = _make_keycloak_provisioner(enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-        mock_session.delete.return_value = mock_resp
-        p.deprovision("realm-xyz", "cust-1")  # should not raise
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 404
+            mock_session.delete.return_value = mock_resp
+            p.deprovision("realm-xyz", "cust-1")  # should not raise
+
+
+class TestKeycloakFindClientUuid:
+    def test_returns_uuid_when_found(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.raise_for_status.return_value = None
+            mock_resp.json.return_value = [{"id": "kc-uuid-1"}]
+            mock_session.get.return_value = mock_resp
+
+            result = p.find_client_uuid(realm="tenant-abc", client_id="minha-app")
+            assert result == "kc-uuid-1"
+            params = mock_session.get.call_args.kwargs["params"]
+            assert params == {"clientId": "minha-app", "exact": "true"}
+
+    def test_returns_none_when_not_found(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.raise_for_status.return_value = None
+            mock_resp.json.return_value = []
+            mock_session.get.return_value = mock_resp
+
+            result = p.find_client_uuid(realm="tenant-abc", client_id="nao-existe")
+            assert result is None
+
+
+class TestKeycloakGetClientSecret:
+    def test_returns_secret_value(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            mock_resp = MagicMock()
+            mock_resp.raise_for_status.return_value = None
+            mock_resp.json.return_value = {"type": "secret", "value": "s3cr3t"}
+            mock_session.get.return_value = mock_resp
+
+            result = p.get_client_secret(realm="tenant-abc", kc_uuid="kc-uuid-1")
+            assert result == "s3cr3t"
+
+
+class TestKeycloakCreateOidcClient:
+    def test_creates_confidential_client_and_fetches_secret(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            create_resp = MagicMock()
+            create_resp.status_code = 201
+            create_resp.raise_for_status.return_value = None
+            create_resp.headers = {
+                "Location": "https://kc.example.com/admin/realms/tenant-abc/clients/kc-uuid-9"
+            }
+            mock_session.post.return_value = create_resp
+
+            secret_resp = MagicMock()
+            secret_resp.raise_for_status.return_value = None
+            secret_resp.json.return_value = {"value": "s3cr3t-real"}
+            mock_session.get.return_value = secret_resp
+
+            result = p.create_oidc_client(
+                realm="tenant-abc",
+                client_id="minha-app",
+                name="Minha App",
+                redirect_uris=["https://app.example.com/callback"],
+                web_origins=["https://app.example.com"],
+                public_client=False,
+                base_url="https://app.example.com",
+            )
+
+            assert result == {
+                "kc_uuid": "kc-uuid-9",
+                "client_id": "minha-app",
+                "client_secret": "s3cr3t-real",
+            }
+            payload = mock_session.post.call_args.kwargs["json"]
+            assert payload["publicClient"] is False
+            assert payload["webOrigins"] == []
+            assert payload["clientAuthenticatorType"] == "client-secret"
+            assert "pkce.code.challenge.method" not in payload["attributes"]
+
+    def test_creates_public_client_without_fetching_secret(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            create_resp = MagicMock()
+            create_resp.status_code = 201
+            create_resp.raise_for_status.return_value = None
+            create_resp.headers = {
+                "Location": "https://kc.example.com/admin/realms/tenant-abc/clients/kc-uuid-9"
+            }
+            mock_session.post.return_value = create_resp
+
+            result = p.create_oidc_client(
+                realm="tenant-abc",
+                client_id="spa-app",
+                name="SPA App",
+                redirect_uris=["https://app.example.com/callback"],
+                web_origins=["https://app.example.com"],
+                public_client=True,
+                base_url="https://app.example.com",
+            )
+
+            assert result["client_secret"] is None
+            mock_session.get.assert_not_called()
+            payload = mock_session.post.call_args.kwargs["json"]
+            assert payload["publicClient"] is True
+            assert payload["webOrigins"] == ["https://app.example.com"]
+            assert "clientAuthenticatorType" not in payload
+            assert payload["attributes"]["pkce.code.challenge.method"] == "S256"
+
+    def test_falls_back_to_find_client_uuid_when_location_header_missing(self):
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            create_resp = MagicMock()
+            create_resp.status_code = 201
+            create_resp.raise_for_status.return_value = None
+            create_resp.headers = {}
+
+            find_resp = MagicMock()
+            find_resp.raise_for_status.return_value = None
+            find_resp.json.return_value = [{"id": "kc-uuid-fallback"}]
+
+            secret_resp = MagicMock()
+            secret_resp.raise_for_status.return_value = None
+            secret_resp.json.return_value = {"value": "s3cr3t"}
+
+            mock_session.post.return_value = create_resp
+            mock_session.get.side_effect = [find_resp, secret_resp]
+
+            result = p.create_oidc_client(
+                realm="tenant-abc",
+                client_id="minha-app",
+                name="Minha App",
+                redirect_uris=["https://app.example.com/callback"],
+                web_origins=[],
+                public_client=False,
+                base_url="https://app.example.com",
+            )
+            assert result["kc_uuid"] == "kc-uuid-fallback"
+
+    def test_raises_already_exists_on_409(self):
+        from apps.provisioning.keycloak import KeycloakClientAlreadyExistsError
+
+        with _keycloak_admin(enabled=True) as (p, mock_session):
+            create_resp = MagicMock()
+            create_resp.status_code = 409
+            mock_session.post.return_value = create_resp
+
+            with pytest.raises(KeycloakClientAlreadyExistsError):
+                p.create_oidc_client(
+                    realm="tenant-abc",
+                    client_id="minha-app",
+                    name="Minha App",
+                    redirect_uris=["https://app.example.com/callback"],
+                    web_origins=[],
+                    public_client=False,
+                    base_url="https://app.example.com",
+                )
+            create_resp.raise_for_status.assert_not_called()
 
 
 class TestKeycloakRegistry:

@@ -12,6 +12,8 @@ de esquecer. `.replace()` com placeholders `__ASSIM__` não colide com nada.
 Placeholders disponíveis em todo `code_template`:
     __ISSUER__              URL do realm (ex: https://auth.papermoon.com/realms/tenant-abc123)
     __CLIENT_ID__            slug sugerido a partir do nome do app
+    __CLIENT_SECRET__        secret real (client criado de verdade) ou o literal
+                             histórico "COLE_AQUI_O_CLIENT_SECRET" (guia read-only)
     __REDIRECT_URI__         __BASE_URL__ + o redirect_path resolvido (ver keycloak_guide.py)
     __BASE_URL__             URL base informada pelo cliente
     __AUTH_ENDPOINT__        authorization_endpoint
@@ -22,6 +24,11 @@ Placeholders disponíveis em todo `code_template`:
     __SCOPES_SPACE__         scopes separados por espaço: "openid profile email"
     __SCOPES_GO__            scopes como literal Go: "openid", "profile", "email"
     __SCOPES_CSHARP__        scopes como linhas options.Scope.Add("...") do ASP.NET Core
+
+Cada pacote também tem `public_client: bool` — só True para "js" (SPA sem
+backend, sem onde guardar segredo). Determina o tipo de client criado de
+verdade no Keycloak (ver apps.provisioning.keycloak.create_oidc_client):
+público usa PKCE e não tem client_secret; confidencial usa client_secret.
 """
 
 DEFAULT_SCOPES = ["openid", "profile", "email"]
@@ -32,6 +39,7 @@ LANGUAGE_PACKS: dict[str, dict] = {
         "package": "mozilla-django-oidc",
         "install_command": "pip install mozilla-django-oidc",
         "default_redirect_path": "/oidc/callback/",
+        "public_client": False,
         "steps": [
             "Instale o pacote: pip install mozilla-django-oidc.",
             "Adicione 'mozilla_django_oidc' a INSTALLED_APPS e o backend de "
@@ -56,7 +64,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 OIDC_RP_CLIENT_ID = "__CLIENT_ID__"
-OIDC_RP_CLIENT_SECRET = "COLE_AQUI_O_CLIENT_SECRET"  # gerado ao criar o client no Keycloak
+OIDC_RP_CLIENT_SECRET = "__CLIENT_SECRET__"  # gerado ao criar o client no Keycloak
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_OP_AUTHORIZATION_ENDPOINT = "__AUTH_ENDPOINT__"
 OIDC_OP_TOKEN_ENDPOINT = "__TOKEN_ENDPOINT__"
@@ -83,6 +91,7 @@ urlpatterns = [
         "package": "PyJWT",
         "install_command": 'pip install "PyJWT[crypto]"',
         "default_redirect_path": "/auth/callback",
+        "public_client": False,
         "steps": [
             'Instale o PyJWT com suporte a criptografia: pip install "PyJWT[crypto]".',
             "Este padrão NÃO faz o fluxo de login (redirect pro Keycloak) — "
@@ -146,6 +155,7 @@ class KeycloakBearerAuthentication(BaseAuthentication):
         "package": "next-auth",
         "install_command": "npm install next-auth",
         "default_redirect_path": "/api/auth/callback/keycloak",
+        "public_client": False,
         "steps": [
             "Instale o pacote: npm install next-auth.",
             "Crie o arquivo de rota do NextAuth (App Router: "
@@ -178,7 +188,7 @@ const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 
 // .env.local
-// KEYCLOAK_CLIENT_SECRET=cole_aqui_o_client_secret
+// KEYCLOAK_CLIENT_SECRET=__CLIENT_SECRET__
 
 // Redirect URI a cadastrar no Keycloak (caminho fixo do NextAuth):
 // __REDIRECT_URI__
@@ -189,6 +199,7 @@ export { handler as GET, handler as POST };
         "package": "oidc-client-ts",
         "install_command": "npm install oidc-client-ts",
         "default_redirect_path": "/callback",
+        "public_client": True,
         "steps": [
             "Instale o pacote: npm install oidc-client-ts.",
             "Configure o UserManager com os valores desta página.",
@@ -227,6 +238,7 @@ userManager.signinRedirectCallback().then((user) => {
         "package": "express-openid-connect",
         "install_command": "npm install express-openid-connect",
         "default_redirect_path": "/callback",
+        "public_client": False,
         "steps": [
             "Instale o pacote: npm install express-openid-connect.",
             "Plugue o middleware auth() com os valores desta página.",
@@ -261,6 +273,10 @@ app.get("/", (req, res) => {
 
 app.listen(3000);
 
+// .env
+// SESSION_SECRET=qualquer-string-aleatoria-longa
+// KEYCLOAK_CLIENT_SECRET=__CLIENT_SECRET__
+
 // Redirect URI a cadastrar no Keycloak (caminho fixo do middleware):
 // __REDIRECT_URI__
 """,
@@ -270,6 +286,7 @@ app.listen(3000);
         "package": "github.com/coreos/go-oidc/v3 + golang.org/x/oauth2",
         "install_command": "go get github.com/coreos/go-oidc/v3/oidc golang.org/x/oauth2",
         "default_redirect_path": "/auth/callback",
+        "public_client": False,
         "steps": [
             "Instale as dependências: go get github.com/coreos/go-oidc/v3/oidc "
             "golang.org/x/oauth2.",
@@ -302,7 +319,7 @@ func main() {
 
 	oauth2Config := oauth2.Config{
 		ClientID:     "__CLIENT_ID__",
-		ClientSecret: "COLE_AQUI_O_CLIENT_SECRET", // use variável de ambiente em produção
+		ClientSecret: "__CLIENT_SECRET__", // use variável de ambiente em produção
 		RedirectURL:  "__REDIRECT_URI__",
 		Endpoint:     provider.Endpoint(),
 		Scopes:       []string{__SCOPES_GO__},
@@ -345,6 +362,7 @@ func main() {
         "package": "Microsoft.AspNetCore.Authentication.OpenIdConnect",
         "install_command": "dotnet add package Microsoft.AspNetCore.Authentication.OpenIdConnect",
         "default_redirect_path": "/signin-oidc",
+        "public_client": False,
         "steps": [
             "Instale o pacote (já vem embutido no SDK do ASP.NET Core na "
             "maioria dos casos — o comando abaixo garante a versão certa): "
@@ -389,6 +407,10 @@ app.MapGet("/", (HttpContext ctx) => ctx.User.Identity!.IsAuthenticated
     : "Não logado");
 
 app.Run();
+
+// user-secrets (dotnet user-secrets set Keycloak:ClientSecret "...") — NUNCA em
+// appsettings.json versionado:
+// { "Keycloak": { "ClientSecret": "__CLIENT_SECRET__" } }
 
 // Redirect URI a cadastrar no Keycloak (caminho fixo do middleware):
 // __REDIRECT_URI__

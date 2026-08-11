@@ -1,17 +1,25 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { KeyRound } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import { toast } from "sonner";
+import { CheckCircle2, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CodeBlock } from "@/components/compound/code-block";
 import { CopyButton } from "@/components/compound/copy-button";
 import { EmptyState } from "@/components/compound/empty-state";
 import { PageHeader } from "@/components/compound/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { integrationService } from "@/lib/services";
-import type { KeycloakIntegrationLanguage } from "@/types";
+import type {
+  KeycloakClientIntegration,
+  KeycloakIntegrationCreateResult,
+  KeycloakIntegrationLanguage,
+} from "@/types";
 
 const LANGUAGES: { id: KeycloakIntegrationLanguage; label: string }[] = [
   { id: "django", label: "Django" },
@@ -103,26 +111,247 @@ function UrlField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SecretField({ value }: { value: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div>
+      <label className="text-xs font-medium text-text-tertiary mb-1 block">Client Secret</label>
+      <Input
+        readOnly
+        type={visible ? "text" : "password"}
+        value={value}
+        className="font-mono text-xs opacity-90 cursor-default pr-16"
+        rightElement={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVisible((v) => !v)}
+              aria-label={visible ? "Ocultar client secret" : "Mostrar client secret"}
+              className="rounded-sm text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
+            >
+              {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+            <CopyButton value={value} />
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+function ExistingIntegrationRow({ integration }: { integration: KeycloakClientIntegration }) {
+  const [secret, setSecret] = useState<string | null>(null);
+
+  const secretMutation = useMutation({
+    mutationFn: () => integrationService.getKeycloakIntegrationSecret(integration.id),
+    onSuccess: (result) => setSecret(result.client_secret),
+    onError: (err) => {
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error?.message ?? "Erro ao buscar credenciais.");
+      } else {
+        toast.error("Erro inesperado.");
+      }
+    },
+  });
+
+  return (
+    <div className="border border-border-subtle rounded-lg p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold text-text-primary">{integration.app_name}</p>
+          <p className="text-xs text-text-tertiary font-mono mt-0.5">{integration.client_id}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="muted">
+            {LANGUAGES.find((l) => l.id === integration.language)?.label ?? integration.language}
+          </Badge>
+          {integration.public_client ? (
+            <Badge variant="info">Público (PKCE)</Badge>
+          ) : (
+            <Badge variant="default">Confidencial</Badge>
+          )}
+        </div>
+      </div>
+
+      {!integration.public_client && (
+        <>
+          {secret ? (
+            <SecretField value={secret} />
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={secretMutation.isPending}
+              onClick={() => secretMutation.mutate()}
+            >
+              Ver credenciais
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function IntegrationResultDetails({ result }: { result: KeycloakIntegrationCreateResult }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 flex-wrap">
+        {result.verified ? (
+          <Badge variant="success" dot>
+            Confirmado com o Keycloak agora
+          </Badge>
+        ) : (
+          <Badge variant="warning" dot>
+            Não confirmado — usando caminhos padrão
+          </Badge>
+        )}
+        {result.public_client ? (
+          <Badge variant="info">Client público — PKCE, sem secret</Badge>
+        ) : (
+          <Badge variant="default">Client confidencial</Badge>
+        )}
+      </div>
+
+      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-text-primary">Credenciais da integração</h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          <UrlField label="Issuer" value={result.issuer} />
+          <UrlField label="Client ID" value={result.client_id} />
+          {result.client_secret && <SecretField value={result.client_secret} />}
+          <UrlField label="Redirect URI (já cadastrado no Keycloak)" value={result.redirect_uri} />
+          <UrlField label="Scopes" value={result.scopes.join(" ")} />
+          <UrlField label="Authorization endpoint" value={result.authorization_endpoint} />
+          <UrlField label="Token endpoint" value={result.token_endpoint} />
+          <UrlField label="Userinfo endpoint" value={result.userinfo_endpoint} />
+          <UrlField label="JWKS URI" value={result.jwks_uri} />
+          <UrlField label="Logout endpoint" value={result.end_session_endpoint} />
+        </div>
+      </div>
+
+      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-text-primary">Passo a passo</h3>
+        <ol className="space-y-2.5">
+          {result.steps.map((step, i) => (
+            <li key={i} className="flex gap-3 text-sm text-text-secondary">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-surface-3 text-text-tertiary text-xs font-semibold flex items-center justify-center mt-0.5">
+                {i + 1}
+              </span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-sm font-semibold text-text-primary">Código ({result.package})</h3>
+          <code className="bg-surface-3 px-1.5 py-0.5 rounded font-mono text-xs text-info">
+            {result.install_command}
+          </code>
+        </div>
+        <CodeBlock code={result.code_snippet} />
+      </div>
+    </div>
+  );
+}
+
 export default function KeycloakIntegrationPage() {
+  const queryClient = useQueryClient();
   const [appName, setAppName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [language, setLanguage] = useState<KeycloakIntegrationLanguage>("nextjs");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [createdResult, setCreatedResult] = useState<KeycloakIntegrationCreateResult | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
-  const { data, isFetching, isError, isFetched, refetch } = useQuery({
+  const { data: list, isLoading: isListLoading } = useQuery({
+    queryKey: ["keycloak-integrations"],
+    queryFn: integrationService.listKeycloakIntegrations,
+  });
+
+  const {
+    data: guide,
+    isFetching: isGuideFetching,
+    isError: isGuideError,
+    isFetched: isGuideFetched,
+    refetch: refetchGuide,
+  } = useQuery({
     queryKey: ["keycloak-integration-guide", language, appName, baseUrl],
     queryFn: () =>
       integrationService.getKeycloakGuide({ language, app_name: appName, base_url: baseUrl }),
     enabled: false,
   });
 
+  const createMutation = useMutation({
+    mutationFn: () =>
+      integrationService.createKeycloakIntegration({
+        language,
+        app_name: appName,
+        base_url: baseUrl,
+      }),
+    onSuccess: (result) => {
+      setCreatedResult(result);
+      setConfirmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["keycloak-integrations"] });
+      toast.success("Integração criada — client OIDC de verdade no Keycloak.");
+    },
+    onError: (err) => {
+      setConfirmOpen(false);
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error?.message ?? "Erro ao criar a integração.");
+      } else {
+        toast.error("Erro inesperado.");
+      }
+    },
+  });
+
   const canGenerate = baseUrl.trim().startsWith("http");
+
+  if (isListLoading) {
+    return (
+      <div className="space-y-8">
+        <PageHeader title="Integração SSO (Keycloak)" description="Carregando…" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (list && !list.available) {
+    return (
+      <div className="space-y-8">
+        <PageHeader
+          title="Integração SSO (Keycloak)"
+          description="Conecte outro sistema ao Keycloak do PaperMoon"
+        />
+        <EmptyState
+          icon={KeyRound}
+          title="Integração Keycloak ainda não está disponível"
+          description="Integração com o Keycloak ainda não está disponível para sua conta. Fale com o suporte do PaperMoon."
+          action={{ label: "Falar com a equipe", href: "mailto:contato@papermoon.com.br" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Integração SSO (Keycloak)"
-        description="Gere um guia com as URLs e o código pra conectar seu sistema ao Keycloak do PaperMoon"
+        description="Crie um client OIDC de verdade — ou só gere um guia com as URLs e o código pra conectar seu sistema"
       />
+
+      {list && list.integrations.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary">Minhas integrações</h3>
+          <div className="space-y-3">
+            {list.integrations.map((integration) => (
+              <ExistingIntegrationRow key={integration.id} integration={integration} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
@@ -155,24 +384,78 @@ export default function KeycloakIntegrationPage() {
           <LanguageTabs value={language} onChange={setLanguage} />
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          loading={isFetching}
-          disabled={!canGenerate}
-          onClick={() => refetch()}
-        >
-          Gerar guia
-        </Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!canGenerate}
+            onClick={() => setConfirmOpen(true)}
+          >
+            Criar integração
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={isGuideFetching}
+            disabled={!canGenerate}
+            onClick={() => refetchGuide()}
+          >
+            Gerar guia
+          </Button>
+          <span className="text-xs text-text-tertiary">
+            &quot;Criar integração&quot; cria o client de verdade no Keycloak. &quot;Gerar guia&quot;
+            só mostra como fazer, sem criar nada.
+          </span>
+        </div>
       </div>
 
-      {isError && (
+      {confirmOpen && (
+        <Dialog
+          onClose={() => setConfirmOpen(false)}
+          titleId={titleId}
+          descriptionId={descriptionId}
+          className="max-w-sm p-6"
+        >
+          <h3 id={titleId} className="text-base font-semibold text-text-primary">
+            Criar integração de verdade?
+          </h3>
+          <p id={descriptionId} className="text-sm text-text-secondary mt-1 mb-5">
+            Isso cria um client OIDC de verdade no Keycloak do PaperMoon, dentro do seu realm.
+            Você poderá ver as credenciais (client_id/client_secret) logo em seguida.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)} disabled={createMutation.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              Criar
+            </Button>
+          </div>
+        </Dialog>
+      )}
+
+      {createdResult && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-success text-sm font-medium">
+            <CheckCircle2 size={16} />
+            Integração criada com sucesso
+          </div>
+          <IntegrationResultDetails result={createdResult} />
+        </div>
+      )}
+
+      {isGuideError && (
         <p className="text-sm text-danger">
           Não foi possível gerar o guia agora. Tente de novo em instantes.
         </p>
       )}
 
-      {isFetched && data && !data.available && (
+      {isGuideFetched && guide && !guide.available && (
         <EmptyState
           icon={KeyRound}
           title="Integração Keycloak ainda não está disponível"
@@ -181,10 +464,14 @@ export default function KeycloakIntegrationPage() {
         />
       )}
 
-      {isFetched && data?.available && (
+      {isGuideFetched && guide?.available && (
         <div className="space-y-6">
           <div className="flex items-center gap-2">
-            {data.verified ? (
+            <ShieldCheck size={14} className="text-text-tertiary" />
+            <span className="text-xs text-text-tertiary">Guia gerado — nada foi criado no Keycloak</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {guide.verified ? (
               <Badge variant="success" dot>
                 Confirmado com o Keycloak agora
               </Badge>
@@ -198,25 +485,25 @@ export default function KeycloakIntegrationPage() {
           <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
             <h3 className="text-sm font-semibold text-text-primary">Valores da integração</h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <UrlField label="Issuer" value={data.issuer ?? ""} />
-              <UrlField label="Client ID sugerido" value={data.client_id_suggestion ?? ""} />
+              <UrlField label="Issuer" value={guide.issuer ?? ""} />
+              <UrlField label="Client ID sugerido" value={guide.client_id_suggestion ?? ""} />
               <UrlField
                 label="Redirect URI (cadastre este no Keycloak)"
-                value={data.redirect_uri ?? ""}
+                value={guide.redirect_uri ?? ""}
               />
-              <UrlField label="Scopes" value={(data.scopes ?? []).join(" ")} />
-              <UrlField label="Authorization endpoint" value={data.authorization_endpoint ?? ""} />
-              <UrlField label="Token endpoint" value={data.token_endpoint ?? ""} />
-              <UrlField label="Userinfo endpoint" value={data.userinfo_endpoint ?? ""} />
-              <UrlField label="JWKS URI" value={data.jwks_uri ?? ""} />
-              <UrlField label="Logout endpoint" value={data.end_session_endpoint ?? ""} />
+              <UrlField label="Scopes" value={(guide.scopes ?? []).join(" ")} />
+              <UrlField label="Authorization endpoint" value={guide.authorization_endpoint ?? ""} />
+              <UrlField label="Token endpoint" value={guide.token_endpoint ?? ""} />
+              <UrlField label="Userinfo endpoint" value={guide.userinfo_endpoint ?? ""} />
+              <UrlField label="JWKS URI" value={guide.jwks_uri ?? ""} />
+              <UrlField label="Logout endpoint" value={guide.end_session_endpoint ?? ""} />
             </div>
           </div>
 
           <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
             <h3 className="text-sm font-semibold text-text-primary">Passo a passo</h3>
             <ol className="space-y-2.5">
-              {(data.steps ?? []).map((step, i) => (
+              {(guide.steps ?? []).map((step, i) => (
                 <li key={i} className="flex gap-3 text-sm text-text-secondary">
                   <span className="shrink-0 w-5 h-5 rounded-full bg-surface-3 text-text-tertiary text-xs font-semibold flex items-center justify-center mt-0.5">
                     {i + 1}
@@ -230,13 +517,13 @@ export default function KeycloakIntegrationPage() {
           <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-semibold text-text-primary">
-                Código ({data.package})
+                Código ({guide.package})
               </h3>
               <code className="bg-surface-3 px-1.5 py-0.5 rounded font-mono text-xs text-info">
-                {data.install_command}
+                {guide.install_command}
               </code>
             </div>
-            <CodeBlock code={data.code_snippet ?? ""} />
+            <CodeBlock code={guide.code_snippet ?? ""} />
           </div>
         </div>
       )}

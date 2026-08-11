@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/v1/admin/", include("apps.customers.urls_admin")),
     path("api/v1/admin/", include("apps.audit.urls")),
     path("api/v1/admin/", include("apps.accounts.urls_admin")),
+    path("api/v1/admin/", include("apps.provisioning.urls_admin")),
     # Client-facing (customers domain: me, invoices, metrics, invitations)
     path("api/v1/client/", include("apps.customers.urls_client")),
     # Client-facing (licenses — owned by subscriptions app)

@@ -261,10 +261,28 @@ export interface SSOTestResult {
   message: string;
 }
 
-// Client — guia de integração Keycloak (diferente do SSOConfig acima, que é
-// o SSO de STAFF do próprio backoffice — isto aqui é o realm Keycloak que o
-// PaperMoon provisiona pro cliente como produto, ver ServiceAccess.service_key
-// === "keycloak")
+// Admin — conexão central do PaperMoon com o Keycloak que ELE administra via
+// Admin REST API, pra provisionar realms/clients de clientes (Backoffice →
+// Configurações). NÃO é o SSOConfig acima (aquilo é o SSO de STAFF — Keycloaks
+// diferentes, só reaproveitam o mesmo padrão de tela/config).
+export interface KeycloakConnectionConfig {
+  enabled: boolean;
+  api_url: string;
+  admin_token_set: boolean;
+  updated_at: string | null;
+  updated_by_email: string | null;
+}
+
+export interface KeycloakConnectionUpdatePayload {
+  enabled: boolean;
+  api_url?: string;
+  admin_token?: string;
+}
+
+// Client — guia de integração Keycloak e criação real de client OIDC
+// (diferente do SSOConfig acima, que é o SSO de STAFF do próprio backoffice —
+// isto aqui é o realm Keycloak que o PaperMoon provisiona pro cliente como
+// produto, ver ServiceAccess.service_key === "keycloak")
 export type KeycloakIntegrationLanguage =
   | "django"
   | "drf"
@@ -274,8 +292,11 @@ export type KeycloakIntegrationLanguage =
   | "go"
   | "csharp";
 
+export type KeycloakIntegrationUnavailableReason = "platform_not_configured" | "no_service_access";
+
 export interface KeycloakIntegrationGuide {
   available: boolean;
+  reason?: KeycloakIntegrationUnavailableReason | null;
   verified?: boolean;
   issuer?: string;
   authorization_endpoint?: string;
@@ -291,6 +312,57 @@ export interface KeycloakIntegrationGuide {
   install_command?: string;
   steps?: string[];
   code_snippet?: string;
+}
+
+// Client — integrações já criadas de verdade (client OIDC no Keycloak do cliente)
+export interface KeycloakClientIntegration {
+  id: string;
+  client_id: string;
+  realm: string;
+  app_name: string;
+  base_url: string;
+  redirect_uri: string;
+  language: KeycloakIntegrationLanguage;
+  public_client: boolean;
+  created_at: string;
+}
+
+export interface KeycloakIntegrationListResult {
+  available: boolean;
+  reason: KeycloakIntegrationUnavailableReason | null;
+  integrations: KeycloakClientIntegration[];
+}
+
+export interface KeycloakIntegrationCreatePayload {
+  language: KeycloakIntegrationLanguage;
+  app_name?: string;
+  base_url: string;
+  redirect_path?: string;
+}
+
+export interface KeycloakIntegrationCreateResult {
+  id: string;
+  client_id: string;
+  client_secret: string | null;
+  public_client: boolean;
+  verified: boolean;
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+  jwks_uri: string;
+  end_session_endpoint: string;
+  redirect_uri: string;
+  scopes: string[];
+  language: KeycloakIntegrationLanguage;
+  package: string;
+  install_command: string;
+  steps: string[];
+  code_snippet: string;
+}
+
+export interface KeycloakIntegrationSecretResult {
+  client_secret: string;
 }
 
 // Admin — Audit Log

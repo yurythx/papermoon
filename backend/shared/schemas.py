@@ -250,6 +250,106 @@ class SSOTestResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+class KeycloakConnectionResponseSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    api_url = serializers.CharField(allow_blank=True)
+    admin_token_set = serializers.BooleanField()
+    updated_at = serializers.DateTimeField(allow_null=True)
+    updated_by_email = serializers.EmailField(allow_null=True)
+
+
+class KeycloakConnectionUpdateRequestSerializer(serializers.Serializer):
+    """
+    PATCH parcial de verdade, mesmo padrão de SSOConfigUpdateRequestSerializer:
+    `api_url`/`admin_token` ausentes do body mantêm o valor já salvo.
+    """
+
+    enabled = serializers.BooleanField()
+    api_url = serializers.CharField(required=False, allow_blank=True)
+    admin_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Omitido (ou em branco) mantém o admin_token já salvo.",
+    )
+
+
+class KeycloakConnectionTestRequestSerializer(serializers.Serializer):
+    api_url = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Se omitido, testa a api_url já salva.",
+    )
+    admin_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Se omitido, testa o admin_token já salvo.",
+    )
+
+
+class KeycloakConnectionTestResponseSerializer(serializers.Serializer):
+    reachable = serializers.BooleanField()
+    message = serializers.CharField()
+
+
+class KeycloakClientIntegrationSerializer(serializers.Serializer):
+    """Item de `GET .../keycloak-integrations/` — nunca inclui client_secret,
+    que só é servido sob demanda por KeycloakClientIntegrationSecretView."""
+
+    id = serializers.UUIDField()
+    client_id = serializers.CharField()
+    realm = serializers.CharField()
+    app_name = serializers.CharField()
+    base_url = serializers.CharField()
+    redirect_uri = serializers.CharField()
+    language = serializers.CharField()
+    public_client = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
+
+
+class KeycloakIntegrationListResponseSerializer(serializers.Serializer):
+    available = serializers.BooleanField()
+    reason = serializers.CharField(allow_null=True)
+    integrations = KeycloakClientIntegrationSerializer(many=True)
+
+
+class KeycloakIntegrationCreateRequestSerializer(serializers.Serializer):
+    language = serializers.CharField()
+    app_name = serializers.CharField(required=False, allow_blank=True)
+    base_url = serializers.CharField()
+    redirect_path = serializers.CharField(required=False, allow_blank=True)
+
+
+class KeycloakIntegrationCreateResponseSerializer(serializers.Serializer):
+    """Igual a KeycloakIntegrationGuideResponseSerializer, mais os campos do
+    client criado de verdade — client_secret só aparece aqui, uma vez, na
+    criação (e de novo sob demanda em .../secret/); nunca fica persistido."""
+
+    id = serializers.UUIDField()
+    client_id = serializers.CharField()
+    client_secret = serializers.CharField(allow_null=True)
+    public_client = serializers.BooleanField()
+    verified = serializers.BooleanField()
+    issuer = serializers.CharField()
+    authorization_endpoint = serializers.CharField()
+    token_endpoint = serializers.CharField()
+    userinfo_endpoint = serializers.CharField()
+    jwks_uri = serializers.CharField()
+    end_session_endpoint = serializers.CharField()
+    redirect_uri = serializers.CharField()
+    scopes = serializers.ListField(child=serializers.CharField())
+    language = serializers.CharField()
+    package = serializers.CharField()
+    install_command = serializers.CharField()
+    steps = serializers.ListField(child=serializers.CharField())
+    code_snippet = serializers.CharField()
+
+
+class KeycloakIntegrationSecretResponseSerializer(serializers.Serializer):
+    client_secret = serializers.CharField()
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

@@ -180,6 +180,56 @@ export const handlers = [
     })
   ),
 
+  http.get("/api/proxy/client/subscriptions/keycloak-integrations/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { available: true, reason: null, integrations: [] },
+      error: null,
+    })
+  ),
+
+  http.post("/api/proxy/client/subscriptions/keycloak-integrations/", () =>
+    HttpResponse.json(
+      {
+        success: true,
+        data: {
+          id: "kc-int-1",
+          client_id: "minha-app",
+          client_secret: "s3cr3t-real",
+          public_client: false,
+          verified: true,
+          issuer: "https://auth.papermoon.com/realms/tenant-abc123",
+          authorization_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/auth",
+          token_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/token",
+          userinfo_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/userinfo",
+          jwks_uri: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/certs",
+          end_session_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/logout",
+          redirect_uri: "https://meusistema.com.br/api/auth/callback/keycloak",
+          scopes: ["openid", "profile", "email"],
+          language: "nextjs",
+          package: "next-auth",
+          install_command: "npm install next-auth",
+          steps: ["Instale o pacote: npm install next-auth."],
+          code_snippet: "import NextAuth from \"next-auth\";",
+        },
+        error: null,
+      },
+      { status: 201 }
+    )
+  ),
+
+  http.get("/api/proxy/client/subscriptions/keycloak-integrations/:id/secret/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { client_secret: "s3cr3t-real" },
+      error: null,
+    })
+  ),
+
   http.post("/api/proxy/client/subscriptions/:id/reactivate/", ({ params }) =>
     HttpResponse.json({
       success: true,
@@ -533,6 +583,99 @@ export const handlers = [
       { status: 201 }
     );
   }),
+
+  // Admin — SSO de staff (Backoffice → Configurações)
+  http.get("/api/proxy/admin/sso-config/", () =>
+    HttpResponse.json({
+      success: true,
+      data: {
+        enabled: false,
+        issuer: "",
+        client_id: "",
+        client_secret_set: false,
+        staff_group: "",
+        redirect_uri: "https://app.papermoon.com/api/auth/sso/callback",
+        updated_at: null,
+        updated_by_email: null,
+      },
+      error: null,
+    })
+  ),
+
+  http.patch("/api/proxy/admin/sso-config/", async ({ request }) => {
+    const body = (await request.json()) as {
+      enabled: boolean;
+      issuer?: string;
+      client_id?: string;
+      client_secret?: string;
+      staff_group?: string;
+    };
+    return HttpResponse.json({
+      success: true,
+      data: {
+        enabled: body.enabled,
+        issuer: body.issuer ?? "",
+        client_id: body.client_id ?? "",
+        client_secret_set: Boolean(body.client_secret),
+        staff_group: body.staff_group ?? "",
+        redirect_uri: "https://app.papermoon.com/api/auth/sso/callback",
+        updated_at: "2024-06-01T00:00:00Z",
+        updated_by_email: "admin@papermoon.com",
+      },
+      error: null,
+    });
+  }),
+
+  http.post("/api/proxy/admin/sso-config/test/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { reachable: true, message: "Conectou e o discovery document é válido." },
+      error: null,
+    })
+  ),
+
+  // Admin — conexão central com o Keycloak (provisionamento — Backoffice →
+  // Configurações). NÃO é o SSO de staff acima — Keycloaks diferentes.
+  http.get("/api/proxy/admin/keycloak-connection/", () =>
+    HttpResponse.json({
+      success: true,
+      data: {
+        enabled: false,
+        api_url: "",
+        admin_token_set: false,
+        updated_at: null,
+        updated_by_email: null,
+      },
+      error: null,
+    })
+  ),
+
+  http.patch("/api/proxy/admin/keycloak-connection/", async ({ request }) => {
+    const body = (await request.json()) as {
+      enabled: boolean;
+      api_url?: string;
+      admin_token?: string;
+    };
+    return HttpResponse.json({
+      success: true,
+      data: {
+        enabled: body.enabled,
+        api_url: body.api_url ?? "",
+        admin_token_set: Boolean(body.admin_token),
+        updated_at: "2024-06-01T00:00:00Z",
+        updated_by_email: "admin@papermoon.com",
+      },
+      error: null,
+    });
+  }),
+
+  http.post("/api/proxy/admin/keycloak-connection/test/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { reachable: true, message: "Conectou e o token foi aceito — 3 realm(s) visível(is)." },
+      error: null,
+    })
+  ),
 
   // Admin customer quota
   http.get("/api/proxy/admin/customers/:id/quota/", () =>

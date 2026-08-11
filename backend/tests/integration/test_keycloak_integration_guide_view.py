@@ -3,13 +3,32 @@
 from unittest.mock import MagicMock, patch
 import uuid
 
+from django.core.cache import cache
 import pytest
 
 from apps.customers.models import Customer
 from apps.products.models import Pricing, Product, ServiceComponent
+from apps.provisioning.keycloak_config import update_keycloak_connection
 from apps.subscriptions.models import License, ServiceAccess, Subscription
 
 BASE_URL = "/api/v1/client/subscriptions/keycloak-integration-guide/"
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+
+def _configure_platform(admin_user, **overrides):
+    defaults = {
+        "enabled": True,
+        "api_url": "https://keycloak.example.com",
+        "admin_token": "admin-tok",
+    }
+    defaults.update(overrides)
+    return update_keycloak_connection(user=admin_user, **defaults)
 
 
 def _make_keycloak_service_access(customer: Customer, *, external_id: str = "tenant-abc123"):
@@ -57,29 +76,31 @@ def _query(**overrides):
 @pytest.mark.django_db
 class TestClientKeycloakIntegrationGuideView:
     def test_returns_not_available_without_active_keycloak_service_access(
-        self, customer_client, customer_with_profile, settings
+        self, customer_client, customer_with_profile, admin_user
     ):
-        settings.KEYCLOAK_API_URL = "https://keycloak.example.com"
-        settings.KEYCLOAK_ADMIN_TOKEN = "fake-token"
+        _configure_platform(admin_user)
 
         resp = customer_client.get(BASE_URL, _query())
         assert resp.status_code == 200
-        assert resp.json()["data"] == {"available": False}
+        data = resp.json()["data"]
+        assert data["available"] is False
+        assert data["reason"] == "no_service_access"
 
-    def test_returns_not_available_when_keycloak_api_url_not_configured(
-        self, customer_client, customer_with_profile, settings
+    def test_returns_not_available_when_platform_not_configured(
+        self, customer_client, customer_with_profile
     ):
-        settings.KEYCLOAK_API_URL = ""
         _make_keycloak_service_access(customer_with_profile)
 
         resp = customer_client.get(BASE_URL, _query())
         assert resp.status_code == 200
-        assert resp.json()["data"] == {"available": False}
+        data = resp.json()["data"]
+        assert data["available"] is False
+        assert data["reason"] == "platform_not_configured"
 
     def test_returns_guide_with_verified_discovery(
-        self, customer_client, customer_with_profile, settings
+        self, customer_client, customer_with_profile, admin_user
     ):
-        settings.KEYCLOAK_API_URL = "https://keycloak.example.com"
+        _configure_platform(admin_user)
         _make_keycloak_service_access(customer_with_profile, external_id="tenant-abc123")
         issuer = "https://keycloak.example.com/realms/tenant-abc123"
 
@@ -108,13 +129,18 @@ class TestClientKeycloakIntegrationGuideView:
         assert "__CLIENT_ID__" not in data["code_snippet"]
         assert "minha-app" in data["code_snippet"]
         assert issuer in data["code_snippet"]
+        # Guia read-only: nunca cria nada, secret cai no literal histórico.
+        assert (
+            "COLE_AQUI_O_CLIENT_SECRET" in data["code_snippet"]
+            or "cole_aqui" in data["code_snippet"].lower()
+        )
 
     def test_returns_guide_with_fallback_endpoints_when_discovery_unreachable(
-        self, customer_client, customer_with_profile, settings
+        self, customer_client, customer_with_profile, admin_user
     ):
         import requests
 
-        settings.KEYCLOAK_API_URL = "https://keycloak.example.com"
+        _configure_platform(admin_user)
         _make_keycloak_service_access(customer_with_profile, external_id="tenant-abc123")
 
         with patch(
@@ -131,15 +157,15 @@ class TestClientKeycloakIntegrationGuideView:
         assert data["authorization_endpoint"] == f"{issuer}/protocol/openid-connect/auth"
         assert data["token_endpoint"] == f"{issuer}/protocol/openid-connect/token"
 
-    def test_unknown_language_returns_400(self, customer_client, customer_with_profile, settings):
-        settings.KEYCLOAK_API_URL = "https://keycloak.example.com"
+    def test_unknown_language_returns_400(self, customer_client, customer_with_profile, admin_user):
+        _configure_platform(admin_user)
         _make_keycloak_service_access(customer_with_profile)
 
         resp = customer_client.get(BASE_URL, _query(language="cobol"))
         assert resp.status_code == 400
 
-    def test_invalid_base_url_returns_400(self, customer_client, customer_with_profile, settings):
-        settings.KEYCLOAK_API_URL = "https://keycloak.example.com"
+    def test_invalid_base_url_returns_400(self, customer_client, customer_with_profile, admin_user):
+        _configure_platform(admin_user)
         _make_keycloak_service_access(customer_with_profile)
 
         resp = customer_client.get(BASE_URL, _query(base_url="not-a-url"))

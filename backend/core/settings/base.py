@@ -151,6 +151,8 @@ REST_FRAMEWORK = {
         "register": "5/hour",
         "sso": "20/minute",
         "sso_test": "10/minute",
+        "keycloak_connection_test": "10/minute",
+        "keycloak_client_create": "20/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": [
@@ -206,11 +208,16 @@ CHATWOOT_API_KEY = env("CHATWOOT_API_KEY", default="")
 
 # --- Keycloak (provisioner multi-tenant) ---
 # Diferente do bloco acima: este é o Keycloak CENTRAL do PaperMoon, onde
-# apps.provisioning.keycloak.KeycloakProvisioner cria um realm por cliente
-# (produto "Keycloak IAM/SSO" vendido a clientes — ver apps/products/models.py).
-# Sem essas duas variáveis preenchidas, o provisioner roda em modo stub
-# (retorna "keycloak_stub_<id>", não cria realm nenhum de verdade) em
-# qualquer ambiente — nunca foram configuradas até hoje.
+# apps.provisioning.keycloak.KeycloakProvisioner cria um realm — e, dentro
+# dele, clients OIDC — por cliente (produto "Keycloak IAM/SSO" vendido a
+# clientes — ver apps/products/models.py).
+#
+# Estas duas variáveis NÃO são mais lidas em runtime por nenhum código —
+# servem só de bootstrap: a migração apps.provisioning.migrations
+# .0002_seed_keycloak_connection_from_env as usa, se presentes, para popular
+# a linha única de apps.provisioning.models.KeycloakConnection num deploy
+# novo. Depois disso, a conexão é 100% editável/testável em runtime pelo
+# backoffice (Configurações) — ver apps.provisioning.keycloak_config.
 KEYCLOAK_API_URL = env("KEYCLOAK_API_URL", default="")
 KEYCLOAK_ADMIN_TOKEN = env("KEYCLOAK_ADMIN_TOKEN", default="")
 

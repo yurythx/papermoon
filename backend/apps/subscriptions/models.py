@@ -135,3 +135,52 @@ class ServiceAccess(models.Model):
 
     def __str__(self) -> str:
         return f"{self.license_id} / {self.service_key} / {self.status}"
+
+
+class KeycloakClientIntegration(models.Model):
+    """Client OIDC criado DE VERDADE no realm do cliente, via Admin REST API
+    do Keycloak (ver apps.provisioning.keycloak.KeycloakProvisioner.create_oidc_client
+    e apps.subscriptions.views_client.ClientKeycloakIntegrationListCreateView).
+
+    NÃO guarda o client_secret — o Keycloak é a fonte da verdade e devolve
+    sob demanda (GET .../client-secret). Desvio deliberado do padrão
+    apps.licensing.models.ApiKey (que persiste a chave em texto puro porque
+    não existe outro lugar de onde buscá-la): aqui existe, então guardar uma
+    segunda cópia só cria mais um lugar de onde o segredo pode vazar, sem
+    ganho nenhum.
+
+    Sem soft-delete: remover a integração apaga a linha de verdade (o client
+    no Keycloak também some, quando o DELETE for implementado). O rastro fica
+    no AuditLog, que já é a resposta padrão do projeto pra isso.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    service_access = models.ForeignKey(
+        ServiceAccess, on_delete=models.CASCADE, related_name="keycloak_clients"
+    )
+    client_id = models.CharField(max_length=255)
+    kc_uuid = models.CharField(max_length=64)
+    realm = models.CharField(
+        max_length=255, help_text="Denormalizado — sobrevive a uma troca de external_id."
+    )
+    app_name = models.CharField(max_length=255)
+    base_url = models.CharField(max_length=500)
+    redirect_uri = models.CharField(max_length=500)
+    language = models.CharField(max_length=20)
+    public_client = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        "accounts.CustomUser",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "keycloak_client_integrations"
+        unique_together = [("service_access", "client_id")]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"KeycloakClientIntegration({self.client_id} @ {self.realm})"

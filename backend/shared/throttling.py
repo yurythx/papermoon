@@ -49,3 +49,18 @@ class SSOTestRateThrottle(ScopedRateThrottle):
     diagnóstico (o admin pode querer testar algumas vezes seguidas ajustando a URL)."""
 
     scope = "sso_test"
+
+
+class KeycloakConnectionTestRateThrottle(ScopedRateThrottle):
+    """10 testes de conectividade/minuto com o Keycloak central — mesmo raciocínio
+    de SSOTestRateThrottle, conexão diferente (provisionamento, não SSO de staff)."""
+
+    scope = "keycloak_connection_test"
+
+
+class KeycloakClientCreateRateThrottle(ScopedRateThrottle):
+    """20 criações de client OIDC/hora por cliente — cria infra de verdade no
+    Keycloak, então mais restrito que um GET, mas folgado o bastante pra um
+    cliente com várias integrações (uma por linguagem/ambiente) sem travar."""
+
+    scope = "keycloak_client_create"

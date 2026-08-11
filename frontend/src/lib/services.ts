@@ -17,8 +17,14 @@ import type {
   InAppNotificationList,
   Invitation,
   Invoice,
+  KeycloakConnectionConfig,
+  KeycloakConnectionUpdatePayload,
+  KeycloakIntegrationCreatePayload,
+  KeycloakIntegrationCreateResult,
   KeycloakIntegrationGuide,
   KeycloakIntegrationLanguage,
+  KeycloakIntegrationListResult,
+  KeycloakIntegrationSecretResult,
   License,
   LoginResponse,
   MeResponse,
@@ -233,6 +239,30 @@ export const integrationService = {
       .get<{ success: boolean; data: KeycloakIntegrationGuide; error: null }>(
         "/proxy/client/subscriptions/keycloak-integration-guide/",
         { params }
+      )
+      .then(unwrap),
+
+  listKeycloakIntegrations: (): Promise<KeycloakIntegrationListResult> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationListResult; error: null }>(
+        "/proxy/client/subscriptions/keycloak-integrations/"
+      )
+      .then(unwrap),
+
+  createKeycloakIntegration: (
+    data: KeycloakIntegrationCreatePayload
+  ): Promise<KeycloakIntegrationCreateResult> =>
+    api
+      .post<{ success: boolean; data: KeycloakIntegrationCreateResult; error: null }>(
+        "/proxy/client/subscriptions/keycloak-integrations/",
+        data
+      )
+      .then(unwrap),
+
+  getKeycloakIntegrationSecret: (id: string): Promise<KeycloakIntegrationSecretResult> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationSecretResult; error: null }>(
+        `/proxy/client/subscriptions/keycloak-integrations/${id}/secret/`
       )
       .then(unwrap),
 };
@@ -453,6 +483,33 @@ export const adminService = {
   testSSOConfig: (issuer?: string): Promise<SSOTestResult> =>
     api
       .post<{ success: boolean; data: SSOTestResult; error: null }>("/proxy/admin/sso-config/test/", { issuer })
+      .then(unwrap),
+
+  // Conexão central com o Keycloak (provisionamento — Configurações). NÃO é o
+  // SSO de staff acima — Keycloaks diferentes.
+  getKeycloakConnection: (): Promise<KeycloakConnectionConfig> =>
+    api
+      .get<{ success: boolean; data: KeycloakConnectionConfig; error: null }>(
+        "/proxy/admin/keycloak-connection/"
+      )
+      .then(unwrap),
+
+  updateKeycloakConnection: (
+    data: KeycloakConnectionUpdatePayload
+  ): Promise<KeycloakConnectionConfig> =>
+    api
+      .patch<{ success: boolean; data: KeycloakConnectionConfig; error: null }>(
+        "/proxy/admin/keycloak-connection/",
+        data
+      )
+      .then(unwrap),
+
+  testKeycloakConnection: (api_url?: string, admin_token?: string): Promise<SSOTestResult> =>
+    api
+      .post<{ success: boolean; data: SSOTestResult; error: null }>(
+        "/proxy/admin/keycloak-connection/test/",
+        { api_url, admin_token }
+      )
       .then(unwrap),
 };
 
