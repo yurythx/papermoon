@@ -40,7 +40,7 @@ describe("HealthPage", () => {
 
   it("shows error banner when backend is unreachable", async () => {
     server.use(
-      http.get("/api/proxy/health/", () =>
+      http.get("/api/admin/health", () =>
         HttpResponse.json({ success: false, data: null, error: { code: "server_error", message: "Unavailable", details: [] } }, { status: 503 })
       )
     );
@@ -54,7 +54,7 @@ describe("HealthPage", () => {
 
   it("shows degraded banner when a service is degraded", async () => {
     server.use(
-      http.get("/api/proxy/health/", () =>
+      http.get("/api/admin/health", () =>
         HttpResponse.json({
           success: true,
           data: { db: "ok", redis: "degraded", celery: "ok" },

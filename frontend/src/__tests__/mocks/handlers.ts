@@ -527,7 +527,7 @@ export const handlers = [
   ),
 
   // Platform health
-  http.get("/api/proxy/health/", () =>
+  http.get("/api/admin/health", () =>
     HttpResponse.json({
       success: true,
       data: { db: "ok", redis: "ok", celery: "ok" },

@@ -56,7 +56,7 @@ describe("SubscriptionsPage", () => {
     );
     renderWithProviders(<SubscriptionsPage />);
     await waitFor(() =>
-      expect(screen.getByText(/nenhum serviço/i)).toBeTruthy()
+      expect(screen.getByText(/nenhum contrato encontrado/i)).toBeTruthy()
     );
   });
 
