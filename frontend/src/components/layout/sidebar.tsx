@@ -105,6 +105,7 @@ const ADMIN_NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Sistema",
     items: [
+      { href: "/backoffice/integrations/keycloak", label: "Integração Keycloak", icon: KeyRound },
       { href: "/backoffice/audit", label: "Auditoria", icon: Shield },
       { href: "/backoffice/health", label: "Status", icon: Activity },
       { href: "/backoffice/settings", label: "Configurações", icon: Settings },

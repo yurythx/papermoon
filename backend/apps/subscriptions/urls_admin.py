@@ -1,6 +1,10 @@
 from django.urls import path
 
 from apps.subscriptions.views_admin import (
+    AdminKeycloakIntegrationGuideView,
+    AdminKeycloakIntegrationListCreateView,
+    AdminKeycloakIntegrationSecretView,
+    AdminKeycloakIssuerValidatorView,
     AdminSubscriptionCancelView,
     AdminSubscriptionChangePlanView,
     AdminSubscriptionDetailView,
@@ -15,6 +19,28 @@ from apps.subscriptions.views_service_access import (
 )
 
 urlpatterns = [
+    # Keycloak — ferramentas de suporte (staff agindo em nome de um cliente,
+    # + validador genérico sem vínculo com cliente nenhum)
+    path(
+        "keycloak-tools/validate-issuer/",
+        AdminKeycloakIssuerValidatorView.as_view(),
+        name="admin-keycloak-validate-issuer",
+    ),
+    path(
+        "customers/<uuid:customer_id>/keycloak-integration-guide/",
+        AdminKeycloakIntegrationGuideView.as_view(),
+        name="admin-keycloak-integration-guide",
+    ),
+    path(
+        "customers/<uuid:customer_id>/keycloak-integrations/",
+        AdminKeycloakIntegrationListCreateView.as_view(),
+        name="admin-keycloak-integrations",
+    ),
+    path(
+        "customers/<uuid:customer_id>/keycloak-integrations/<uuid:pk>/secret/",
+        AdminKeycloakIntegrationSecretView.as_view(),
+        name="admin-keycloak-integration-secret",
+    ),
     # Subscriptions
     path(
         "subscriptions/", AdminSubscriptionListCreateView.as_view(), name="admin-subscription-list"

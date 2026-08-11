@@ -677,6 +677,83 @@ export const handlers = [
     })
   ),
 
+  // Admin — ferramentas de suporte Keycloak (staff em nome de um cliente + validador genérico)
+  http.post("/api/proxy/admin/keycloak-tools/validate-issuer/", async ({ request }) => {
+    const body = (await request.json()) as { issuer: string };
+    const issuer = body.issuer.replace(/\/$/, "");
+    return HttpResponse.json({
+      success: true,
+      data: {
+        verified: true,
+        issuer,
+        authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+        token_endpoint: `${issuer}/protocol/openid-connect/token`,
+        userinfo_endpoint: `${issuer}/protocol/openid-connect/userinfo`,
+        jwks_uri: `${issuer}/protocol/openid-connect/certs`,
+        end_session_endpoint: `${issuer}/protocol/openid-connect/logout`,
+      },
+      error: null,
+    });
+  }),
+
+  http.get("/api/proxy/admin/customers/:customerId/keycloak-integrations/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { available: true, reason: null, integrations: [] },
+      error: null,
+    })
+  ),
+
+  http.post("/api/proxy/admin/customers/:customerId/keycloak-integrations/", () =>
+    HttpResponse.json(
+      {
+        success: true,
+        data: {
+          id: "kc-int-admin-1",
+          client_id: "sistema-do-cliente",
+          client_secret: "s3cr3t-admin-real",
+          public_client: false,
+          verified: true,
+          issuer: "https://auth.papermoon.com/realms/tenant-abc123",
+          authorization_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/auth",
+          token_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/token",
+          userinfo_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/userinfo",
+          jwks_uri: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/certs",
+          end_session_endpoint:
+            "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/logout",
+          redirect_uri: "https://sistema-cliente.com.br/api/auth/callback/keycloak",
+          scopes: ["openid", "profile", "email"],
+          language: "nextjs",
+          package: "next-auth",
+          install_command: "npm install next-auth",
+          steps: ["Instale o pacote: npm install next-auth."],
+          code_snippet: "import NextAuth from \"next-auth\";",
+        },
+        error: null,
+      },
+      { status: 201 }
+    )
+  ),
+
+  http.get("/api/proxy/admin/customers/:customerId/keycloak-integrations/:id/secret/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { client_secret: "s3cr3t-admin-real" },
+      error: null,
+    })
+  ),
+
+  http.get("/api/proxy/admin/customers/:customerId/keycloak-integration-guide/", () =>
+    HttpResponse.json({
+      success: true,
+      data: { available: false, reason: "no_service_access" },
+      error: null,
+    })
+  ),
+
   // Admin customer quota
   http.get("/api/proxy/admin/customers/:id/quota/", () =>
     HttpResponse.json({

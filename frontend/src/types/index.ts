@@ -365,6 +365,18 @@ export interface KeycloakIntegrationSecretResult {
   client_secret: string;
 }
 
+// Admin — ferramenta de diagnóstico genérica (Backoffice → Integração
+// Keycloak), sem vínculo com nenhum cliente/realm do PaperMoon
+export interface KeycloakIssuerValidationResult {
+  verified: boolean;
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+  jwks_uri: string;
+  end_session_endpoint: string;
+}
+
 // Admin — Audit Log
 export interface AuditLogEntry {
   id: string;

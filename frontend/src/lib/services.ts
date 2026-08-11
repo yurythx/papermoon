@@ -25,6 +25,7 @@ import type {
   KeycloakIntegrationLanguage,
   KeycloakIntegrationListResult,
   KeycloakIntegrationSecretResult,
+  KeycloakIssuerValidationResult,
   License,
   LoginResponse,
   MeResponse,
@@ -509,6 +510,61 @@ export const adminService = {
       .post<{ success: boolean; data: SSOTestResult; error: null }>(
         "/proxy/admin/keycloak-connection/test/",
         { api_url, admin_token }
+      )
+      .then(unwrap),
+
+  // Ferramentas de suporte Keycloak (Backoffice → Integração Keycloak): staff
+  // agindo em nome de um cliente escolhido, mais um validador genérico de
+  // issuer sem vínculo com cliente nenhum.
+  validateKeycloakIssuer: (issuer: string): Promise<KeycloakIssuerValidationResult> =>
+    api
+      .post<{ success: boolean; data: KeycloakIssuerValidationResult; error: null }>(
+        "/proxy/admin/keycloak-tools/validate-issuer/",
+        { issuer }
+      )
+      .then(unwrap),
+
+  getCustomerKeycloakGuide: (
+    customerId: string,
+    params: {
+      language: KeycloakIntegrationLanguage;
+      app_name: string;
+      base_url: string;
+      redirect_path?: string;
+    }
+  ): Promise<KeycloakIntegrationGuide> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationGuide; error: null }>(
+        `/proxy/admin/customers/${customerId}/keycloak-integration-guide/`,
+        { params }
+      )
+      .then(unwrap),
+
+  listCustomerKeycloakIntegrations: (customerId: string): Promise<KeycloakIntegrationListResult> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationListResult; error: null }>(
+        `/proxy/admin/customers/${customerId}/keycloak-integrations/`
+      )
+      .then(unwrap),
+
+  createCustomerKeycloakIntegration: (
+    customerId: string,
+    data: KeycloakIntegrationCreatePayload
+  ): Promise<KeycloakIntegrationCreateResult> =>
+    api
+      .post<{ success: boolean; data: KeycloakIntegrationCreateResult; error: null }>(
+        `/proxy/admin/customers/${customerId}/keycloak-integrations/`,
+        data
+      )
+      .then(unwrap),
+
+  getCustomerKeycloakIntegrationSecret: (
+    customerId: string,
+    integrationId: string
+  ): Promise<KeycloakIntegrationSecretResult> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationSecretResult; error: null }>(
+        `/proxy/admin/customers/${customerId}/keycloak-integrations/${integrationId}/secret/`
       )
       .then(unwrap),
 };

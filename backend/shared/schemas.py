@@ -350,6 +350,25 @@ class KeycloakIntegrationSecretResponseSerializer(serializers.Serializer):
     client_secret = serializers.CharField()
 
 
+class KeycloakIssuerValidateRequestSerializer(serializers.Serializer):
+    """Ferramenta de diagnóstico do staff (Admin — Keycloak): confirma o
+    discovery document de QUALQUER issuer, sem vincular a um cliente/realm
+    específico do PaperMoon — útil pra validar o Keycloak de um cliente
+    externo antes de ajudar com a integração dele."""
+
+    issuer = serializers.CharField()
+
+
+class KeycloakIssuerValidateResponseSerializer(serializers.Serializer):
+    verified = serializers.BooleanField()
+    issuer = serializers.CharField()
+    authorization_endpoint = serializers.CharField()
+    token_endpoint = serializers.CharField()
+    userinfo_endpoint = serializers.CharField()
+    jwks_uri = serializers.CharField()
+    end_session_endpoint = serializers.CharField()
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

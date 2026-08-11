@@ -135,7 +135,7 @@ describe("KeycloakIntegrationPage", () => {
     renderWithProviders(<KeycloakIntegrationPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Minhas integrações")).toBeInTheDocument();
+      expect(screen.getByText("Integrações existentes")).toBeInTheDocument();
     });
     expect(screen.getByText("Sistema de Chamados")).toBeInTheDocument();
     expect(screen.getByText("sistema-chamados")).toBeInTheDocument();
