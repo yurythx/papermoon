@@ -224,6 +224,12 @@ jobs:
       EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
       EMAIL_HOST: localhost
       EMAIL_PORT: "1025"
+      # EMAIL_USE_TLS defaults to True (base.py) — classic MailHog doesn't
+      # advertise STARTTLS, so smtplib's starttls() aborts the connection
+      # right after EHLO (confirmed in the mailhog container's own log: only
+      # PIPELINING/AUTH PLAIN advertised, connection closed by the client
+      # immediately after). Must be off for this dev-only SMTP catcher.
+      EMAIL_USE_TLS: "False"
 
     steps:
       - uses: actions/checkout@v4

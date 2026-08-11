@@ -38,7 +38,9 @@ test.describe("Authentication", () => {
 
     // Open user menu dropdown, then click Sair
     await page.getByRole("button", { name: /abrir menu do usuário/i }).click();
-    await page.getByRole("button", { name: /sair/i }).click();
+    // "Sair" is a <button> but exposes role="menuitem" (part of the dropdown's
+    // role="menu" widget, per ARIA menu pattern) — not "button".
+    await page.getByRole("menuitem", { name: /sair/i }).click();
     await expect(page).toHaveURL(/\/login/);
 
     // Confirm the session is cleared — navigating to dashboard redirects back
