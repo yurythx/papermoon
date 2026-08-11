@@ -9,11 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/compound/page-header";
+import { CodeBlock } from "@/components/compound/code-block";
 import { CopyButton } from "@/components/compound/copy-button";
-import { KeycloakIntegrationManager } from "@/components/keycloak/keycloak-integration-manager";
+import {
+  KeycloakIntegrationManager,
+  LanguageTabs,
+} from "@/components/keycloak/keycloak-integration-manager";
 import { adminService } from "@/lib/services";
 import { cn } from "@/lib/utils";
-import type { KeycloakIssuerValidationResult } from "@/types";
+import type {
+  KeycloakCodeSnippetResult,
+  KeycloakIntegrationLanguage,
+  KeycloakIssuerValidationResult,
+} from "@/types";
 
 /* ── Validador genérico de issuer, sem vínculo com cliente nenhum ────── */
 
@@ -81,13 +89,23 @@ function EndpointExplanation({
   );
 }
 
-function IssuerValidatorCard() {
-  const [issuer, setIssuer] = useState("");
+function IssuerValidatorCard({
+  issuer,
+  onIssuerChange,
+  onValidated,
+}: {
+  issuer: string;
+  onIssuerChange: (v: string) => void;
+  onValidated: (result: KeycloakIssuerValidationResult) => void;
+}) {
   const [result, setResult] = useState<KeycloakIssuerValidationResult | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => adminService.validateKeycloakIssuer(issuer.trim()),
-    onSuccess: setResult,
+    onSuccess: (r) => {
+      setResult(r);
+      onValidated(r);
+    },
     onError: (err) => {
       setResult(null);
       if (axios.isAxiosError(err)) {
@@ -116,7 +134,7 @@ function IssuerValidatorCard() {
           <Input
             placeholder="https://keycloak.exemplo.com.br/realms/algum-realm"
             value={issuer}
-            onChange={(e) => setIssuer(e.target.value)}
+            onChange={(e) => onIssuerChange(e.target.value)}
           />
         </div>
         <Button
@@ -199,7 +217,103 @@ function FieldRow({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function ManualClientSetupCard() {
+function CodeExampleSection({
+  issuer,
+  clientId,
+  baseUrl,
+  redirectUri,
+}: {
+  issuer: string;
+  clientId: string;
+  baseUrl: string;
+  redirectUri: string;
+}) {
+  const [language, setLanguage] = useState<KeycloakIntegrationLanguage>("nextjs");
+  const [result, setResult] = useState<KeycloakCodeSnippetResult | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      adminService.renderKeycloakCodeSnippet({
+        language,
+        issuer,
+        client_id: clientId,
+        base_url: baseUrl,
+        redirect_uri: redirectUri,
+      }),
+    onSuccess: setResult,
+    onError: (err) => {
+      setResult(null);
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error?.message ?? "Erro ao gerar o exemplo de código.");
+      } else {
+        toast.error("Erro inesperado.");
+      }
+    },
+  });
+
+  const canGenerate = issuer.trim().startsWith("http");
+
+  return (
+    <div className="space-y-4 pt-3 border-t border-border-subtle">
+      <div>
+        <Badge variant="info">4. Exemplo de código</Badge>
+        <p className="text-xs text-text-tertiary mt-1.5 max-w-lg">
+          Escolha a linguagem/framework do sistema do cliente — gera um exemplo pronto (função ou
+          classe de configuração OIDC) usando os valores acima e o issuer validado no card de cima.
+        </p>
+      </div>
+
+      {!canGenerate && (
+        <p className="text-xs text-warning">
+          Valide um issuer no card &quot;Validador de issuer&quot; acima primeiro.
+        </p>
+      )}
+
+      <LanguageTabs value={language} onChange={setLanguage} />
+
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={mutation.isPending}
+        disabled={!canGenerate}
+        onClick={() => mutation.mutate()}
+      >
+        Gerar exemplo
+      </Button>
+
+      {result && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Código ({result.package})
+              {result.public_client && (
+                <span className="ml-2 text-xs font-normal text-text-tertiary">
+                  client público — sem client_secret de verdade
+                </span>
+              )}
+            </h3>
+            <code className="bg-surface-3 px-1.5 py-0.5 rounded font-mono text-xs text-info">
+              {result.install_command}
+            </code>
+          </div>
+          <ol className="space-y-2">
+            {result.steps.map((step, i) => (
+              <li key={i} className="flex gap-3 text-sm text-text-secondary">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-surface-3 text-text-tertiary text-xs font-semibold flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <CodeBlock code={result.code_snippet} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualClientSetupCard({ issuer }: { issuer: string }) {
   const [appName, setAppName] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
   const [clientType, setClientType] = useState<"confidential" | "public">("confidential");
@@ -368,6 +482,13 @@ function ManualClientSetupCard() {
               />
             </div>
           </div>
+
+          <CodeExampleSection
+            issuer={issuer}
+            clientId={clientId}
+            baseUrl={rootUrl}
+            redirectUri={redirectUri}
+          />
         </div>
       )}
     </div>
@@ -449,6 +570,7 @@ function CustomerPicker({
 
 export default function BackofficeKeycloakIntegrationsPage() {
   const [customerId, setCustomerId] = useState("");
+  const [issuer, setIssuer] = useState("");
 
   return (
     <div className="space-y-8">
@@ -457,8 +579,12 @@ export default function BackofficeKeycloakIntegrationsPage() {
         description="Ferramentas de suporte: valide um issuer qualquer, ou crie/veja integrações em nome de um cliente"
       />
 
-      <IssuerValidatorCard />
-      <ManualClientSetupCard />
+      <IssuerValidatorCard
+        issuer={issuer}
+        onIssuerChange={setIssuer}
+        onValidated={(result) => setIssuer(result.issuer)}
+      />
+      <ManualClientSetupCard issuer={issuer} />
       <CustomerPicker customerId={customerId} onSelect={setCustomerId} />
 
       {customerId && (

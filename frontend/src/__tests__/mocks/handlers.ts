@@ -696,6 +696,24 @@ export const handlers = [
     });
   }),
 
+  http.post("/api/proxy/admin/keycloak-tools/render-snippet/", async ({ request }) => {
+    const body = (await request.json()) as { language: string; client_id: string };
+    const publicClient = body.language === "js";
+    return HttpResponse.json({
+      success: true,
+      data: {
+        language: body.language,
+        public_client: publicClient,
+        package: "next-auth",
+        install_command: "npm install next-auth",
+        steps: ["Instale o pacote: npm install next-auth."],
+        code_snippet: `// exemplo pra ${body.client_id}\nconst clientId = "${body.client_id}";`,
+        verified: true,
+      },
+      error: null,
+    });
+  }),
+
   http.get("/api/proxy/admin/customers/:customerId/keycloak-integrations/", () =>
     HttpResponse.json({
       success: true,

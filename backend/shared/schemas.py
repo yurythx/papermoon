@@ -369,6 +369,29 @@ class KeycloakIssuerValidateResponseSerializer(serializers.Serializer):
     end_session_endpoint = serializers.CharField()
 
 
+class KeycloakCodeSnippetRequestSerializer(serializers.Serializer):
+    """Gera um exemplo de código de integração pra uma stack, a partir de
+    valores informados manualmente — não depende de nenhum cliente/realm do
+    PaperMoon, complementa KeycloakIssuerValidateRequestSerializer pro mesmo
+    fluxo de suporte a um Keycloak de terceiro (sem Admin API disponível)."""
+
+    language = serializers.CharField()
+    issuer = serializers.CharField()
+    client_id = serializers.CharField()
+    base_url = serializers.CharField()
+    redirect_uri = serializers.CharField()
+
+
+class KeycloakCodeSnippetResponseSerializer(serializers.Serializer):
+    language = serializers.CharField()
+    public_client = serializers.BooleanField()
+    package = serializers.CharField()
+    install_command = serializers.CharField()
+    steps = serializers.ListField(child=serializers.CharField())
+    code_snippet = serializers.CharField()
+    verified = serializers.BooleanField()
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

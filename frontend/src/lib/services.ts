@@ -17,6 +17,8 @@ import type {
   InAppNotificationList,
   Invitation,
   Invoice,
+  KeycloakCodeSnippetPayload,
+  KeycloakCodeSnippetResult,
   KeycloakConnectionConfig,
   KeycloakConnectionUpdatePayload,
   KeycloakIntegrationCreatePayload,
@@ -521,6 +523,14 @@ export const adminService = {
       .post<{ success: boolean; data: KeycloakIssuerValidationResult; error: null }>(
         "/proxy/admin/keycloak-tools/validate-issuer/",
         { issuer }
+      )
+      .then(unwrap),
+
+  renderKeycloakCodeSnippet: (payload: KeycloakCodeSnippetPayload): Promise<KeycloakCodeSnippetResult> =>
+    api
+      .post<{ success: boolean; data: KeycloakCodeSnippetResult; error: null }>(
+        "/proxy/admin/keycloak-tools/render-snippet/",
+        payload
       )
       .then(unwrap),
 

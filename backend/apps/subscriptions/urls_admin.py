@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.subscriptions.views_admin import (
+    AdminKeycloakCodeSnippetView,
     AdminKeycloakIntegrationGuideView,
     AdminKeycloakIntegrationListCreateView,
     AdminKeycloakIntegrationSecretView,
@@ -25,6 +26,11 @@ urlpatterns = [
         "keycloak-tools/validate-issuer/",
         AdminKeycloakIssuerValidatorView.as_view(),
         name="admin-keycloak-validate-issuer",
+    ),
+    path(
+        "keycloak-tools/render-snippet/",
+        AdminKeycloakCodeSnippetView.as_view(),
+        name="admin-keycloak-render-snippet",
     ),
     path(
         "customers/<uuid:customer_id>/keycloak-integration-guide/",

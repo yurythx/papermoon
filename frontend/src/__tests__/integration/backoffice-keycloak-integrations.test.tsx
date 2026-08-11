@@ -95,6 +95,58 @@ describe("BackofficeKeycloakIntegrationsPage", () => {
     expect(within(originsRow as HTMLElement).getByText("https://spa.com.br")).toBeInTheDocument();
   });
 
+  it("generates a code example after validating an issuer and picking a language", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
+
+    // Passo 1: valida o issuer no primeiro card.
+    await user.type(
+      screen.getByPlaceholderText("https://keycloak.exemplo.com.br/realms/algum-realm"),
+      "https://auth.cliente-externo.com.br/realms/algum-realm"
+    );
+    await user.click(screen.getByRole("button", { name: "Validar" }));
+    await waitFor(() =>
+      screen.getByText("Discovery document confirmado — o issuer é válido.")
+    );
+
+    // Passo 2: preenche o gerador de campos manuais — libera a seção 4.
+    await user.type(screen.getByPlaceholderText("Ex: Portal do Fornecedor"), "Portal do Fornecedor");
+    await user.type(
+      screen.getByPlaceholderText("https://sistemadocliente.com.br/auth/callback"),
+      "https://fornecedor.com.br/auth/callback"
+    );
+    await waitFor(() => screen.getByText("4. Exemplo de código"));
+
+    // O aviso de "valide um issuer" não deve aparecer — já foi validado no passo 1.
+    expect(
+      screen.queryByText(/Valide um issuer no card/i)
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Gerar exemplo" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Código \(next-auth\)/)).toBeInTheDocument();
+    });
+    // "portal-do-fornecedor" aparece tanto no campo Client ID (passo 1) quanto
+    // dentro do exemplo de código gerado (passo 4).
+    expect(screen.getAllByText(/portal-do-fornecedor/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("warns when trying to generate a code example without a validated issuer", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
+
+    await user.type(screen.getByPlaceholderText("Ex: Portal do Fornecedor"), "Portal");
+    await user.type(
+      screen.getByPlaceholderText("https://sistemadocliente.com.br/auth/callback"),
+      "https://fornecedor.com.br/callback"
+    );
+
+    await waitFor(() => screen.getByText("4. Exemplo de código"));
+    expect(screen.getByText(/Valide um issuer no card/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gerar exemplo" })).toBeDisabled();
+  });
+
   it("does not show the integration manager until a customer is selected", async () => {
     renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
     expect(screen.getByText("Nenhum cliente selecionado")).toBeInTheDocument();

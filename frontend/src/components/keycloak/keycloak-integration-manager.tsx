@@ -53,7 +53,7 @@ export interface KeycloakIntegrationServices {
 // Seletor de linguagem hand-rolled seguindo o mesmo padrão role="tablist" de
 // src/components/marketing/pricing-tabs.tsx — não existe um primitivo de
 // Tabs pronto no projeto (nenhuma lib de headless UI está instalada).
-function LanguageTabs({
+export function LanguageTabs({
   value,
   onChange,
 }: {

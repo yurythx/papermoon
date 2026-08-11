@@ -5,6 +5,7 @@ Integration tests for the staff-facing Keycloak support tools
 - GET/POST /api/v1/admin/customers/<id>/keycloak-integrations/
 - GET  /api/v1/admin/customers/<id>/keycloak-integrations/<id>/secret/
 - POST /api/v1/admin/keycloak-tools/validate-issuer/
+- POST /api/v1/admin/keycloak-tools/render-snippet/
 
 Staff opera em nome de um cliente escolhido (customer_id na URL) — mesma
 lógica de apps.subscriptions.keycloak_guide reaproveitada da view do
@@ -30,6 +31,7 @@ from apps.subscriptions.models import (
 )
 
 VALIDATE_ISSUER_URL = "/api/v1/admin/keycloak-tools/validate-issuer/"
+RENDER_SNIPPET_URL = "/api/v1/admin/keycloak-tools/render-snippet/"
 
 
 def _guide_url(customer_id) -> str:
@@ -313,3 +315,85 @@ class TestAdminKeycloakIssuerValidatorView:
         data = resp.json()["data"]
         assert data["verified"] is False
         assert data["authorization_endpoint"] == f"{issuer}/protocol/openid-connect/auth"
+
+
+@pytest.mark.django_db
+class TestAdminKeycloakCodeSnippetView:
+    def _payload(self, **overrides):
+        payload = {
+            "language": "nextjs",
+            "issuer": "https://auth.cliente-externo.com.br/realms/algum-realm",
+            "client_id": "portal-do-fornecedor",
+            "base_url": "https://fornecedor.com.br",
+            "redirect_uri": "https://fornecedor.com.br/api/auth/callback/keycloak",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_non_admin_returns_403(self, customer_client):
+        resp = customer_client.post(RENDER_SNIPPET_URL, self._payload(), format="json")
+        assert resp.status_code == 403
+
+    def test_unauthenticated_returns_401(self, api_client):
+        resp = api_client.post(RENDER_SNIPPET_URL, self._payload(), format="json")
+        assert resp.status_code == 401
+
+    def test_unknown_language_returns_400(self, admin_client):
+        resp = admin_client.post(RENDER_SNIPPET_URL, self._payload(language="cobol"), format="json")
+        assert resp.status_code == 400
+
+    def test_invalid_issuer_returns_400(self, admin_client):
+        resp = admin_client.post(
+            RENDER_SNIPPET_URL, self._payload(issuer="not-a-url"), format="json"
+        )
+        assert resp.status_code == 400
+
+    def test_missing_client_id_returns_400(self, admin_client):
+        resp = admin_client.post(RENDER_SNIPPET_URL, self._payload(client_id=""), format="json")
+        assert resp.status_code == 400
+
+    def test_renders_snippet_for_confidential_language(self, admin_client):
+        with patch(
+            "apps.subscriptions.keycloak_guide.requests.get",
+            side_effect=requests.ConnectionError("boom"),
+        ):
+            resp = admin_client.post(
+                RENDER_SNIPPET_URL, self._payload(language="django"), format="json"
+            )
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["language"] == "django"
+        assert data["public_client"] is False
+        assert data["verified"] is False
+        assert "portal-do-fornecedor" in data["code_snippet"]
+        assert "COLE_AQUI_O_CLIENT_SECRET" in data["code_snippet"]
+        assert "__CLIENT_ID__" not in data["code_snippet"]
+
+    def test_renders_snippet_for_public_client_language(self, admin_client):
+        with patch(
+            "apps.subscriptions.keycloak_guide.requests.get",
+            side_effect=requests.ConnectionError("boom"),
+        ):
+            resp = admin_client.post(
+                RENDER_SNIPPET_URL, self._payload(language="js"), format="json"
+            )
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["public_client"] is True
+        assert "portal-do-fornecedor" in data["code_snippet"]
+
+    def test_no_placeholder_leftover_for_any_language(self, admin_client):
+        import re
+
+        for language in ["django", "drf", "nextjs", "js", "node", "go", "csharp"]:
+            with patch(
+                "apps.subscriptions.keycloak_guide.requests.get",
+                side_effect=requests.ConnectionError("boom"),
+            ):
+                resp = admin_client.post(
+                    RENDER_SNIPPET_URL, self._payload(language=language), format="json"
+                )
+            assert resp.status_code == 200
+            snippet = resp.json()["data"]["code_snippet"]
+            leftover = re.findall(r"__[A-Z_]+__", snippet)
+            assert leftover == [], f"{language}: placeholders sobrando: {leftover}"

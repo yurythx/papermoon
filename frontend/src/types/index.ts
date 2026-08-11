@@ -377,6 +377,24 @@ export interface KeycloakIssuerValidationResult {
   end_session_endpoint: string;
 }
 
+export interface KeycloakCodeSnippetPayload {
+  language: KeycloakIntegrationLanguage;
+  issuer: string;
+  client_id: string;
+  base_url: string;
+  redirect_uri: string;
+}
+
+export interface KeycloakCodeSnippetResult {
+  language: KeycloakIntegrationLanguage;
+  public_client: boolean;
+  package: string;
+  install_command: string;
+  steps: string[];
+  code_snippet: string;
+  verified: boolean;
+}
+
 // Admin — Audit Log
 export interface AuditLogEntry {
   id: string;

@@ -23,6 +23,7 @@ from apps.subscriptions.keycloak_guide import (
     build_integration_guide,
     create_client_integration,
     keycloak_integrations_queryset,
+    render_code_snippet,
     resolve_endpoints,
     resolve_keycloak_context,
     serialize_keycloak_integration,
@@ -33,6 +34,8 @@ from apps.subscriptions.models import Subscription
 from apps.subscriptions.serializers import CreateSubscriptionSerializer, SubscriptionSerializer
 from shared.schemas import (
     ChangePlanRequestSerializer,
+    KeycloakCodeSnippetRequestSerializer,
+    KeycloakCodeSnippetResponseSerializer,
     KeycloakIntegrationCreateRequestSerializer,
     KeycloakIntegrationCreateResponseSerializer,
     KeycloakIntegrationGuideResponseSerializer,
@@ -476,5 +479,74 @@ class AdminKeycloakIssuerValidatorView(APIView):
                 "userinfo_endpoint": endpoints["userinfo_endpoint"],
                 "jwks_uri": endpoints["jwks_uri"],
                 "end_session_endpoint": endpoints["end_session_endpoint"],
+            }
+        )
+
+
+@extend_schema(tags=["Admin — Keycloak"])
+class AdminKeycloakCodeSnippetView(APIView):
+    """Gera um exemplo de código (função/classe de configuração OIDC) numa
+    stack escolhida, a partir de valores informados manualmente — não
+    depende de nenhum cliente/realm do PaperMoon. Complementa
+    AdminKeycloakIssuerValidatorView e o gerador de campos do admin do
+    Keycloak: o mesmo fluxo de suporte pra ajudar alguém a integrar com um
+    Keycloak de terceiro, onde não temos Admin API pra criar nada de
+    verdade — só mostrar como fica o código."""
+
+    permission_classes = [IsAdminUser]
+    throttle_classes = [KeycloakConnectionTestRateThrottle]
+
+    @extend_schema(
+        operation_id="admin_keycloak_code_snippet",
+        summary="Gerar exemplo de código de integração (diagnóstico, sem vínculo com cliente)",
+        request=KeycloakCodeSnippetRequestSerializer,
+        responses={200: KeycloakCodeSnippetResponseSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        from urllib.parse import urlparse
+
+        language = (request.data.get("language") or "").strip()
+        issuer = (request.data.get("issuer") or "").strip().rstrip("/")
+        base_url = (request.data.get("base_url") or "").strip()
+        redirect_uri = (request.data.get("redirect_uri") or "").strip()
+        client_id = (request.data.get("client_id") or "").strip()
+
+        if language not in LANGUAGE_PACKS:
+            raise ValidationError({"language": f"Deve ser um de: {', '.join(LANGUAGE_PACKS)}"})
+        if not issuer.startswith(("http://", "https://")):
+            raise ValidationError({"issuer": "Informe uma URL http(s) completa."})
+        if not base_url.startswith(("http://", "https://")):
+            raise ValidationError({"base_url": "Informe uma URL http(s) completa."})
+        if not redirect_uri.startswith(("http://", "https://")):
+            raise ValidationError({"redirect_uri": "Informe uma URL http(s) completa."})
+        if not client_id:
+            raise ValidationError({"client_id": "Informe o client_id."})
+
+        pack = LANGUAGE_PACKS[language]
+        endpoints, verified = resolve_endpoints(issuer)
+        redirect_path = urlparse(redirect_uri).path or pack.get(
+            "default_redirect_path", "/auth/callback"
+        )
+
+        code_snippet = render_code_snippet(
+            language=language,
+            issuer=issuer,
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            redirect_path=redirect_path,
+            base_url=base_url,
+            endpoints=endpoints,
+            client_secret=None,
+        )
+
+        return Response(
+            {
+                "language": language,
+                "public_client": pack["public_client"],
+                "package": pack["package"],
+                "install_command": pack["install_command"],
+                "steps": pack["steps"],
+                "code_snippet": code_snippet,
+                "verified": verified,
             }
         )
