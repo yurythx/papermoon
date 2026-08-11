@@ -15,9 +15,14 @@ from apps.provisioning.keycloak_config import (
     get_keycloak_connection,
     invalidate_keycloak_connection_cache,
     open_admin_session,
-    test_admin_connectivity,
     update_keycloak_connection,
 )
+
+# Apelidado no import: um nome começando com "test_" no escopo do módulo é
+# coletado pelo pytest como função de teste solta (python_functions = test_*
+# no pytest.ini) — precisa ficar fora desse padrão pra não virar um teste
+# "fantasma" com fixtures erradas.
+from apps.provisioning.keycloak_config import test_admin_connectivity as check_admin_connectivity
 from apps.provisioning.models import KeycloakConnection
 from shared.crypto import decrypt_secret, encrypt_secret
 
@@ -165,7 +170,7 @@ class TestOpenAdminSession:
 
 class TestTestAdminConnectivity:
     def test_invalid_url_returns_not_reachable(self):
-        result = test_admin_connectivity("not-a-url", "tok")
+        result = check_admin_connectivity("not-a-url", "tok")
         assert result["reachable"] is False
 
     def test_connection_error_returns_not_reachable(self):
@@ -173,27 +178,27 @@ class TestTestAdminConnectivity:
             "apps.provisioning.keycloak_config.requests.get",
             side_effect=requests.ConnectionError("boom"),
         ):
-            result = test_admin_connectivity("https://keycloak.example.com", "tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "tok")
         assert result["reachable"] is False
         assert "conectar" in result["message"].lower()
 
     def test_401_returns_reachable_but_token_refused(self):
         mock_resp = MagicMock(status_code=401, ok=False)
         with patch("apps.provisioning.keycloak_config.requests.get", return_value=mock_resp):
-            result = test_admin_connectivity("https://keycloak.example.com", "bad-tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "bad-tok")
         assert result["reachable"] is True
         assert "recusad" in result["message"].lower()
 
     def test_403_returns_reachable_but_token_refused(self):
         mock_resp = MagicMock(status_code=403, ok=False)
         with patch("apps.provisioning.keycloak_config.requests.get", return_value=mock_resp):
-            result = test_admin_connectivity("https://keycloak.example.com", "bad-tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "bad-tok")
         assert result["reachable"] is True
 
     def test_other_error_status_returns_reachable_with_error_message(self):
         mock_resp = MagicMock(status_code=500, ok=False)
         with patch("apps.provisioning.keycloak_config.requests.get", return_value=mock_resp):
-            result = test_admin_connectivity("https://keycloak.example.com", "tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "tok")
         assert result["reachable"] is True
         assert "500" in result["message"]
 
@@ -201,7 +206,7 @@ class TestTestAdminConnectivity:
         mock_resp = MagicMock(status_code=200, ok=True)
         mock_resp.json.return_value = [{"realm": "a"}, {"realm": "b"}]
         with patch("apps.provisioning.keycloak_config.requests.get", return_value=mock_resp):
-            result = test_admin_connectivity("https://keycloak.example.com", "tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "tok")
         assert result["reachable"] is True
         assert "2 realm" in result["message"]
 
@@ -209,5 +214,5 @@ class TestTestAdminConnectivity:
         mock_resp = MagicMock(status_code=200, ok=True)
         mock_resp.json.side_effect = ValueError("not json")
         with patch("apps.provisioning.keycloak_config.requests.get", return_value=mock_resp):
-            result = test_admin_connectivity("https://keycloak.example.com", "tok")
+            result = check_admin_connectivity("https://keycloak.example.com", "tok")
         assert result["reachable"] is True
