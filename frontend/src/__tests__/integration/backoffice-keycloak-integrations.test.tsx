@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import BackofficeKeycloakIntegrationsPage from "@/app/backoffice/integrations/keycloak/page";
@@ -27,6 +27,72 @@ describe("BackofficeKeycloakIntegrationsPage", () => {
         screen.getByText("Discovery document confirmado — o issuer é válido.")
       ).toBeInTheDocument();
     });
+  });
+
+  it("explains what each endpoint is for and where to put it", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
+
+    await user.type(
+      screen.getByPlaceholderText("https://keycloak.exemplo.com.br/realms/algum-realm"),
+      "https://auth.cliente-externo.com.br/realms/algum-realm"
+    );
+    await user.click(screen.getByRole("button", { name: "Validar" }));
+
+    await waitFor(() => screen.getByText("Authorization endpoint"));
+    expect(
+      screen.getByText(/Pra onde o navegador do usuário é redirecionado pra fazer login/)
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Pra que serve:").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Onde colocar:").length).toBeGreaterThan(0);
+  });
+
+  it("generates the manual Keycloak admin console fields for a confidential client", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
+
+    await user.type(
+      screen.getByPlaceholderText("Ex: Portal do Fornecedor"),
+      "Portal do Fornecedor"
+    );
+    await user.type(
+      screen.getByPlaceholderText("https://sistemadocliente.com.br/auth/callback"),
+      "https://fornecedor.com.br/auth/callback"
+    );
+
+    await waitFor(() => screen.getByText("1. General settings"));
+    expect(screen.getByText("portal-do-fornecedor")).toBeInTheDocument();
+    expect(screen.getAllByText("https://fornecedor.com.br").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("https://fornecedor.com.br/auth/callback")
+    ).toBeInTheDocument();
+    // Confidencial é o default — Client authentication deve estar "On".
+    const authRow = screen
+      .getByText("Client authentication")
+      .closest("div.flex.items-start.justify-between");
+    expect(within(authRow as HTMLElement).getByText("On")).toBeInTheDocument();
+  });
+
+  it("switches the manual setup fields when the client type is public", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BackofficeKeycloakIntegrationsPage />);
+
+    await user.type(screen.getByPlaceholderText("Ex: Portal do Fornecedor"), "SPA Publica");
+    await user.type(
+      screen.getByPlaceholderText("https://sistemadocliente.com.br/auth/callback"),
+      "https://spa.com.br/callback"
+    );
+    await user.click(screen.getByRole("button", { name: /Público \(SPA/i }));
+
+    await waitFor(() => screen.getByText("1. General settings"));
+    // Client authentication vira "Off" pra client público.
+    const authRow = screen
+      .getByText("Client authentication")
+      .closest("div.flex.items-start.justify-between");
+    expect(within(authRow as HTMLElement).getByText("Off")).toBeInTheDocument();
+    // Web origins passa a ser preenchido (necessário pro CORS de um SPA).
+    const originsRow = screen.getByText("Web origins").closest("div.flex.items-start.justify-between");
+    expect(within(originsRow as HTMLElement).getByText("https://spa.com.br")).toBeInTheDocument();
   });
 
   it("does not show the integration manager until a customer is selected", async () => {
