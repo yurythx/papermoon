@@ -155,6 +155,31 @@ export const handlers = [
     }, { status: 201 })
   ),
 
+  http.get("/api/proxy/client/subscriptions/keycloak-integration-guide/", () =>
+    HttpResponse.json({
+      success: true,
+      data: {
+        available: true,
+        verified: true,
+        issuer: "https://auth.papermoon.com/realms/tenant-abc123",
+        authorization_endpoint: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/auth",
+        token_endpoint: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/token",
+        userinfo_endpoint: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/userinfo",
+        jwks_uri: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/certs",
+        end_session_endpoint: "https://auth.papermoon.com/realms/tenant-abc123/protocol/openid-connect/logout",
+        client_id_suggestion: "minha-app",
+        redirect_uri: "https://meusistema.com.br/api/auth/callback/keycloak",
+        scopes: ["openid", "profile", "email"],
+        language: "nextjs",
+        package: "next-auth",
+        install_command: "npm install next-auth",
+        steps: ["Instale o pacote: npm install next-auth."],
+        code_snippet: "import NextAuth from \"next-auth\";",
+      },
+      error: null,
+    })
+  ),
+
   http.post("/api/proxy/client/subscriptions/:id/reactivate/", ({ params }) =>
     HttpResponse.json({
       success: true,

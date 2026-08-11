@@ -17,6 +17,8 @@ import type {
   InAppNotificationList,
   Invitation,
   Invoice,
+  KeycloakIntegrationGuide,
+  KeycloakIntegrationLanguage,
   License,
   LoginResponse,
   MeResponse,
@@ -217,6 +219,21 @@ export const subscriptionService = {
   changePlanPreview: (id: string, pricingId: string): Promise<{ proration_amount: string; has_proration: boolean }> =>
     api
       .get<{ success: boolean; data: { proration_amount: string; has_proration: boolean }; error: null }>(`/proxy/client/subscriptions/${id}/change-plan-preview`, { params: { pricing_id: pricingId } })
+      .then(unwrap),
+};
+
+export const integrationService = {
+  getKeycloakGuide: (params: {
+    language: KeycloakIntegrationLanguage;
+    app_name: string;
+    base_url: string;
+    redirect_path?: string;
+  }): Promise<KeycloakIntegrationGuide> =>
+    api
+      .get<{ success: boolean; data: KeycloakIntegrationGuide; error: null }>(
+        "/proxy/client/subscriptions/keycloak-integration-guide/",
+        { params }
+      )
       .then(unwrap),
 };
 

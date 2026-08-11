@@ -261,6 +261,38 @@ export interface SSOTestResult {
   message: string;
 }
 
+// Client — guia de integração Keycloak (diferente do SSOConfig acima, que é
+// o SSO de STAFF do próprio backoffice — isto aqui é o realm Keycloak que o
+// PaperMoon provisiona pro cliente como produto, ver ServiceAccess.service_key
+// === "keycloak")
+export type KeycloakIntegrationLanguage =
+  | "django"
+  | "drf"
+  | "nextjs"
+  | "js"
+  | "node"
+  | "go"
+  | "csharp";
+
+export interface KeycloakIntegrationGuide {
+  available: boolean;
+  verified?: boolean;
+  issuer?: string;
+  authorization_endpoint?: string;
+  token_endpoint?: string;
+  userinfo_endpoint?: string;
+  jwks_uri?: string;
+  end_session_endpoint?: string;
+  client_id_suggestion?: string;
+  redirect_uri?: string;
+  scopes?: string[];
+  language?: KeycloakIntegrationLanguage;
+  package?: string;
+  install_command?: string;
+  steps?: string[];
+  code_snippet?: string;
+}
+
 // Admin — Audit Log
 export interface AuditLogEntry {
   id: string;

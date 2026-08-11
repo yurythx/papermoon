@@ -67,6 +67,29 @@ class ValidateLicenseResponseSerializer(serializers.Serializer):
     services = serializers.DictField(child=serializers.CharField(), required=False)
 
 
+class KeycloakIntegrationGuideResponseSerializer(serializers.Serializer):
+    """Só para o schema OpenAPI/drf-spectacular — a view monta a Response à
+    mão a partir de apps.subscriptions.keycloak_guide.build_integration_guide().
+    """
+
+    available = serializers.BooleanField()
+    verified = serializers.BooleanField(required=False)
+    issuer = serializers.CharField(required=False)
+    authorization_endpoint = serializers.CharField(required=False)
+    token_endpoint = serializers.CharField(required=False)
+    userinfo_endpoint = serializers.CharField(required=False)
+    jwks_uri = serializers.CharField(required=False)
+    end_session_endpoint = serializers.CharField(required=False)
+    client_id_suggestion = serializers.CharField(required=False)
+    redirect_uri = serializers.CharField(required=False)
+    scopes = serializers.ListField(child=serializers.CharField(), required=False)
+    language = serializers.CharField(required=False)
+    package = serializers.CharField(required=False)
+    install_command = serializers.CharField(required=False)
+    steps = serializers.ListField(child=serializers.CharField(), required=False)
+    code_snippet = serializers.CharField(required=False)
+
+
 class FinancialMetricsSerializer(serializers.Serializer):
     total_paid = serializers.FloatField()
     total_pending = serializers.FloatField()

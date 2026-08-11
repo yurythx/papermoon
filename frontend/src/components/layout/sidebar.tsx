@@ -20,6 +20,7 @@ import {
   Activity,
   ChevronUp,
   FileEdit,
+  KeyRound,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/sidebar";
 import { useAuthStore } from "@/store/auth";
@@ -50,6 +51,7 @@ const CLIENT_NAV: { section: string; items: NavItem[] }[] = [
       { href: "/dashboard/subscriptions", label: "Meus Contratos", icon: Package },
       { href: "/dashboard/catalog", label: "Nossos Serviços", icon: ShoppingBag },
       { href: "/dashboard/api-keys", label: "API Keys", icon: Fingerprint },
+      { href: "/dashboard/integrations/keycloak", label: "Integração SSO", icon: KeyRound },
     ],
   },
   {

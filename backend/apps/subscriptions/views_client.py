@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -12,11 +12,14 @@ from apps.subscriptions.commands import (
     ReactivateSubscriptionCommand,
     compute_proration,
 )
+from apps.subscriptions.keycloak_guide import build_integration_guide
+from apps.subscriptions.keycloak_integration_content import LANGUAGE_PACKS
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.repositories import DjangoLicenseRepository
 from apps.subscriptions.serializers import LicenseClientSerializer, SubscriptionSerializer
 from shared.schemas import (
     ChangePlanRequestSerializer,
+    KeycloakIntegrationGuideResponseSerializer,
     SubscribeRequestSerializer,
     SuspendReasonRequestSerializer,
     ValidateLicenseResponseSerializer,
@@ -385,3 +388,62 @@ class ClientLicenseValidateView(APIView):
         }
         cache.set(cache_key, result, timeout=60)
         return Response(result)
+
+
+@extend_schema(tags=["Client — Assinaturas"])
+class ClientKeycloakIntegrationGuideView(APIView):
+    """
+    Gera um guia de integração OIDC (URLs + snippet de código) pro sistema do
+    cliente se conectar ao realm Keycloak provisionado pra ele. Só leitura —
+    não cria nada no Keycloak nem salva nada aqui. Ver
+    apps/subscriptions/keycloak_guide.py e keycloak_integration_content.py.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="client_keycloak_integration_guide",
+        summary="Gerar guia de integração Keycloak",
+        description=(
+            "Devolve issuer/URLs/scopes reais do realm do cliente (com discovery "
+            "confirmado quando possível) mais um snippet de código pronto pra "
+            "colar, na stack escolhida. Se o cliente não tem um ServiceAccess "
+            "'keycloak' ativo (ou KEYCLOAK_API_URL não está configurado neste "
+            "ambiente), devolve {'available': false} em vez de erro."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "language",
+                str,
+                OpenApiParameter.QUERY,
+                required=True,
+                enum=list(LANGUAGE_PACKS),
+            ),
+            OpenApiParameter("app_name", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("base_url", str, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("redirect_path", str, OpenApiParameter.QUERY, required=False),
+        ],
+        responses={200: KeycloakIntegrationGuideResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        customer = _customer_from_request(request)
+
+        language = request.query_params.get("language", "")
+        if language not in LANGUAGE_PACKS:
+            raise ValidationError({"language": f"Deve ser um de: {', '.join(LANGUAGE_PACKS)}"})
+
+        base_url = request.query_params.get("base_url", "").strip()
+        if not base_url.startswith(("http://", "https://")):
+            raise ValidationError({"base_url": "Informe uma URL http(s) completa."})
+
+        app_name = request.query_params.get("app_name", "").strip() or "minha-aplicacao"
+        redirect_path = request.query_params.get("redirect_path", "").strip() or None
+
+        guide = build_integration_guide(
+            customer,
+            language=language,
+            app_name=app_name,
+            base_url=base_url,
+            redirect_path=redirect_path,
+        )
+        return Response(guide)

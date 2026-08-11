@@ -204,6 +204,16 @@ CHATWOOT_API_KEY = env("CHATWOOT_API_KEY", default="")
 # (apps.accounts.models) — ver docs/backend/sso-keycloak-integration.md. O redirect_uri
 # é derivado de FRONTEND_URL (abaixo), não é um campo configurável separado.
 
+# --- Keycloak (provisioner multi-tenant) ---
+# Diferente do bloco acima: este é o Keycloak CENTRAL do PaperMoon, onde
+# apps.provisioning.keycloak.KeycloakProvisioner cria um realm por cliente
+# (produto "Keycloak IAM/SSO" vendido a clientes — ver apps/products/models.py).
+# Sem essas duas variáveis preenchidas, o provisioner roda em modo stub
+# (retorna "keycloak_stub_<id>", não cria realm nenhum de verdade) em
+# qualquer ambiente — nunca foram configuradas até hoje.
+KEYCLOAK_API_URL = env("KEYCLOAK_API_URL", default="")
+KEYCLOAK_ADMIN_TOKEN = env("KEYCLOAK_ADMIN_TOKEN", default="")
+
 # --- Cache (Redis) ---
 CACHES = {
     "default": {
