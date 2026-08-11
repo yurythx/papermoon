@@ -151,6 +151,10 @@ REST_FRAMEWORK = {
         "register": "5/hour",
         "sso": "20/minute",
         "sso_test": "10/minute",
+        # Consultado pelo BFF (server-to-server) a cada visita a /login — todos
+        # os visitantes compartilham o mesmo IP de origem no Django, por isso
+        # bem mais folgado que o "anon" padrão (200/dia). Ver SSOStatusRateThrottle.
+        "sso_status": "300/minute",
         "keycloak_connection_test": "10/minute",
         "keycloak_client_create": "20/hour",
     },

@@ -54,6 +54,7 @@ from shared.throttling import (
     RefreshRateThrottle,
     RegisterRateThrottle,
     SSORateThrottle,
+    SSOStatusRateThrottle,
     SSOTestRateThrottle,
 )
 
@@ -626,6 +627,7 @@ class SSOStatusView(APIView):
     """Endpoint público — a tela de login usa isso pra decidir se mostra o botão de SSO."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [SSOStatusRateThrottle]
 
     @extend_schema(
         summary="Status público do SSO",

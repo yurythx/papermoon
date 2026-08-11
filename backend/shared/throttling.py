@@ -44,6 +44,21 @@ class SSORateThrottle(ScopedRateThrottle):
     scope = "sso"
 
 
+class SSOStatusRateThrottle(ScopedRateThrottle):
+    """300/minuto por IP — bem mais folgado que o 'anon' padrão (200/dia).
+
+    Motivo: este é um GET público, só-leitura, consultado pelo BFF (Next.js)
+    a cada visita à tela de login — e o BFF faz essa chamada server-to-server,
+    então TODOS os visitantes do site compartilham o mesmo IP de origem do
+    ponto de vista do Django. Com o throttle 'anon' padrão (200/dia), esse
+    bucket compartilhado estoura com tráfego normal, devolve 429, e o BFF
+    (que falha fechado por design — esconde o botão em vez de quebrar a
+    página) esconde "Entrar com Keycloak" pra todo mundo. Bug real observado
+    em produção; corrigido dando um scope próprio e generoso a este endpoint."""
+
+    scope = "sso_status"
+
+
 class SSOTestRateThrottle(ScopedRateThrottle):
     """10 testes de conectividade/minuto — mais folgado que admin_write pois é
     diagnóstico (o admin pode querer testar algumas vezes seguidas ajustando a URL)."""
