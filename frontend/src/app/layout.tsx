@@ -1,18 +1,27 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const geist = Inter({
-  subsets: ["latin"],
+// Hospedadas localmente (src/fonts/) em vez de next/font/google — o build de
+// produção roda numa rede sem rota IPv6 estável, e fonts.googleapis.com/
+// fonts.gstatic.com têm registro AAAA: o fetch do next/font/google trava
+// tentando IPv6 até estourar timeout, derrubando o build inteiro de forma
+// intermitente. Arquivos .woff2 são o subset "latin" da fonte variável
+// (mesmo arquivo que o Google serviria pra subsets: ["latin"]), baixados uma
+// vez — nunca precisa de rede no build a partir de agora.
+const geist = localFont({
+  src: "../fonts/Inter-Variable.woff2",
   variable: "--font-geist",
   display: "swap",
+  weight: "100 900",
 });
 
-const geistMono = JetBrains_Mono({
-  subsets: ["latin"],
+const geistMono = localFont({
+  src: "../fonts/JetBrainsMono-Variable.woff2",
   variable: "--font-geist-mono",
   display: "swap",
+  weight: "100 800",
 });
 
 export const metadata: Metadata = {
