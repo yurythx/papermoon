@@ -199,6 +199,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      # e2e/forgot-password.spec.ts polls this for the real reset-password
+      # email — without it (and without EMAIL_BACKEND/HOST/PORT below), Django
+      # falls back to the console backend, the email never leaves the runner,
+      # and the test times out waiting for something that was never sent.
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports: ["1025:1025", "8025:8025"]
+
     env:
       SECRET_KEY: ci-secret-key-not-for-production
       DATABASE_URL: postgres://papermoon:papermoon@localhost:5432/papermoon_test
@@ -213,6 +221,9 @@ jobs:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
       DJANGO_INTERNAL_URL: http://localhost:8000/api/v1
       PLAYWRIGHT_BASE_URL: http://localhost:3000
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: localhost
+      EMAIL_PORT: "1025"
 
     steps:
       - uses: actions/checkout@v4

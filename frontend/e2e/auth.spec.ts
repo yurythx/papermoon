@@ -37,7 +37,7 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL(/\/dashboard/);
 
     // Open user menu dropdown, then click Sair
-    await page.locator('button:has([class*="bg-brand-accent"])').click();
+    await page.getByRole("button", { name: /abrir menu do usuário/i }).click();
     await page.getByRole("button", { name: /sair/i }).click();
     await expect(page).toHaveURL(/\/login/);
 
