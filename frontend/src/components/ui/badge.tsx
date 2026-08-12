@@ -6,6 +6,9 @@ interface BadgeProps {
   children: React.ReactNode;
   variant?: BadgeVariant;
   dot?: boolean;
+  /** Pill arredondado (rounded-full) em vez do rounded-md padrão — chip de
+   * categoria/filtro estilo AWS, em vez do badge de status usual. */
+  pill?: boolean;
   className?: string;
 }
 
@@ -29,11 +32,12 @@ const dotColors: Record<BadgeVariant, string> = {
   muted:   "bg-text-tertiary",
 };
 
-export function Badge({ children, variant = "default", dot = false, className }: BadgeProps) {
+export function Badge({ children, variant = "default", dot = false, pill = false, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium border",
+        pill ? "rounded-full" : "rounded-md",
         variantClasses[variant],
         className
       )}

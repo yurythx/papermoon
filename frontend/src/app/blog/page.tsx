@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Newspaper } from "lucide-react";
+import { ArrowLeft, Newspaper } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
+import { cardClass } from "@/components/ui/card";
+import { ArrowLink } from "@/components/compound/arrow-link";
 import { fetchBlogPosts } from "@/lib/blog";
 
 export const revalidate = 60;
@@ -94,7 +96,7 @@ export default async function BlogIndexPage({
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className="group flex flex-col rounded-2xl bg-surface-1 border border-border-subtle overflow-hidden hover:border-border-focus transition-all duration-150"
+                className={cardClass({ interactive: true, className: "group flex flex-col p-0 overflow-hidden" })}
               >
                 <div className="aspect-video bg-surface-2 overflow-hidden flex items-center justify-center">
                   {post.cover_image_url ? (
@@ -119,10 +121,9 @@ export default async function BlogIndexPage({
                   <p className="text-xs text-text-secondary leading-relaxed line-clamp-3 flex-1">
                     {post.excerpt}
                   </p>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-accent group-hover:underline mt-1">
+                  <ArrowLink size="xs" className="mt-1">
                     Ler mais
-                    <ArrowRight size={11} />
-                  </span>
+                  </ArrowLink>
                 </div>
               </Link>
             ))}
@@ -152,23 +153,7 @@ export default async function BlogIndexPage({
         )}
       </div>
 
-      {/* Footer minimal */}
-      <footer className="border-t border-border-subtle py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <PaperMoonMark idSuffix="footer-blog" />
-            <span className="text-sm font-bold text-text-primary">PaperMoon</span>
-          </Link>
-          <p className="text-xs text-text-tertiary">
-            © {new Date().getFullYear()} PaperMoon. Todos os direitos reservados.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/servicos" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Serviços</Link>
-            <Link href="/sobre" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Sobre</Link>
-            <Link href="/termos" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Termos</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer idSuffix="blog" />
     </div>
   );
 }

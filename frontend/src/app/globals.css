@@ -278,3 +278,14 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Carrossel (components/compound/carousel.tsx) ────────────────────────── */
+/* Esconde a scrollbar nativa — os controles em pill do carrossel (estilo AWS)
+   são a interação primária; a barra do navegador só polui visualmente. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

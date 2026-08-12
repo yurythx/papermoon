@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PaperMoonMark } from "@/components/common/papermoon-mark";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ArrowLink } from "@/components/compound/arrow-link";
 
 type ServiceEntry = {
   label: string;
@@ -155,7 +156,7 @@ export function LandingNav({
                 id={servicesMenuId}
                 role="menu"
                 aria-label="Serviços"
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border-subtle bg-surface-1/95 backdrop-blur-xl shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] max-h-[70vh] overflow-y-auto rounded-2xl bg-surface-1/95 backdrop-blur-xl shadow-2xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
               >
                 <div className="grid grid-cols-4 gap-0.5">
                   {visibleServices.map((svc) => {
@@ -177,15 +178,14 @@ export function LandingNav({
                   })}
                 </div>
                 <div className="mt-2 pt-2 border-t border-border-subtle">
-                  <Link
+                  <ArrowLink
                     href="/servicos"
                     onClick={() => setServicesOpen(false)}
                     role="menuitem"
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-inset"
+                    className="rounded-lg px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-inset"
                   >
                     Ver todos os serviços
-                    <ArrowRight size={11} />
-                  </Link>
+                  </ArrowLink>
                 </div>
               </div>
             )}

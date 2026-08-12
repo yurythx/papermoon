@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
+import { Badge } from "@/components/ui/badge";
+import { cardClass } from "@/components/ui/card";
+import { ArrowLink } from "@/components/compound/arrow-link";
 import { SERVICES } from "@/lib/services-content";
 import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
@@ -101,13 +104,10 @@ export default async function ServicosPage() {
               "Dados na sua infraestrutura",
               "Suporte especializado",
             ].map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-surface-1 border border-border-subtle text-text-secondary"
-              >
+              <Badge key={item} variant="muted" pill className="gap-1.5 px-3 py-1.5 text-xs">
                 <Check size={10} className="text-brand-accent shrink-0" />
                 {item}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
@@ -134,12 +134,12 @@ export default async function ServicosPage() {
                     <Link
                       key={svc.slug}
                       href={`/servicos/${svc.slug}`}
-                      className="group relative rounded-2xl bg-surface-1 border border-border-subtle p-5 flex flex-col gap-4 hover:border-border-focus transition-all duration-150"
+                      className={cardClass({ interactive: true, className: "group relative flex flex-col gap-4" })}
                     >
                       {svc.comingSoon && (
-                        <span className="absolute top-4 right-4 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-2 border border-border-subtle text-text-tertiary">
+                        <Badge variant="muted" pill className="absolute top-4 right-4 text-[10px] px-2 py-0.5">
                           Em breve
-                        </span>
+                        </Badge>
                       )}
 
                       <div className={`w-10 h-10 rounded-xl ${svc.colorBg} border ${svc.colorBorder} flex items-center justify-center`}>
@@ -153,10 +153,7 @@ export default async function ServicosPage() {
                         </p>
                       </div>
 
-                      <span className={`inline-flex items-center gap-1 text-xs font-semibold ${svc.colorText} group-hover:underline`}>
-                        Saiba mais
-                        <ArrowRight size={11} />
-                      </span>
+                      <ArrowLink className={svc.colorText}>Saiba mais</ArrowLink>
                     </Link>
                   );
                 })}
@@ -190,23 +187,7 @@ export default async function ServicosPage() {
         </div>
       </section>
 
-      {/* Footer minimal */}
-      <footer className="border-t border-border-subtle py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <PaperMoonMark idSuffix="footer-servicos" />
-            <span className="text-sm font-bold text-text-primary">PaperMoon</span>
-          </Link>
-          <p className="text-xs text-text-tertiary">
-            © {new Date().getFullYear()} PaperMoon. Todos os direitos reservados.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/sobre" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Sobre</Link>
-            <Link href="/termos" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Termos</Link>
-            <a href="/#contato" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Contato</a>
-          </div>
-        </div>
-      </footer>
+      <Footer idSuffix="servicos" />
     </div>
   );
 }

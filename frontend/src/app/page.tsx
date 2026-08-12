@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Shield,
   MessageCircle,
@@ -33,10 +34,16 @@ import {
 import { LandingNav } from "@/components/marketing/nav";
 import { LandingFAQ } from "@/components/marketing/faq";
 import { LogosMarquee } from "@/components/marketing/logos-marquee";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
 import { ContactForm } from "@/components/marketing/contact-form";
+import { ArrowLink } from "@/components/compound/arrow-link";
+import { Carousel } from "@/components/compound/carousel";
+import { cardClass } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { LANDING_FAQS } from "@/lib/faq-content";
 import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
+import { fetchBlogPosts } from "@/lib/blog";
+import { cn } from "@/lib/utils";
 
 const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
 const _ogHome =
@@ -501,6 +508,8 @@ export default async function LandingPage() {
   const visibleServicesLanding = SERVICES_LANDING.filter((svc) =>
     isServiceVisible(svc.href.replace("/servicos/", ""), activeSlugs)
   );
+  const { results: latestPosts } = await fetchBlogPosts(1);
+  const blogHighlights = latestPosts.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
@@ -559,12 +568,9 @@ export default async function LandingPage() {
 
           <div className="flex flex-wrap justify-center gap-2">
             {TOOL_BADGES.map((tool) => (
-              <span
-                key={tool}
-                className="px-3 py-1.5 rounded-lg bg-surface-1 border border-border-subtle text-xs font-medium text-text-secondary"
-              >
+              <Badge key={tool} variant="muted" pill className="px-3 py-1.5 text-xs">
                 {tool}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
@@ -577,7 +583,7 @@ export default async function LandingPage() {
             {DIFFERENTIALS.map((d, i) => {
               const Icon = d.icon;
               return (
-                <div key={i} className="p-6 rounded-2xl bg-surface-1 border border-border-subtle space-y-3">
+                <div key={i} className={cardClass({ className: "p-6 space-y-3" })}>
                   <div className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
                     <Icon size={18} className="text-brand-accent" />
                   </div>
@@ -613,7 +619,7 @@ export default async function LandingPage() {
                 <Link
                   key={i}
                   href={svc.href}
-                  className="group rounded-2xl bg-surface-1 border border-border-subtle p-5 flex flex-col gap-4 hover:border-border-focus transition-all duration-150"
+                  className={cardClass({ interactive: true, className: "group flex flex-col gap-4" })}
                 >
                   <div className="flex items-start justify-between">
                     <div className={`w-10 h-10 rounded-xl ${svc.iconBg} flex items-center justify-center`}>
@@ -631,29 +637,22 @@ export default async function LandingPage() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {svc.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md bg-surface-2 border border-border-subtle text-text-tertiary font-medium">
+                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2 text-text-tertiary font-medium">
                         {tag}
                       </span>
                     ))}
                   </div>
 
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold ${svc.iconColor} group-hover:underline`}>
-                    Saiba mais
-                    <ArrowRight size={11} />
-                  </span>
+                  <ArrowLink className={svc.iconColor}>Saiba mais</ArrowLink>
                 </Link>
               );
             })}
           </div>
 
           <div className="mt-10 text-center">
-            <Link
-              href="/servicos"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-accent hover:underline"
-            >
+            <ArrowLink href="/servicos" size="md">
               Ver catálogo completo por categoria
-              <ArrowRight size={14} />
-            </Link>
+            </ArrowLink>
           </div>
         </div>
       </section>
@@ -678,7 +677,7 @@ export default async function LandingPage() {
             {HOW_IT_WORKS.map((step, i) => {
               const Icon = step.icon;
               return (
-                <div key={i} className="flex flex-col gap-4 p-6 rounded-2xl bg-surface-1 border border-border-subtle text-center">
+                <div key={i} className={cardClass({ className: "flex flex-col gap-4 p-6 text-center" })}>
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-12 rounded-2xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
                       <Icon size={20} className="text-brand-accent" />
@@ -694,15 +693,15 @@ export default async function LandingPage() {
             })}
           </div>
 
-          <div className="mt-10 rounded-2xl border border-border-subtle bg-surface-1 p-5 flex items-center gap-4">
+          <div className={cardClass({ className: "mt-10 flex items-center gap-4" })}>
             <Zap size={18} className="text-brand-accent shrink-0" />
             <p className="text-xs text-text-secondary leading-relaxed flex-1">
               Todos os serviços incluem instalação, configuração e treinamento da equipe na sua infraestrutura.
               Serviços mensais incluem suporte e manutenção contínuos.
             </p>
-            <a href="#contato" className="shrink-0 text-xs font-semibold text-brand-accent hover:underline">
-              Contratar →
-            </a>
+            <ArrowLink href="#contato" className="shrink-0">
+              Contratar
+            </ArrowLink>
           </div>
         </div>
       </section>
@@ -728,7 +727,11 @@ export default async function LandingPage() {
             {FIELD_EXPERTISE.map((area, i) => {
               const Icon = area.icon;
               return (
-                <Link key={i} href={area.href} className={`rounded-2xl border p-5 flex flex-col gap-4 ${area.bg} hover:brightness-110 transition-[filter] duration-150`}>
+                <Link
+                  key={i}
+                  href={area.href}
+                  className={cardClass({ className: `flex flex-col gap-4 ${area.bg} transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5` })}
+                >
                   <div className="w-10 h-10 rounded-xl bg-surface-0/60 flex items-center justify-center">
                     <Icon size={18} className={area.color} />
                   </div>
@@ -743,23 +746,72 @@ export default async function LandingPage() {
                       ))}
                     </ul>
                   </div>
-                  <p className={`text-xs font-semibold ${area.color} mt-auto`}>Ver detalhes →</p>
+                  <ArrowLink className={cn(area.color, "mt-auto")}>Ver detalhes</ArrowLink>
                 </Link>
               );
             })}
           </div>
 
           <div className="mt-8 text-center">
-            <Link
-              href="/sobre"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-accent hover:underline"
-            >
+            <ArrowLink href="/sobre" size="md">
               Conheça nossa história e experiência
-              <ArrowRight size={14} />
-            </Link>
+            </ArrowLink>
           </div>
         </div>
       </section>
+
+      {/* ── Do nosso blog ────────────────────────────────────────────── */}
+      {blogHighlights.length > 0 && (
+        <section className="py-24 sm:py-32 border-t border-border-subtle bg-surface-1/30">
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="flex items-end justify-between gap-4 mb-14 flex-wrap">
+              <div>
+                <p className="text-xs font-semibold text-brand-accent uppercase tracking-widest mb-3">Conteúdo</p>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Do nosso blog</h2>
+                <p className="text-text-secondary mt-3 max-w-xl text-sm">
+                  Melhores práticas, implementações e novidades sobre os serviços que gerenciamos.
+                </p>
+              </div>
+              <ArrowLink href="/blog" size="md" className="shrink-0">
+                Ver todos os posts
+              </ArrowLink>
+            </div>
+
+            <Carousel ariaLabel="Posts recentes do blog" slideClassName="w-[280px] sm:w-[320px]">
+              {blogHighlights.map((post) => (
+                <Link
+                  key={post.slug}
+                  href={`/blog/${post.slug}`}
+                  className={cardClass({ interactive: true, className: "group flex flex-col h-full p-0 overflow-hidden" })}
+                >
+                  <div className="aspect-video bg-surface-2 overflow-hidden flex items-center justify-center">
+                    {post.cover_image_url ? (
+                      <Image
+                        src={post.cover_image_url}
+                        alt={post.cover_image_alt || post.title}
+                        width={320}
+                        height={180}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <FileText size={22} className="text-text-tertiary" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2 p-5">
+                    <h3 className="text-sm font-bold text-text-primary line-clamp-2 group-hover:text-brand-accent transition-colors">
+                      {post.title}
+                    </h3>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 flex-1">{post.excerpt}</p>
+                    <ArrowLink size="xs" className="mt-1">
+                      Ler mais
+                    </ArrowLink>
+                  </div>
+                </Link>
+              ))}
+            </Carousel>
+          </div>
+        </section>
+      )}
 
       {/* ── Logos marquee ────────────────────────────────────────────── */}
       <LogosMarquee />
@@ -817,7 +869,7 @@ export default async function LandingPage() {
                   href="https://wa.me/5511999999999?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 border border-border-subtle hover:border-service-whatsapp/40 transition-colors group"
+                  className={cardClass({ interactive: true, className: "flex items-center gap-4 p-4 group" })}
                 >
                   <div className="w-10 h-10 rounded-xl bg-service-whatsapp/10 border border-service-whatsapp/20 flex items-center justify-center shrink-0">
                     <Phone size={18} className="text-service-whatsapp" />
@@ -830,7 +882,7 @@ export default async function LandingPage() {
 
                 <a
                   href="mailto:contato@papermoon.com.br"
-                  className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 border border-border-subtle hover:border-brand-accent/40 transition-colors group"
+                  className={cardClass({ interactive: true, className: "flex items-center gap-4 p-4 group" })}
                 >
                   <div className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center shrink-0">
                     <Mail size={18} className="text-brand-accent" />
@@ -843,105 +895,14 @@ export default async function LandingPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border-subtle bg-surface-1/60 backdrop-blur-sm p-6">
+            <div className="rounded-2xl bg-surface-1/60 backdrop-blur-sm p-6">
               <ContactForm activeSlugs={activeSlugs === null ? null : Array.from(activeSlugs)} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border-subtle bg-surface-1/50 py-12">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-10">
-            <div className="space-y-3 lg:col-span-1">
-              <div className="flex items-center gap-2.5">
-                <PaperMoonMark idSuffix="footer" size={24} />
-                <span className="font-bold text-text-primary">PaperMoon</span>
-              </div>
-              <p className="text-xs text-text-tertiary leading-relaxed">
-                Instalação e manutenção de ferramentas open-source na sua VPS: helpdesk, monitoramento, virtualização e comunicação.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Navegação</p>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/sobre" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                    Sobre
-                  </Link>
-                </li>
-                {[
-                  { label: "Serviços", href: "#servicos" },
-                  { label: "Como funciona", href: "#como-funciona" },
-                  { label: "FAQ", href: "#faq" },
-                  { label: "Contato", href: "#contato" },
-                ].map((l) => (
-                  <li key={l.label}>
-                    <a href={l.href} className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                      {l.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Serviços</p>
-              <ul className="space-y-2">
-                {[
-                  { label: "WhatsApp API Meta", href: "/servicos/whatsapp-api" },
-                  { label: "WhatsApp Evolution API", href: "/servicos/whatsapp-evolution" },
-                  { label: "GLPI", href: "/servicos/glpi" },
-                  { label: "Zabbix", href: "/servicos/zabbix" },
-                  { label: "Proxmox VE", href: "/servicos/proxmox" },
-                  { label: "TrueNAS", href: "/servicos/truenas" },
-                  { label: "Nextcloud", href: "/servicos/nextcloud" },
-                  { label: "AAPanel", href: "/servicos/aapanel" },
-                ].map((l) => (
-                  <li key={l.label}>
-                    <Link href={l.href} className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Acesso</p>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/login" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                    Entrar no painel
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/login" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                    Criar conta
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/forgot-password" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-                    Recuperar senha
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-text-tertiary">
-              © {new Date().getFullYear()} PaperMoon. Todos os direitos reservados.
-            </p>
-            <div className="flex gap-4 text-xs text-text-tertiary">
-              <Link href="/termos" className="hover:text-text-secondary transition-colors">Termos de uso</Link>
-              <span>Privacidade</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="full" idSuffix="home" />
     </div>
   );
 }

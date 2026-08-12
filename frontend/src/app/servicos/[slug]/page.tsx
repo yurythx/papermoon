@@ -15,8 +15,11 @@ import {
   ServerCog,
 } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
 import { ServiceGallery } from "@/components/marketing/service-lightbox";
+import { Badge } from "@/components/ui/badge";
+import { cardClass } from "@/components/ui/card";
+import { ArrowLink } from "@/components/compound/arrow-link";
 import { SERVICES, getService } from "@/lib/services-content";
 import { fetchCmsServicePage } from "@/lib/cms";
 import { mergeService } from "@/lib/merge-service";
@@ -89,7 +92,7 @@ export async function generateMetadata({
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   return (
-    <details className="group border border-border-subtle rounded-xl overflow-hidden bg-surface-1">
+    <details className={cardClass({ className: "group overflow-hidden p-0" })}>
       <summary className="flex items-center justify-between px-6 py-4 text-sm font-medium text-text-secondary cursor-pointer list-none select-none hover:text-text-primary transition-colors gap-4">
         <span>{q}</span>
         <ChevronDown
@@ -287,9 +290,7 @@ export default async function ServicePage({
             </div>
 
             {/* Diferenciais */}
-            <div
-              className={`rounded-2xl border ${svc.colorBorder} ${svc.colorBg} p-8 space-y-5`}
-            >
+            <div className={cardClass({ className: `${svc.colorBg} p-8 space-y-5` })}>
               <div>
                 <p
                   className={`text-xs font-semibold ${svc.colorText} uppercase tracking-widest mb-2`}
@@ -335,7 +336,7 @@ export default async function ServicePage({
             {svc.steps.map((step) => (
               <div
                 key={step.num}
-                className="flex flex-col gap-4 p-6 rounded-2xl bg-surface-1 border border-border-subtle"
+                className={cardClass({ className: "flex flex-col gap-4 p-6" })}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-3xl font-black text-text-tertiary/30 font-mono leading-none">
@@ -389,7 +390,7 @@ export default async function ServicePage({
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className={`rounded-xl border ${svc.colorBorder} ${svc.colorBg} aspect-video flex flex-col items-center justify-center gap-3`}
+                  className={`rounded-xl ${svc.colorBg} aspect-video flex flex-col items-center justify-center gap-3`}
                 >
                   <div
                     className={`w-10 h-10 rounded-xl ${svc.colorBg} border ${svc.colorBorder} flex items-center justify-center`}
@@ -425,7 +426,7 @@ export default async function ServicePage({
             {svc.featureGroups.map((group) => (
               <div
                 key={group.title}
-                className={`rounded-2xl border ${svc.colorBorder} ${svc.colorBg} p-6 space-y-4`}
+                className={cardClass({ className: `${svc.colorBg} p-6 space-y-4` })}
               >
                 <h3 className="text-sm font-bold text-text-primary">{group.title}</h3>
                 <ul className="space-y-2">
@@ -460,9 +461,7 @@ export default async function ServicePage({
             </p>
           </div>
 
-          <div
-            className={`rounded-2xl border ${svc.colorBorder} ${svc.colorBg} p-8`}
-          >
+          <div className={cardClass({ className: `${svc.colorBg} p-8` })}>
             <div className="flex items-center gap-3 mb-6">
               <div
                 className={`w-9 h-9 rounded-xl ${svc.colorBg} border ${svc.colorBorder} flex items-center justify-center shrink-0`}
@@ -497,9 +496,7 @@ export default async function ServicePage({
           </div>
 
           <div className="grid sm:grid-cols-2 gap-5">
-            <div
-              className={`rounded-2xl border ${svc.colorBorder} ${svc.colorBg} p-6 space-y-4`}
-            >
+            <div className={cardClass({ className: `${svc.colorBg} p-6 space-y-4` })}>
               <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
                 <span
                   className={`w-5 h-5 rounded-full ${svc.colorBg} border ${svc.colorBorder} flex items-center justify-center text-[10px] font-black ${svc.colorText}`}
@@ -518,7 +515,7 @@ export default async function ServicePage({
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-warning/25 bg-warning-muted p-6 space-y-4">
+            <div className={cardClass({ tone: "warning", className: "p-6 space-y-4" })}>
               <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-warning/15 border border-warning/25 flex items-center justify-center text-[10px] font-black text-warning">
                   C
@@ -536,7 +533,7 @@ export default async function ServicePage({
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-border-subtle bg-surface-1 px-5 py-4 text-center">
+          <div className={cardClass({ className: "mt-5 px-5 py-4 text-center" })}>
             <p className="text-xs text-text-tertiary">
               Leia os{" "}
               <Link href="/termos" className="text-brand-accent hover:underline font-medium">
@@ -569,7 +566,7 @@ export default async function ServicePage({
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-border-subtle bg-surface-1 px-6 py-8 text-center">
+            <div className={cardClass({ className: "px-6 py-8 text-center" })}>
               <p className="text-sm text-text-tertiary">
                 Ainda não temos perguntas frequentes para este serviço.{" "}
                 <a href="#contato" className="text-brand-accent hover:underline font-medium">
@@ -598,16 +595,16 @@ export default async function ServicePage({
                 <Link
                   key={other.slug}
                   href={`/servicos/${other.slug}`}
-                  className={`rounded-2xl border ${other.colorBorder} ${other.colorBg} p-5 space-y-3 hover:opacity-80 transition-opacity group`}
+                  className={cardClass({
+                    className: `${other.colorBg} p-5 space-y-3 group transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5`,
+                  })}
                 >
                   <div className="flex items-center justify-between">
                     <OtherIcon size={18} className={other.colorText} />
                     {other.comingSoon && (
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${other.colorBorder} ${other.colorText}`}
-                      >
+                      <Badge variant="muted" pill className={`text-[9px] px-1.5 py-0.5 ${other.colorText}`}>
                         Em breve
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <div>
@@ -623,13 +620,9 @@ export default async function ServicePage({
             })}
           </div>
           <div className="mt-8 text-center">
-            <Link
-              href="/servicos"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-accent hover:underline"
-            >
+            <ArrowLink href="/servicos" size="md">
               {`Ver todos os ${SERVICES.length} serviços`}
-              <ArrowRight size={13} />
-            </Link>
+            </ArrowLink>
           </div>
         </div>
       </section>
@@ -652,10 +645,7 @@ export default async function ServicePage({
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <a
-              href="mailto:contato@papermoon.com.br"
-              className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-surface-1 border border-border-subtle hover:border-border-default transition-colors group"
-            >
+            <a href="mailto:contato@papermoon.com.br" className={cardClass({ interactive: true, className: "flex items-center gap-3 px-6 py-4 group" })}>
               <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center shrink-0">
                 <Mail size={16} className="text-brand-accent" />
               </div>
@@ -671,7 +661,7 @@ export default async function ServicePage({
               href="https://wa.me/5511999999999?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-surface-1 border border-border-subtle hover:border-service-whatsapp/40 transition-colors group"
+              className={cardClass({ interactive: true, className: "flex items-center gap-3 px-6 py-4 group" })}
             >
               <div className="w-9 h-9 rounded-xl bg-service-whatsapp/10 border border-service-whatsapp/20 flex items-center justify-center shrink-0">
                 <Phone size={16} className="text-service-whatsapp" />
@@ -687,27 +677,7 @@ export default async function ServicePage({
         </div>
       </section>
 
-      {/* ── 11. FOOTEP MINI ─────────────────────────────────────────── */}
-      <footer className="border-t border-border-subtle bg-surface-1/50 py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <PaperMoonMark idSuffix={`footer-${svc.slug}`} size={20} />
-            <span className="text-sm font-bold text-text-primary">PaperMoon</span>
-          </div>
-          <div className="flex gap-5 text-xs text-text-tertiary">
-            <Link href="/" className="hover:text-text-secondary transition-colors">
-              Início
-            </Link>
-            <Link href="/termos" className="hover:text-text-secondary transition-colors">
-              Termos de uso
-            </Link>
-            <Link href="/login" className="hover:text-text-secondary transition-colors">
-              Entrar
-            </Link>
-          </div>
-          <p className="text-xs text-text-tertiary">© {new Date().getFullYear()} PaperMoon</p>
-        </div>
-      </footer>
+      <Footer idSuffix={svc.slug} />
     </div>
   );
 }

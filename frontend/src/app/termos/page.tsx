@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Check, AlertTriangle, Shield, Server, CreditCard, Wrench } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
+import { cardClass } from "@/components/ui/card";
 import { fetchActiveServiceSlugs } from "@/lib/active-services";
 
 export const metadata: Metadata = {
@@ -53,7 +54,7 @@ export default async function TermosPage() {
               </p>
 
               <div className="space-y-3">
-                <div className="rounded-lg border border-border-subtle bg-surface-1 p-4 space-y-2">
+                <div className={cardClass({ className: "rounded-lg p-4 space-y-2" })}>
                   <p className="text-xs font-semibold text-text-primary">Serviços mensais — software gerenciado</p>
                   <p className="text-xs leading-relaxed">
                     Inclui os serviços <strong className="text-text-primary">WhatsApp via API Meta</strong> e{" "}
@@ -62,7 +63,7 @@ export default async function TermosPage() {
                     Os softwares são instalados na VPS do próprio cliente — a PaperMoon não hospeda dados.
                   </p>
                 </div>
-                <div className="rounded-lg border border-border-subtle bg-surface-1 p-4 space-y-2">
+                <div className={cardClass({ className: "rounded-lg p-4 space-y-2" })}>
                   <p className="text-xs font-semibold text-text-primary">Serviços de implantação — cobrança única</p>
                   <p className="text-xs leading-relaxed">
                     Inclui <strong className="text-text-primary">GLPI, Zabbix, Proxmox, TrueNAS, Nextcloud e AAPanel</strong>,
@@ -100,7 +101,7 @@ export default async function TermosPage() {
               </div>
               <h2 className="text-base font-bold text-text-primary">2. Responsabilidades do cliente</h2>
             </div>
-            <div className="rounded-xl border border-warning/20 bg-warning-muted p-5 space-y-3 ml-11">
+            <div className={cardClass({ tone: "warning", className: "rounded-xl p-5 space-y-3 ml-11" })}>
               <p className="text-xs text-text-secondary leading-relaxed">
                 Os itens abaixo são de <strong className="text-text-primary">responsabilidade exclusiva do cliente</strong>.
                 A PaperMoon não se responsabiliza por falhas, cobranças ou perdas decorrentes do não cumprimento destes itens.

@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
 import { fetchBlogPost } from "@/lib/blog";
 
 export const revalidate = 60;
@@ -75,7 +75,7 @@ const ARTICLE_COMPONENTS: Components = {
     <code className="rounded bg-surface-2 px-1.5 py-0.5 text-[13px] font-mono text-text-primary">{children}</code>
   ),
   pre: ({ children }) => (
-    <pre className="rounded-xl bg-surface-2 border border-border-subtle px-4 py-3.5 text-[13px] font-mono text-text-primary overflow-x-auto mb-4">
+    <pre className="rounded-xl bg-surface-2 px-4 py-3.5 text-[13px] font-mono text-text-primary overflow-x-auto mb-4">
       {children}
     </pre>
   ),
@@ -84,7 +84,7 @@ const ARTICLE_COMPONENTS: Components = {
   img: ({ src, alt }) =>
     typeof src === "string" ? (
       // eslint-disable-next-line @next/next/no-img-element -- markdown-authored, dimensões desconhecidas em tempo de build
-      <img src={src} alt={alt ?? ""} className="rounded-xl border border-border-subtle my-4 w-full h-auto" />
+      <img src={src} alt={alt ?? ""} className="rounded-xl my-4 w-full h-auto" />
     ) : null,
   table: ({ children }) => (
     <div className="overflow-x-auto mb-4">
@@ -147,7 +147,7 @@ export default async function BlogPostPage({
           </header>
 
           {post.cover_image_url && (
-            <div className="rounded-2xl overflow-hidden border border-border-subtle mb-10">
+            <div className="rounded-2xl overflow-hidden mb-10">
               <Image
                 src={post.cover_image_url}
                 alt={post.cover_image_alt || post.title}
@@ -175,23 +175,7 @@ export default async function BlogPostPage({
         </div>
       </article>
 
-      {/* Footer minimal */}
-      <footer className="border-t border-border-subtle py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <PaperMoonMark idSuffix={`footer-blog-${slug}`} />
-            <span className="text-sm font-bold text-text-primary">PaperMoon</span>
-          </Link>
-          <p className="text-xs text-text-tertiary">
-            © {new Date().getFullYear()} PaperMoon. Todos os direitos reservados.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/servicos" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Serviços</Link>
-            <Link href="/sobre" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Sobre</Link>
-            <Link href="/termos" className="text-xs text-text-secondary hover:text-text-primary transition-colors">Termos</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer idSuffix={`blog-${slug}`} />
     </div>
   );
 }

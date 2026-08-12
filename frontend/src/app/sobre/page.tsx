@@ -15,7 +15,8 @@ import {
   Shield,
 } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
-import { PaperMoonMark } from "@/components/common/papermoon-mark";
+import { Footer } from "@/components/marketing/footer";
+import { cardClass } from "@/components/ui/card";
 import { fetchActiveServiceSlugs } from "@/lib/active-services";
 
 export const metadata: Metadata = {
@@ -186,7 +187,7 @@ export default async function SobrePage() {
               { value: "100%", label: "Open-source" },
               { value: "∞", label: "Suporte incluso" },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-2xl bg-surface-1 border border-border-subtle p-4 text-center">
+              <div key={stat.label} className={cardClass({ className: "p-4 text-center" })}>
                 <p className="text-2xl sm:text-3xl font-black text-text-primary mb-1">{stat.value}</p>
                 <p className="text-[11px] text-text-tertiary leading-tight">{stat.label}</p>
               </div>
@@ -243,10 +244,7 @@ export default async function SobrePage() {
             {SPECIALTIES.map((spec, i) => {
               const Icon = spec.icon;
               return (
-                <div
-                  key={i}
-                  className={`rounded-2xl border ${spec.border} ${spec.bg} p-7 sm:p-8`}
-                >
+                <div key={i} className={cardClass({ className: `${spec.bg} p-7 sm:p-8` })}>
                   <div className="flex flex-col sm:flex-row gap-6">
                     <div className="shrink-0">
                       <div className="w-12 h-12 rounded-2xl bg-surface-0/60 border border-border-subtle flex items-center justify-center">
@@ -292,7 +290,7 @@ export default async function SobrePage() {
             {VALUES.map((val, i) => {
               const Icon = val.icon;
               return (
-                <div key={i} className="p-6 rounded-2xl bg-surface-1 border border-border-subtle space-y-3">
+                <div key={i} className={cardClass({ className: "p-6 space-y-3" })}>
                   <div className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
                     <Icon size={18} className="text-brand-accent" />
                   </div>
@@ -354,34 +352,7 @@ export default async function SobrePage() {
         </div>
       </section>
 
-      {/* ── Footer simples ───────────────────────────────────────────── */}
-      <footer className="border-t border-border-subtle bg-surface-1/50 py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <PaperMoonMark idSuffix="sobre-footer" size={20} />
-            <span className="text-sm font-bold text-text-primary">PaperMoon</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-              Início
-            </Link>
-            <Link href="/#servicos" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-              Serviços
-            </Link>
-            <Link href="/#contato" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-              Contato
-            </Link>
-            <Link href="/login" className="text-sm text-text-tertiary hover:text-text-secondary transition-colors">
-              Entrar
-            </Link>
-          </div>
-
-          <p className="text-xs text-text-tertiary">
-            © {new Date().getFullYear()} PaperMoon
-          </p>
-        </div>
-      </footer>
+      <Footer idSuffix="sobre" />
     </div>
   );
 }
