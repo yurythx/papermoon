@@ -45,7 +45,10 @@ def _make_subscription(customer: Customer, days_until_expiry: int = 30) -> Subsc
 
 
 def _make_overdue_invoice(customer: Customer, days_overdue: int, subscription=None) -> Invoice:
-    due_date = datetime.date.today() - datetime.timedelta(days=days_overdue)
+    # timezone.localdate() — not datetime.date.today() — matches what the
+    # dunning commands compare against (TIME_ZONE-aware "today"); date.today()
+    # is the host clock's local date, a different calendar day near midnight.
+    due_date = timezone.localdate() - datetime.timedelta(days=days_overdue)
     return Invoice.objects.create(
         customer=customer,
         subscription=subscription,

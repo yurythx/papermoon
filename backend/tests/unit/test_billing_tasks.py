@@ -6,6 +6,7 @@ Celery tasks are called directly (no broker) with commands mocked.
 import datetime
 from unittest.mock import patch
 
+from django.utils import timezone
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -74,7 +75,7 @@ def test_scan_overdue_invoices_marks_past_due_invoice(customer):
     from apps.billing.models import Invoice
     from apps.billing.tasks import scan_overdue_invoices
 
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    yesterday = timezone.localdate() - datetime.timedelta(days=1)
     inv = Invoice.objects.create(
         customer=customer,
         amount="100.00",
@@ -93,7 +94,7 @@ def test_scan_overdue_invoices_skips_already_overdue(customer):
     from apps.billing.models import Invoice
     from apps.billing.tasks import scan_overdue_invoices
 
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    yesterday = timezone.localdate() - datetime.timedelta(days=1)
     inv = Invoice.objects.create(
         customer=customer,
         amount="100.00",
@@ -111,7 +112,7 @@ def test_scan_overdue_invoices_skips_future_invoice(customer):
     from apps.billing.models import Invoice
     from apps.billing.tasks import scan_overdue_invoices
 
-    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+    tomorrow = timezone.localdate() + datetime.timedelta(days=1)
     inv = Invoice.objects.create(
         customer=customer,
         amount="100.00",
@@ -132,7 +133,7 @@ def test_scan_overdue_invoices_logs_error_and_continues(customer):
     from apps.billing.models import Invoice
     from apps.billing.tasks import scan_overdue_invoices
 
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    yesterday = timezone.localdate() - datetime.timedelta(days=1)
     inv1 = Invoice.objects.create(
         customer=customer,
         amount="100.00",
@@ -173,7 +174,7 @@ def test_scan_upcoming_invoices_creates_outbox_event(customer):
     from apps.billing.tasks import scan_upcoming_invoices
     from shared.models import OutboxEvent
 
-    due_date = datetime.date.today() + datetime.timedelta(days=3)
+    due_date = timezone.localdate() + datetime.timedelta(days=3)
     inv = Invoice.objects.create(
         customer=customer,
         amount="150.00",
@@ -197,7 +198,7 @@ def test_scan_upcoming_invoices_skips_non_pending(customer):
     from apps.billing.tasks import scan_upcoming_invoices
     from shared.models import OutboxEvent
 
-    due_date = datetime.date.today() + datetime.timedelta(days=3)
+    due_date = timezone.localdate() + datetime.timedelta(days=3)
     Invoice.objects.create(
         customer=customer,
         amount="150.00",
@@ -219,7 +220,7 @@ def test_scan_upcoming_invoices_skips_wrong_date(customer):
     from shared.models import OutboxEvent
 
     # Due tomorrow — not in 3 days
-    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+    tomorrow = timezone.localdate() + datetime.timedelta(days=1)
     Invoice.objects.create(
         customer=customer,
         amount="150.00",
@@ -240,7 +241,7 @@ def test_scan_upcoming_invoices_logs_error_and_continues(customer):
     from apps.billing.tasks import scan_upcoming_invoices
     from shared.models import OutboxEvent
 
-    due_date = datetime.date.today() + datetime.timedelta(days=3)
+    due_date = timezone.localdate() + datetime.timedelta(days=3)
     Invoice.objects.create(
         customer=customer, amount="100.00", due_date=due_date, status=Invoice.Status.PENDING
     )

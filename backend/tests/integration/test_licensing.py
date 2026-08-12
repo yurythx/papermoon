@@ -273,6 +273,8 @@ class TestSnapshotDailyApiUsage:
     def test_creates_daily_usage_row_per_customer(self):
         import datetime
 
+        from django.utils import timezone as django_timezone
+
         from apps.licensing.models import DailyApiUsage
         from apps.licensing.tasks import snapshot_daily_api_usage
 
@@ -286,11 +288,17 @@ class TestSnapshotDailyApiUsage:
 
         snapshot_daily_api_usage()
 
-        row = DailyApiUsage.objects.get(customer=customer, date=datetime.date.today())
+        # timezone.localdate() — not datetime.date.today() — matches what
+        # snapshot_daily_api_usage() itself uses (TIME_ZONE-aware "today").
+        # date.today() is the host clock's local date, which can be a
+        # different calendar day than TIME_ZONE's near midnight.
+        row = DailyApiUsage.objects.get(customer=customer, date=django_timezone.localdate())
         assert row.calls_count == 42
 
     def test_rerun_same_day_updates_existing_row(self):
         import datetime
+
+        from django.utils import timezone as django_timezone
 
         from apps.licensing.models import DailyApiUsage
         from apps.licensing.tasks import snapshot_daily_api_usage
@@ -308,7 +316,7 @@ class TestSnapshotDailyApiUsage:
         quota.save()
         snapshot_daily_api_usage()
 
-        rows = DailyApiUsage.objects.filter(customer=customer, date=datetime.date.today())
+        rows = DailyApiUsage.objects.filter(customer=customer, date=django_timezone.localdate())
         assert rows.count() == 1
         assert rows.first().calls_count == 25
 
