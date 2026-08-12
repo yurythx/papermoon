@@ -1,6 +1,6 @@
 # PaperMoon Platform
 
-PaperMoon e um ecossistema SaaS multi-tenant para gerenciamento de clientes, faturamento, licenciamento, CMS e integracoes operacionais.
+PaperMoon e um ecossistema SaaS multi-tenant para gerenciamento de clientes, faturamento, licenciamento, CMS, blog e integracoes operacionais.
 
 > `PaperMoon` e a unica identidade valida do produto. Documentacao, metadados e interfaces devem refletir apenas essa identidade.
 
@@ -91,6 +91,7 @@ backend/
     ├── provisioning/
     ├── notifications/
     ├── cms/
+    ├── blog/
     ├── support/
     └── audit/
 

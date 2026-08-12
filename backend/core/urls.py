@@ -52,6 +52,10 @@ urlpatterns = [
     path("api/v1/cms/", include("apps.cms.urls")),
     # CMS — admin revalidation
     path("api/v1/admin/cms/", include("apps.cms.urls_admin")),
+    # Blog — public posts
+    path("api/v1/blog/", include("apps.blog.urls_public")),
+    # Blog — admin CRUD
+    path("api/v1/admin/blog/", include("apps.blog.urls_admin")),
 ]
 
 # Serve /media/ in all environments — Cloudflare caches it at the edge in production.

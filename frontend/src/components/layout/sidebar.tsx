@@ -21,6 +21,7 @@ import {
   ChevronUp,
   FileEdit,
   KeyRound,
+  Newspaper,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/sidebar";
 import { useAuthStore } from "@/store/auth";
@@ -100,6 +101,7 @@ const ADMIN_NAV: { section: string; items: NavItem[] }[] = [
     section: "Conteúdo",
     items: [
       { href: "/backoffice/cms", label: "Páginas de Serviço", icon: FileEdit },
+      { href: "/backoffice/blog", label: "Blog", icon: Newspaper },
     ],
   },
   {

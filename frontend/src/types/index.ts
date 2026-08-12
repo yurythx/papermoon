@@ -511,3 +511,57 @@ export interface CmsPageAdminListItem {
 }
 
 export type CmsPageAdminPayload = Omit<CmsPageAdmin, "product_id" | "slug" | "product_name" | "is_active" | "hero_image_url" | "images" | "updated_at">;
+
+// Blog
+export type BlogPostStatus = "draft" | "published";
+
+export interface BlogPostListItem {
+  slug: string;
+  title: string;
+  excerpt: string;
+  cover_image_url: string | null;
+  cover_image_alt: string;
+  author_name: string;
+  published_at: string | null;
+}
+
+export interface BlogPostDetail extends BlogPostListItem {
+  body: string;
+  meta_title: string;
+  meta_description: string;
+}
+
+export interface BlogPostAdmin {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  body: string;
+  cover_image_url: string | null;
+  cover_image_alt: string;
+  author: number;
+  author_name: string;
+  status: BlogPostStatus;
+  published_at: string | null;
+  meta_title: string;
+  meta_description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlogPostAdminListItem {
+  id: string;
+  title: string;
+  slug: string;
+  status: BlogPostStatus;
+  author_name: string;
+  published_at: string | null;
+  updated_at: string;
+}
+
+export type BlogPostAdminPayload = Partial<
+  Pick<
+    BlogPostAdmin,
+    "title" | "slug" | "excerpt" | "body" | "cover_image_alt" | "status" | "meta_title" | "meta_description"
+  >
+>;

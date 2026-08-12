@@ -408,6 +408,16 @@ Os apps abaixo foram adicionados no roadmap Fase 4 e estão em `INSTALLED_APPS` 
   o admin por e-mail a cada novo auto-cadastro.
 - **`apps/audit`** — `AuditLog`. Registra quem fez o quê e quando (admin actions, mudanças de estado),
   exposto em `GET /api/v1/admin/audit-logs/`.
+- **`apps/blog`** — `BlogPost` (FK direta a `accounts.CustomUser` como autor, sem model de tenant —
+  conteúdo é autoria da equipe PaperMoon, não de um customer). Fluxo `draft`/`published` com
+  `mark_published()` gravando `published_at` só na primeira publicação (republicar não reseta a
+  data). Corpo em Markdown, renderizado no frontend com `react-markdown`+`remark-gfm`. Capa convertida
+  para WebP reaproveitando `apps.cms.services.ImageProcessor`/`validate_image_upload` (mesmo signal
+  `pre_save` do `apps/cms`, checando `_committed`). Revalidação ISR via `apps/blog/tasks.py` reaproveita
+  a mesma rota `POST /api/revalidate` do Next.js usada pelo CMS, diferenciada pelo campo `"type"` do
+  payload (`"service"` vs `"blog"`). Endpoints públicos `GET /api/v1/blog/` (lista paginada) e
+  `GET /api/v1/blog/<slug>/` (nunca retorna rascunho, mesmo com o slug exato) + CRUD completo em
+  `GET/POST/PATCH/DELETE /api/v1/admin/blog/...` (staff only).
 - **`apps/cms`** — `ServicePage` (OneToOneField → `Product`) com modelos aninhados: `ServiceStep`,
   `ServiceFAQ`, `ServiceResponsibility`, `ServiceFeatureGroup`, `ServiceFeatureItem`, `ServiceImage`.
   Imagens convertidas para WebP via Pillow no `pre_save`. Endpoints públicos:
@@ -548,6 +558,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 - [x] Auto-cadastro (`POST /api/v1/auth/register/`) + fluxo de provisionamento backoffice
 - [x] Notificação de admin por e-mail a cada novo cadastro (`user.registered`)
 - [x] Histórico diário de uso de API (`DailyApiUsage`) + gráfico no dashboard
+- [x] Blog (`apps/blog`) — posts de melhores práticas/novidades escritos pela equipe, draft/publish,
+  Markdown, capa WebP, ISR. Páginas públicas `/blog` e `/blog/<slug>` + editor completo em
+  `/backoffice/blog`. Ver `docs/backend/api.md#blog-público` e `docs/backend/api.md#blog-admin`.
 
 ### Fase 5 — SSO e expansão de portfólio
 > Ver `docs/adrs/0002-sso-keycloak-staff.md` e `docs/adrs/0003-portfolio-tech-expansion.md` para o racional completo de cada item.

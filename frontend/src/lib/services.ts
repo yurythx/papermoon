@@ -7,6 +7,11 @@ import type {
   ApiKey,
   ApiQuota,
   AuditLogEntry,
+  BlogPostAdmin,
+  BlogPostAdminListItem,
+  BlogPostAdminPayload,
+  BlogPostDetail,
+  BlogPostListItem,
   CmsImage,
   CmsPageAdmin,
   CmsPageAdminListItem,
@@ -140,6 +145,16 @@ export const licenseService = {
 export const productService = {
   catalog: (): Promise<Product[]> =>
     api.get<{ success: boolean; data: Product[]; error: null }>("/proxy/products/catalog/").then(unwrap),
+};
+
+export const blogService = {
+  list: (params?: { page?: number }): Promise<PaginatedResponse<BlogPostListItem>> =>
+    api
+      .get<{ success: boolean; data: PaginatedResponse<BlogPostListItem>; error: null }>("/proxy/blog/", { params })
+      .then(unwrap),
+
+  getBySlug: (slug: string): Promise<BlogPostDetail> =>
+    api.get<{ success: boolean; data: BlogPostDetail; error: null }>(`/proxy/blog/${slug}/`).then(unwrap),
 };
 
 export const teamService = {
@@ -473,6 +488,38 @@ export const adminService = {
 
   deleteCmsGalleryImage: (slug: string, pk: number): Promise<void> =>
     api.delete(`/proxy/admin/cms/pages/${slug}/gallery/${pk}/`).then(() => undefined),
+
+  // Blog
+  listBlogPosts: (params?: { status?: string; page?: number }): Promise<PaginatedResponse<BlogPostAdminListItem>> =>
+    api
+      .get<{ success: boolean; data: PaginatedResponse<BlogPostAdminListItem>; error: null }>("/proxy/admin/blog/", { params })
+      .then(unwrap),
+
+  getBlogPost: (id: string): Promise<BlogPostAdmin> =>
+    api.get<{ success: boolean; data: BlogPostAdmin; error: null }>(`/proxy/admin/blog/${id}/`).then(unwrap),
+
+  createBlogPost: (data: BlogPostAdminPayload): Promise<BlogPostAdmin> =>
+    api.post<{ success: boolean; data: BlogPostAdmin; error: null }>("/proxy/admin/blog/", data).then(unwrap),
+
+  updateBlogPost: (id: string, data: BlogPostAdminPayload): Promise<BlogPostAdmin> =>
+    api.patch<{ success: boolean; data: BlogPostAdmin; error: null }>(`/proxy/admin/blog/${id}/`, data).then(unwrap),
+
+  deleteBlogPost: (id: string): Promise<void> =>
+    api.delete(`/proxy/admin/blog/${id}/`).then(() => undefined),
+
+  uploadBlogCover: (id: string, file: File): Promise<{ cover_image_url: string | null }> => {
+    const formData = new FormData();
+    formData.append("cover_image", file);
+    return api
+      .post<{ success: boolean; data: { cover_image_url: string | null }; error: null }>(
+        `/proxy/admin/blog/${id}/cover/`,
+        formData
+      )
+      .then(unwrap);
+  },
+
+  deleteBlogCover: (id: string): Promise<void> =>
+    api.delete(`/proxy/admin/blog/${id}/cover/`).then(() => undefined),
 
   // SSO (Configurações)
   getSSOConfig: (): Promise<SSOConfig> =>

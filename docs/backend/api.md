@@ -633,6 +633,67 @@ Dispara revalidação ISR do Next.js via Celery para um serviço específico.
 
 ---
 
+## Blog (Público)
+
+### `GET /blog/`
+Lista posts com `status=published`, paginado (`PageNumberPagination`, `PAGE_SIZE=20`), ordenado por `-published_at`.
+
+**Response:**
+```json
+{
+  "count": 12,
+  "next": "http://.../api/v1/blog/?page=2",
+  "previous": null,
+  "results": [
+    {
+      "slug": "como-configurar-sso-com-keycloak",
+      "title": "Como configurar SSO com Keycloak",
+      "excerpt": "Passo a passo pra integrar...",
+      "cover_image_url": "https://app.papermoon.com.br/media/blog/covers/....webp",
+      "cover_image_alt": "Tela de configuração do Keycloak",
+      "author_name": "Ana Silva",
+      "published_at": "2026-06-21T12:00:00Z"
+    }
+  ]
+}
+```
+
+### `GET /blog/<slug>/`
+Retorna o post completo (corpo em Markdown + SEO). Um `slug` de rascunho (`status=draft`) responde `404` — nunca vaza conteúdo não publicado, mesmo pra quem tem a URL exata.
+
+**Response:** objeto acima + `body` (Markdown), `meta_title`, `meta_description`.
+
+## Blog (Admin)
+
+> Requer `is_staff=True`
+
+### `GET /admin/blog/`
+Lista todos os posts (rascunho e publicado), paginado. Filtro opcional `?status=draft|published`.
+
+**Response:** lista leve — `id`, `title`, `slug`, `status`, `author_name`, `published_at`, `updated_at`.
+
+### `POST /admin/blog/`
+Cria um post como `draft`. `author` é sempre o usuário autenticado — não é um campo aceito no body.
+
+**Body:** `title`, `slug`, `excerpt`, `body` (opcional na criação — editado depois).
+
+### `GET /admin/blog/<id>/`
+Retorna o post completo pra edição.
+
+### `PATCH /admin/blog/<id>/`
+Atualiza qualquer subconjunto de campos, incluindo `status`. Ao transicionar `draft` → `published` pela primeira vez, `published_at` é preenchido automaticamente e nunca mais sobrescrito por publicações subsequentes (republicar não reseta a data original).
+
+### `DELETE /admin/blog/<id>/`
+Remove o post permanentemente (capa incluída).
+
+### `POST /admin/blog/<id>/cover/`
+Upload da imagem de capa (`multipart/form-data`, campo `cover_image`). Convertida para WebP automaticamente (mesmo pipeline do CMS — `apps.cms.services.ImageProcessor`).
+
+### `DELETE /admin/blog/<id>/cover/`
+Remove a imagem de capa do post.
+
+---
+
 ## Health Check
 
 ### `GET /health/`

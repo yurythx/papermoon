@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.subscriptions",
     "apps.provisioning",
     "apps.cms",
+    "apps.blog",
 ]
 
 MIDDLEWARE = [
@@ -259,6 +260,7 @@ SPECTACULAR_SETTINGS = {
         "ServiceAccessStatusEnum": "apps.subscriptions.models.ServiceAccess.Status",
         "InvitationStatusEnum": "apps.customers.models.Invitation.Status",
         "NotificationStatusEnum": "apps.notifications.models.Notification.Status",
+        "BlogPostStatusEnum": "apps.blog.models.BlogPost.Status",
     },
 }
 

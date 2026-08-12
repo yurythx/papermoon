@@ -1,7 +1,20 @@
 import type { MetadataRoute } from "next";
 import { SERVICES } from "@/lib/services-content";
+import { fetchBlogPosts } from "@/lib/blog";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+const MAX_BLOG_SITEMAP_PAGES = 10; // teto de segurança (~200 posts) contra loop caso `next` nunca zere
+
+async function fetchAllBlogSlugs(): Promise<{ slug: string; published_at: string | null }[]> {
+  const all: { slug: string; published_at: string | null }[] = [];
+  for (let page = 1; page <= MAX_BLOG_SITEMAP_PAGES; page++) {
+    const { results, next } = await fetchBlogPosts(page);
+    all.push(...results.map((p) => ({ slug: p.slug, published_at: p.published_at })));
+    if (!next) break;
+  }
+  return all;
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
 
   const staticPages: MetadataRoute.Sitemap = [
@@ -47,6 +60,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
   ];
 
   const servicePages: MetadataRoute.Sitemap = SERVICES.map((svc) => ({
@@ -56,5 +75,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: svc.comingSoon ? 0.5 : 0.9,
   }));
 
-  return [...staticPages, ...servicePages];
+  const blogSlugs = await fetchAllBlogSlugs();
+  const blogPages: MetadataRoute.Sitemap = blogSlugs.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: post.published_at ? new Date(post.published_at) : new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  return [...staticPages, ...servicePages, ...blogPages];
 }

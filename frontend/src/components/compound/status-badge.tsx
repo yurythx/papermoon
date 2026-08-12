@@ -10,9 +10,10 @@ type SubscriptionStatus = "trial" | "active" | "suspended" | "expired" | "grace_
 type CustomerStatus = "active" | "suspended" | "cancelled";
 type InvoiceStatus = "pending" | "paid" | "overdue" | "cancelled";
 type ServiceStatus = "provisioning" | "active" | "suspended" | "failed";
+type BlogPostStatus = "draft" | "published";
 
 interface StatusBadgeProps {
-  status: LicenseStatus | SubscriptionStatus | CustomerStatus | InvoiceStatus | ServiceStatus | string;
+  status: LicenseStatus | SubscriptionStatus | CustomerStatus | InvoiceStatus | ServiceStatus | BlogPostStatus | string;
   className?: string;
 }
 
@@ -35,6 +36,9 @@ const statusMap: Record<string, { label: string; variant: BadgeVariant; dot?: bo
   // Invitation
   accepted:     { label: "Aceito", variant: "success", dot: true },
   revoked:      { label: "Revogado", variant: "muted", dot: false },
+  // Blog
+  draft:        { label: "Rascunho", variant: "muted", dot: true },
+  published:    { label: "Publicado", variant: "success", dot: true },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

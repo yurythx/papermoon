@@ -66,6 +66,7 @@ const SERVICES_NAV: ServiceEntry[] = [
 const LINKS = [
   { label: "Sobre",          href: "/sobre" },
   { label: "Como funciona",  href: "/#como-funciona" },
+  { label: "Blog",           href: "/blog" },
   { label: "FAQ",            href: "/#faq" },
   { label: "Contato",        href: "/#contato" },
 ];
