@@ -9,12 +9,29 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "www.chatwoot.com" },
       { protocol: "https", hostname: "n8niostorageaccount.blob.core.windows.net" },
-      // Django media files — dev (local) and Docker-internal
+      // Django media files — dev (local) e Docker-internal
       { protocol: "http", hostname: "localhost", port: "8000" },
       { protocol: "http", hostname: "django-api", port: "8000" },
-      // Production: any papermoon.com.br subdomain serving media
+      // Produção real (deployment.md): papermoon.cloud, atrás do Cloudflare
+      // Tunnel — papermoon.com.br abaixo é um domínio ainda não usado no ar,
+      // mantido por segurança caso vire o domínio real no futuro.
+      { protocol: "https", hostname: "papermoon.cloud" },
+      { protocol: "https", hostname: "**.papermoon.cloud" },
       { protocol: "https", hostname: "**.papermoon.com.br" },
     ],
+  },
+  // MEDIA_URL do Django (settings.MEDIA_URL="/media/") não tem hostname público
+  // próprio — o Cloudflare Tunnel só aponta pro Next.js (app.papermoon.cloud →
+  // nextjs:3000, ver deployment.md), então build_public_media_url() no backend
+  // (shared/public_urls.py) precisa de um MEDIA_PUBLIC_BASE_URL apontando pra
+  // cá, e esse rewrite fecha o outro lado: proxya /media/* pro django-api
+  // internamente, sem precisar de uma rota nova no painel do Cloudflare.
+  async rewrites() {
+    const djangoRoot = (process.env.DJANGO_INTERNAL_URL ?? "http://localhost:8000/api/v1").replace(
+      /\/api\/v1\/?$/,
+      ""
+    );
+    return [{ source: "/media/:path*", destination: `${djangoRoot}/media/:path*` }];
   },
   async headers() {
     return [
@@ -35,7 +52,7 @@ const nextConfig = {
               `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://*.papermoon.com.br https://www.chatwoot.com https://n8niostorageaccount.blob.core.windows.net",
+              "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://papermoon.cloud https://*.papermoon.cloud https://*.papermoon.com.br https://www.chatwoot.com https://n8niostorageaccount.blob.core.windows.net",
               "connect-src 'self' https://*.sentry.io",
               "frame-ancestors 'none'",
               "base-uri 'self'",

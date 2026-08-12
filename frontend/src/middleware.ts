@@ -42,9 +42,11 @@ export async function middleware(req: NextRequest) {
     // mas imagens inseridas no corpo do post em Markdown renderizam como
     // <img> puro (dimensões arbitrárias, decididas pelo autor, não dá pra
     // usar next/image sem conhecer width/height author-by-author) e por
-    // isso pedem a origem do Django direto. Mesmos hosts do
-    // images.remotePatterns em next.config.mjs.
-    "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://*.papermoon.com.br",
+    // isso pedem a origem do Django direto. Com MEDIA_PUBLIC_BASE_URL +
+    // o rewrite de /media/* (next.config.mjs), a URL pública normal já cai
+    // em 'self' (mesma origem do app) — os hosts extras aqui cobrem dev
+    // local e o período de transição de posts com URL antiga em cache.
+    "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://papermoon.cloud https://*.papermoon.cloud https://*.papermoon.com.br",
     "connect-src 'self' https://*.sentry.io",
     "frame-ancestors 'none'",
     "base-uri 'self'",
