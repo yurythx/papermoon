@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { djangoFetch } from "@/lib/session";
+import { djangoFetch, getClientIp } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const django = await djangoFetch("/auth/password-reset/confirm/", { method: "POST", body: JSON.stringify(body) });
+  const django = await djangoFetch(
+    "/auth/password-reset/confirm/",
+    { method: "POST", body: JSON.stringify(body) },
+    undefined,
+    getClientIp(req)
+  );
   const payload = await django.json();
   return NextResponse.json(payload, { status: django.status });
 }

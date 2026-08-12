@@ -1,8 +1,17 @@
+import hashlib
 import secrets
 from uuid import uuid4
 
 from django.db import models
 from django.utils import timezone
+
+
+def api_key_cache_key(key: str) -> str:
+    """Cache key for /validate-key/ results (views.py) — hashed, never the raw
+    key, so a Redis dump/scan can't leak a live API key. Shared here (not in
+    views.py) so commands.py and handlers.py, which also need to invalidate
+    this cache, don't have to import from the view layer."""
+    return f"apikey:{hashlib.sha256(key.encode()).hexdigest()}"
 
 
 class ApiKey(models.Model):

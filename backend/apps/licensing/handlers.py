@@ -57,16 +57,34 @@ def sync_quota_from_subscription(payload: dict, event_id: str) -> None:
 
 @register("customer.suspended")
 def deactivate_api_keys(payload: dict, event_id: str) -> None:
-    from apps.licensing.models import ApiKey
+    from django.core.cache import cache
 
+    from apps.licensing.models import ApiKey, api_key_cache_key
+
+    keys = list(
+        ApiKey.objects.filter(customer_id=payload["customer_id"]).values_list("key", flat=True)
+    )
     ApiKey.objects.filter(customer_id=payload["customer_id"]).update(is_active=False)
+    # Sem isso, uma chave já cacheada como "valid: true" continua validando
+    # por até 60s depois da suspensão (RevokeApiKeyCommand já invalida na
+    # revogação individual — aqui é o mesmo cuidado para suspensão em massa).
+    cache.delete_many([api_key_cache_key(k) for k in keys])
 
 
 @register("customer.reactivated")
 def reactivate_api_keys(payload: dict, event_id: str) -> None:
-    from apps.licensing.models import ApiKey
+    from django.core.cache import cache
 
+    from apps.licensing.models import ApiKey, api_key_cache_key
+
+    keys = list(
+        ApiKey.objects.filter(customer_id=payload["customer_id"]).values_list("key", flat=True)
+    )
     ApiKey.objects.filter(customer_id=payload["customer_id"]).update(is_active=True)
+    # Mesmo raciocínio: sem isso, uma chave cacheada como "invalid" (por
+    # customer suspenso, ex. no_active_license) continua barrada por até
+    # 60s após a reativação.
+    cache.delete_many([api_key_cache_key(k) for k in keys])
 
 
 def _next_month_start(now):

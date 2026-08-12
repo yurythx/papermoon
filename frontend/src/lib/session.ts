@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const DJANGO_URL = process.env.DJANGO_INTERNAL_URL ?? "http://localhost:8000/api/v1";
 
@@ -45,17 +45,42 @@ export function getRefreshToken(): string | undefined {
   return cookies().get(REFRESH_COOKIE)?.value;
 }
 
+// Real client IP as visto pela borda da Cloudflare — o único hop entre o
+// navegador e este BFF em produção (ver docs/deployment.md). `cf-connecting-ip`
+// é setado pela própria Cloudflare e não pode ser forjado pelo cliente depois
+// que o tráfego atravessa a borda; os outros headers são fallback pra dev
+// local (sem Cloudflare na frente) ou qualquer outro proxy reverso.
+//
+// Isso existe porque, sem isso, TODO login/cadastro/reset de senha que passa
+// pelo BFF chega no Django com o mesmo IP de origem (o do container do
+// Next.js) — o bug real que a SSOStatusRateThrottle já documentou pra outro
+// endpoint. Pra login isso é pior que só "throttle inútil": os 5
+// tentativas/15min do LoginAttemptGuard (apps/accounts/security.py) passam a
+// valer pra TODOS os usuários juntos, e qualquer um errando a senha 5x
+// derruba o login de todo mundo por 15 minutos.
+export function getClientIp(req: NextRequest): string {
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("x-real-ip")?.trim() ?? "unknown";
+}
+
 // Direct call to Django — used only from server-side BFF routes
 export async function djangoFetch(
   path: string,
   init: RequestInit = {},
-  accessToken?: string
+  accessToken?: string,
+  clientIp?: string
 ): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init.headers as Record<string, string>),
   };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  // Único header que o Django trata como confiável (NUM_PROXIES=1 nas
+  // settings) — só este BFF pode setá-lo, então não é forjável de fora.
+  if (clientIp) headers["X-Forwarded-For"] = clientIp;
 
   // Sem isso, o fetch cache do Next.js 14 (App Router) pode reter respostas
   // antigas mesmo em rotas com `dynamic = "force-dynamic"` — esse fetch

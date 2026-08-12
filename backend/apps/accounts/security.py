@@ -13,6 +13,8 @@ import time
 
 from django.core.cache import cache
 
+from shared.net import get_client_ip
+
 
 class LoginAttemptGuard:
     MAX_ATTEMPTS = 5
@@ -20,17 +22,11 @@ class LoginAttemptGuard:
     WINDOW_TTL = 10 * 60  # rolling window for counting attempts
 
     def __init__(self, request):
-        ip = self._get_client_ip(request)
+        ip = get_client_ip(request)
         # Hash to avoid storing raw IPs in cache and to normalize key length.
         h = hashlib.sha256(ip.encode()).hexdigest()[:16]
         self._key_attempts = f"auth:attempts:{h}"
         self._key_lockout = f"auth:lockout:{h}"
-
-    def _get_client_ip(self, request) -> str:
-        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR", "unknown")
 
     def lockout_remaining(self) -> int:
         """Return seconds remaining in the active lockout, or 0 if not locked."""

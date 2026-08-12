@@ -18,6 +18,7 @@ from apps.cms.serializers import (
     ServicePageSerializer,
     ServiceSlugSerializer,
 )
+from apps.cms.services import InvalidImageUploadError, validate_image_upload
 from apps.cms.tasks import revalidate_service_page
 from apps.products.models import Product
 from shared.public_urls import build_public_media_url
@@ -190,6 +191,11 @@ class ServicePageHeroUploadView(APIView):
         image_file = request.FILES.get("hero_image")
         if not image_file:
             raise ValidationError({"hero_image": "Arquivo de imagem obrigatório."})
+        try:
+            validate_image_upload(image_file.content_type, image_file.size, image_file.read())
+            image_file.seek(0)
+        except InvalidImageUploadError as exc:
+            raise ValidationError({"hero_image": str(exc)}) from exc
         page.hero_image = image_file
         page.save()
         hero_url = build_public_media_url(page.hero_image.url if page.hero_image else None, request)
@@ -225,6 +231,11 @@ class ServicePageGalleryView(APIView):
         image_file = request.FILES.get("image")
         if not image_file:
             raise ValidationError({"image": "Arquivo de imagem obrigatório."})
+        try:
+            validate_image_upload(image_file.content_type, image_file.size, image_file.read())
+            image_file.seek(0)
+        except InvalidImageUploadError as exc:
+            raise ValidationError({"image": str(exc)}) from exc
         last_order = page.images.aggregate(max_order=models.Max("order"))["max_order"] or 0
         image = ServiceImage.objects.create(
             page=page,

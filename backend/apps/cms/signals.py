@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from django.core.files.base import ContentFile
@@ -11,22 +12,34 @@ from django.dispatch import receiver
 from apps.cms.models import ServiceImage, ServicePage
 from apps.cms.services import ImageProcessor
 
+logger = logging.getLogger(__name__)
+
 
 def _replace_with_webp(field_file, slug_for_path: str, subfolder: str) -> None:
-    """Read the pending upload, convert to WebP, replace in-memory before DB write."""
+    """Read the pending upload, convert to WebP, replace in-memory before DB write.
+
+    Uploads coming through the API views are already validated (see
+    apps.cms.services.validate_image_upload) — this only re-raises for
+    other paths that can set these fields (Django Admin, fixtures/scripts),
+    so a non-image never gets silently persisted as-is under an image URL.
+    """
     if not field_file or not hasattr(field_file, "file"):
         return
+    field_file.seek(0)
+    original_bytes = field_file.read()
     try:
-        field_file.seek(0)
-        original_bytes = field_file.read()
         webp_bytes = ImageProcessor.to_webp(original_bytes)
-        base = os.path.splitext(os.path.basename(field_file.name))[0]
-        new_name = f"cms/{subfolder}/{slug_for_path}/{base}.webp"
-        field_file.file = ContentFile(webp_bytes)
-        field_file.name = new_name
     except Exception:
-        # Never block a save because of image processing — the original is kept.
-        pass
+        logger.exception(
+            "Falha ao converter upload para WebP (subfolder=%s, slug=%s) — rejeitando.",
+            subfolder,
+            slug_for_path,
+        )
+        raise
+    base = os.path.splitext(os.path.basename(field_file.name))[0]
+    new_name = f"cms/{subfolder}/{slug_for_path}/{base}.webp"
+    field_file.file = ContentFile(webp_bytes)
+    field_file.name = new_name
 
 
 @receiver(pre_save, sender=ServicePage)

@@ -212,7 +212,11 @@ class TestActOnServices:
             )
         mock_prov.suspend.assert_not_called()
 
-    def test_act_on_services_logs_error_and_continues_on_exception(self):
+    def test_act_on_services_logs_error_and_reraises_for_outbox_retry(self):
+        """suspend/deprovision are idempotent, so a failure re-raises after
+        attempting every service_key — the Outbox retry mechanism is the
+        real recovery path (see apps/provisioning/handlers.py docstring),
+        not a silent log-and-forget."""
         from apps.provisioning.handlers import suspend_services
 
         customer = _make_customer()
@@ -221,15 +225,15 @@ class TestActOnServices:
         mock_prov.suspend.side_effect = RuntimeError("connection refused")
 
         with patch("apps.provisioning.handlers.get_provisioner", return_value=mock_prov):
-            # Should not raise
-            suspend_services(
-                {
-                    "license_id": str(lic.id),
-                    "customer_id": str(customer.id),
-                    "service_keys": ["n8n"],
-                },
-                str(uuid.uuid4()),
-            )
+            with pytest.raises(RuntimeError, match="_act_on_services"):
+                suspend_services(
+                    {
+                        "license_id": str(lic.id),
+                        "customer_id": str(customer.id),
+                        "service_keys": ["n8n"],
+                    },
+                    str(uuid.uuid4()),
+                )
 
         mock_prov.suspend.assert_called_once()
 
@@ -277,6 +281,31 @@ class TestReactivateServices:
             )
 
         mock_prov.reactivate.assert_not_called()
+
+    def test_reraises_for_outbox_retry_on_failure(self):
+        """Same reasoning as _act_on_services: reactivate is idempotent, so a
+        failure re-raises instead of leaving the service silently suspended
+        after the customer already paid to reactivate."""
+        from apps.provisioning.handlers import reactivate_services
+
+        customer = _make_customer()
+        sub, lic, sa = _make_subscription_with_sa(customer, "n8n")
+        sa.status = ServiceAccess.Status.SUSPENDED
+        sa.external_id = "ext-n8n"
+        sa.save()
+        mock_prov = _make_mock_provisioner("n8n")
+        mock_prov.reactivate.side_effect = RuntimeError("connection refused")
+
+        with patch("apps.provisioning.handlers.get_provisioner", return_value=mock_prov):
+            with pytest.raises(RuntimeError, match="reactivate_services"):
+                reactivate_services(
+                    {"license_id": str(lic.id), "customer_id": str(customer.id)},
+                    str(uuid.uuid4()),
+                )
+
+        sa.refresh_from_db()
+        assert sa.status == ServiceAccess.Status.SUSPENDED
+        mock_prov.reactivate.assert_called_once()
 
     def test_early_return_when_no_license_id(self):
         from apps.provisioning.handlers import reactivate_services

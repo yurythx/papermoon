@@ -129,6 +129,7 @@ def reactivate_services(payload: dict, event_id: str) -> None:
     if not license_id:
         return
 
+    failures: list[str] = []
     for sa in ServiceAccess.objects.filter(
         license_id=license_id, status=ServiceAccess.Status.SUSPENDED
     ):
@@ -142,6 +143,21 @@ def reactivate_services(payload: dict, event_id: str) -> None:
             sa.save(update_fields=["status", "suspended_at", "updated_at"])
         except Exception as exc:
             logger.error("reactivate_services failed service_key=%s error=%s", sa.service_key, exc)
+            failures.append(sa.service_key)
+
+    if failures:
+        # Cliente pagou e reativou, mas o serviço externo continua suspenso —
+        # mesmo raciocínio de _act_on_services: reactivate é idempotente,
+        # deixa o Outbox tentar de novo em vez de só logar e esquecer.
+        _alert_telegram(
+            f"<b>Reactivate failed</b>\n"
+            f"Services: <code>{', '.join(failures)}</code>\n"
+            f"Customer: <code>{customer_id}</code>\n"
+            f"Outbox vai reprocessar automaticamente (até 5 tentativas)."
+        )
+        raise RuntimeError(
+            f"reactivate_services: failed for service_keys={failures} customer_id={customer_id}"
+        )
 
 
 @register("subscription.grace_period")
@@ -164,6 +180,17 @@ def notify_expiring_soon(payload: dict, event_id: str) -> None:
 
 
 def _act_on_services(payload: dict, action: str) -> None:
+    """
+    Suspend/deprovision on the external service. Unlike provision_services
+    (which records FAILED status per-ServiceAccess for an admin to manually
+    retry via `reprovision_failed`), a failure here previously only logged
+    and moved on — the local Subscription was already suspended/cancelled,
+    but the external service kept running with zero retry and zero alert.
+    suspend/deprovision/reactivate are idempotent (retrying an
+    already-suspended/gone resource is a safe no-op), so re-raising after
+    attempting every service_key lets the Outbox retry mechanism
+    (process_outbox_events, up to 5 attempts) actually close the gap.
+    """
     from apps.subscriptions.models import ServiceAccess
 
     license_id = payload.get("license_id")
@@ -173,6 +200,7 @@ def _act_on_services(payload: dict, action: str) -> None:
     if not license_id or not service_keys:
         return
 
+    failures: list[str] = []
     for service_key in service_keys:
         provisioner = get_provisioner(service_key)
         if not provisioner:
@@ -190,6 +218,18 @@ def _act_on_services(payload: dict, action: str) -> None:
             logger.error(
                 "_act_on_services action=%s service_key=%s error=%s", action, service_key, exc
             )
+            failures.append(service_key)
+
+    if failures:
+        _alert_telegram(
+            f"<b>{action.capitalize()} failed</b>\n"
+            f"Services: <code>{', '.join(failures)}</code>\n"
+            f"Customer: <code>{customer_id}</code>\n"
+            f"Outbox vai reprocessar automaticamente (até 5 tentativas)."
+        )
+        raise RuntimeError(
+            f"_act_on_services: {action} failed for service_keys={failures} customer_id={customer_id}"
+        )
 
 
 @register("subscription.created")

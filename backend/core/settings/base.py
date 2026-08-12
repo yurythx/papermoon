@@ -157,6 +157,8 @@ REST_FRAMEWORK = {
         "sso_status": "300/minute",
         "keycloak_connection_test": "10/minute",
         "keycloak_client_create": "20/hour",
+        "asaas_webhook": "600/minute",
+        "validate_key": "600/minute",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": [
@@ -164,6 +166,15 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
         "rest_framework.filters.SearchFilter",
     ],
+    # Django nunca é exposto direto à internet, exceto o webhook do Asaas (que não
+    # usa throttle por IP) — ver docs/deployment.md. O único hop entre o navegador
+    # e este backend é o BFF do Next.js, que reescreve X-Forwarded-For com o IP
+    # real do visitante (ver frontend/src/lib/session.ts::getClientIp/djangoFetch)
+    # antes de encaminhar. NUM_PROXIES=1 diz à DRF pra confiar nesse único valor —
+    # sem isso, todo tráfego autenticado compartilha o mesmo IP de origem (o do
+    # container do Next.js), e os throttles por IP (login, register, password_reset)
+    # viram globais em vez de por usuário. Ver SSOStatusRateThrottle acima.
+    "NUM_PROXIES": 1,
 }
 
 # --- Simple JWT (RS256) ---

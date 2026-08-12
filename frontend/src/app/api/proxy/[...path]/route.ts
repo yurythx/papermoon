@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { applyAuthCookies, djangoFetch, getAccessToken, getRefreshToken } from "@/lib/session";
+import { applyAuthCookies, djangoFetch, getAccessToken, getClientIp, getRefreshToken } from "@/lib/session";
 
 type Context = { params: { path: string[] } };
 
@@ -7,6 +7,7 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
   const djangoPath = `/${params.path.join("/")}/`;
   const search = req.nextUrl.search;
   const fullPath = search ? `${djangoPath}${search}` : djangoPath;
+  const clientIp = getClientIp(req);
 
   let access = getAccessToken();
   if (!access) {
@@ -30,21 +31,23 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
     body = await req.text();
   }
 
-  let res = await djangoFetch(fullPath, { method: req.method, body, headers: extraHeaders }, access);
+  let res = await djangoFetch(fullPath, { method: req.method, body, headers: extraHeaders }, access, clientIp);
 
   // Transparent token refresh on 401
   if (res.status === 401) {
     const refresh = getRefreshToken();
     if (refresh) {
-      const refreshRes = await djangoFetch("/auth/refresh/", {
-        method: "POST",
-        body: JSON.stringify({ refresh }),
-      });
+      const refreshRes = await djangoFetch(
+        "/auth/refresh/",
+        { method: "POST", body: JSON.stringify({ refresh }) },
+        undefined,
+        clientIp
+      );
 
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();
         access = refreshData.data?.access as string;
-        res = await djangoFetch(fullPath, { method: req.method, body, headers: extraHeaders }, access);
+        res = await djangoFetch(fullPath, { method: req.method, body, headers: extraHeaders }, access, clientIp);
 
         const ct = res.headers.get("content-type") ?? "";
         let refreshedResponse: NextResponse;

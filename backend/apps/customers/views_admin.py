@@ -261,7 +261,7 @@ class CustomerQuotaView(APIView):
                 status=400,
             )
         try:
-            quota.max_api_calls = int(raw)
+            max_api_calls = int(raw)
         except (ValueError, TypeError):
             return Response(
                 {
@@ -271,6 +271,19 @@ class CustomerQuotaView(APIView):
                 },
                 status=400,
             )
+        # Sem limites, um "0" a mais digitado por engano vira uma quota de
+        # bilhões de chamadas sem nenhum aviso — os limites abaixo só pegam
+        # erro de digitação óbvio, não uma decisão de negócio real.
+        if not (0 <= max_api_calls <= 100_000_000):
+            return Response(
+                {
+                    "code": "validation_error",
+                    "message": "max_api_calls deve estar entre 0 e 100.000.000.",
+                    "details": [],
+                },
+                status=400,
+            )
+        quota.max_api_calls = max_api_calls
         quota.save(update_fields=["max_api_calls"])
         log_action("quota.updated", "Customer", customer.id, user=request.user, request=request)
         return Response(

@@ -1,4 +1,5 @@
 import datetime
+import hmac
 import logging
 
 from django.conf import settings
@@ -16,6 +17,7 @@ from shared.schemas import (
     MessageResponseSerializer,
     MRRMetricsSerializer,
 )
+from shared.throttling import AsaasWebhookRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class AsaasWebhookView(APIView):
     """
 
     permission_classes = [AllowAny]
-    throttle_classes = []  # Asaas may send bursts; security is the asaas-access-token header
+    throttle_classes = [AsaasWebhookRateThrottle]
 
     @extend_schema(
         summary="Webhook de eventos Asaas",
@@ -42,7 +44,14 @@ class AsaasWebhookView(APIView):
         request=None,
     )
     def post(self, request: Request) -> Response:
-        if request.headers.get("asaas-access-token", "") != settings.ASAAS_WEBHOOK_TOKEN:
+        # ASAAS_WEBHOOK_TOKEN is required (ImproperlyConfigured at boot in
+        # production.py) so an empty configured token can't make both sides
+        # of the comparison "" and pass with no header at all. compare_digest
+        # avoids leaking the token one byte at a time via response timing.
+        received_token = request.headers.get("asaas-access-token", "")
+        if not settings.ASAAS_WEBHOOK_TOKEN or not hmac.compare_digest(
+            received_token, settings.ASAAS_WEBHOOK_TOKEN
+        ):
             return Response(
                 {"code": "forbidden", "message": "Token inválido.", "details": []},
                 status=403,

@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.utils import log_action
 from apps.products.models import Pricing, Product, ServiceComponent
 from apps.products.serializers import (
     PricingSerializer,
@@ -12,6 +13,7 @@ from apps.products.serializers import (
     ProductWriteSerializer,
     ServiceComponentSerializer,
 )
+from shared.throttling import AdminWriteThrottle
 
 
 @extend_schema(tags=["Products — Catálogo Público"])
@@ -64,6 +66,11 @@ class ProductCatalogView(APIView):
 class ProductListCreateView(APIView):
     permission_classes = [IsAdminUser]
 
+    def get_throttles(self) -> list:
+        if self.request.method == "POST":
+            return [AdminWriteThrottle()]
+        return super().get_throttles()
+
     @extend_schema(
         operation_id="admin_products_list",
         summary="Listar todos os produtos",
@@ -82,12 +89,18 @@ class ProductListCreateView(APIView):
         ser = ProductWriteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         product = ser.save()
+        log_action("product.created", "Product", product.id, user=request.user, request=request)
         return Response(ProductSerializer(product).data, status=201)
 
 
 @extend_schema(tags=["Admin — Products"])
 class ProductDetailView(APIView):
     permission_classes = [IsAdminUser]
+
+    def get_throttles(self) -> list:
+        if self.request.method in ("PATCH", "DELETE"):
+            return [AdminWriteThrottle()]
+        return super().get_throttles()
 
     def _get_product(self, pk: str) -> Product:
         from django.shortcuts import get_object_or_404
@@ -114,6 +127,14 @@ class ProductDetailView(APIView):
         ser = ProductWriteSerializer(product, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         ser.save()
+        log_action(
+            "product.updated",
+            "Product",
+            product.id,
+            user=request.user,
+            changes=dict(request.data),
+            request=request,
+        )
         if product.is_active != was_active:
             self._revalidate_public_pages(product.slug)
         return Response(ProductSerializer(product).data)
@@ -125,6 +146,7 @@ class ProductDetailView(APIView):
         was_active = product.is_active
         product.is_active = False
         product.save(update_fields=["is_active", "updated_at"])
+        log_action("product.deactivated", "Product", product.id, user=request.user, request=request)
         if was_active:
             self._revalidate_public_pages(product.slug)
         return Response(status=204)
@@ -166,6 +188,11 @@ class ProductDetailView(APIView):
 class ServiceComponentListCreateView(APIView):
     permission_classes = [IsAdminUser]
 
+    def get_throttles(self) -> list:
+        if self.request.method == "POST":
+            return [AdminWriteThrottle()]
+        return super().get_throttles()
+
     def _get_product(self, pk: str) -> Product:
         from django.shortcuts import get_object_or_404
 
@@ -197,12 +224,25 @@ class ServiceComponentListCreateView(APIView):
             raise ValidationError(
                 {"service_key": "Este serviço já está vinculado a este produto."}
             ) from exc
+        log_action(
+            "service_component.created",
+            "Product",
+            product.id,
+            user=request.user,
+            changes={"service_key": component.service_key},
+            request=request,
+        )
         return Response(ServiceComponentSerializer(component).data, status=201)
 
 
 @extend_schema(tags=["Admin — Products"])
 class PricingListCreateView(APIView):
     permission_classes = [IsAdminUser]
+
+    def get_throttles(self) -> list:
+        if self.request.method == "POST":
+            return [AdminWriteThrottle()]
+        return super().get_throttles()
 
     def _get_product(self, pk: str) -> Product:
         from django.shortcuts import get_object_or_404
@@ -226,6 +266,14 @@ class PricingListCreateView(APIView):
         ser = PricingSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         pricing = ser.save(product=product)
+        log_action(
+            "pricing.created",
+            "Product",
+            product.id,
+            user=request.user,
+            changes={"billing_cycle": pricing.billing_cycle, "amount": str(pricing.amount)},
+            request=request,
+        )
         return Response(PricingSerializer(pricing).data, status=201)
 
 
@@ -239,6 +287,7 @@ class PricingDetailView(APIView):
     """
 
     permission_classes = [IsAdminUser]
+    throttle_classes = [AdminWriteThrottle]
 
     def _get_pricing(self, product_pk: str, pricing_pk: str) -> Pricing:
         from django.shortcuts import get_object_or_404
@@ -264,4 +313,12 @@ class PricingDetailView(APIView):
                     "billing_cycle": "Já existe uma precificação com este ciclo de cobrança neste produto."
                 }
             ) from exc
+        log_action(
+            "pricing.updated",
+            "Product",
+            product_pk,
+            user=request.user,
+            changes=dict(request.data),
+            request=request,
+        )
         return Response(PricingSerializer(pricing).data)
