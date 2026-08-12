@@ -154,7 +154,7 @@ export function LandingNav({
                 id={servicesMenuId}
                 role="menu"
                 aria-label="Serviços"
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] rounded-2xl border border-border-subtle bg-surface-1/95 backdrop-blur-xl shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border-subtle bg-surface-1/95 backdrop-blur-xl shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
               >
                 <div className="grid grid-cols-4 gap-0.5">
                   {visibleServices.map((svc) => {
@@ -233,7 +233,7 @@ export function LandingNav({
       {open && (
         <div
           id={mobileMenuId}
-          className="md:hidden bg-surface-1/95 backdrop-blur-xl border-t border-border-subtle px-6 py-5 space-y-1 animate-slide-up"
+          className="md:hidden bg-surface-1/95 backdrop-blur-xl border-t border-border-subtle px-6 py-5 space-y-1 animate-slide-up max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
         >
           <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest px-2 pb-2">
             Serviços

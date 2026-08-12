@@ -13,6 +13,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/compound/status-badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
+import { ErrorState } from "@/components/compound/error-state";
+import { Pagination } from "@/components/compound/pagination";
 import { CreditCard } from "lucide-react";
 import type { Pricing, Product, Subscription } from "@/types";
 
@@ -33,7 +35,7 @@ export default function BackofficeSubscriptionsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-subscriptions", statusFilter, search, page],
     queryFn: () => adminService.listSubscriptions({
       status: statusFilter || undefined,
@@ -83,7 +85,9 @@ export default function BackofficeSubscriptionsPage() {
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+          <label className="sr-only" htmlFor="subscriptions-search">Buscar por cliente</label>
           <input
+            id="subscriptions-search"
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -91,7 +95,10 @@ export default function BackofficeSubscriptionsPage() {
             className="bg-surface-1 border border-border-default text-text-primary rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/50 w-52"
           />
         </div>
+        <label className="sr-only" htmlFor="subscriptions-status-filter">Filtrar por status</label>
         <select
+          id="subscriptions-status-filter"
+          aria-label="Filtrar por status"
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="bg-surface-1 border border-border-default text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
@@ -116,6 +123,12 @@ export default function BackofficeSubscriptionsPage() {
           <div className="p-6 space-y-3">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
+        ) : isError ? (
+          <ErrorState
+            className="py-12"
+            title="Não foi possível carregar as assinaturas"
+            onRetry={() => refetch()}
+          />
         ) : subs.length === 0 ? (
           <EmptyState icon={CreditCard} title="Nenhuma assinatura encontrada" description="Tente ajustar os filtros." />
         ) : (
@@ -145,20 +158,13 @@ export default function BackofficeSubscriptionsPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-text-secondary">
-          <span>{data?.count} total</span>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Anterior
-            </Button>
-            <span className="px-3 text-text-tertiary">{page} / {totalPages}</span>
-            <Button variant="secondary" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Próxima
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        count={data?.count}
+        countLabel={(c) => `${c} total`}
+      />
 
       {confirm && (
         <ConfirmDialog

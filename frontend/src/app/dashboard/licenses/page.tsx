@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/compound/status-badge";
 import { TimeProgress } from "@/components/compound/time-progress";
 import { EmptyState } from "@/components/compound/empty-state";
+import { ErrorState } from "@/components/compound/error-state";
 import { PageHeader } from "@/components/compound/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Key, Zap } from "lucide-react";
@@ -53,7 +54,7 @@ const cardBorderMap: Record<CardState, string> = {
 };
 
 export default function LicensesPage() {
-  const { data: licenses, isLoading } = useQuery({
+  const { data: licenses, isLoading, isError, refetch } = useQuery({
     queryKey: ["licenses"],
     queryFn: licenseService.list,
   });
@@ -69,6 +70,8 @@ export default function LicensesPage() {
 
       {isLoading ? (
         <LicensesPageSkeleton />
+      ) : isError ? (
+        <ErrorState title="Não foi possível carregar suas licenças" onRetry={() => refetch()} />
       ) : results.length === 0 ? (
         <EmptyState
           title="Nenhuma licença ativa"

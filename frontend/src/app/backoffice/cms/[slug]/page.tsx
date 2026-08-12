@@ -120,9 +120,11 @@ function TextArea({
 
 function ItemRow({
   onRemove,
+  removeLabel = "Remover item",
   children,
 }: {
   onRemove: () => void;
+  removeLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -132,6 +134,7 @@ function ItemRow({
       <button
         type="button"
         onClick={onRemove}
+        aria-label={removeLabel}
         className="mt-2 text-text-tertiary hover:text-danger transition-colors shrink-0"
       >
         <Trash2 size={14} />
@@ -443,6 +446,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                   type="button"
                   onClick={() => galleryDeleteMutation.mutate(img.id)}
                   disabled={galleryDeleteMutation.isPending}
+                  aria-label="Remover imagem da galeria"
                   className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-danger/80"
                 >
                   <X size={12} />
@@ -501,7 +505,11 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
       <Section title={`Passos de implantação (${steps.length})`}>
         <div className="space-y-4">
           {steps.map((step, i) => (
-            <ItemRow key={i} onRemove={() => setSteps((prev) => prev.filter((_, j) => j !== i))}>
+            <ItemRow
+              key={i}
+              onRemove={() => setSteps((prev) => prev.filter((_, j) => j !== i))}
+              removeLabel="Remover passo"
+            >
               <div className="flex gap-2">
                 <div className="w-16 shrink-0">
                   <Input
@@ -542,7 +550,11 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
       <Section title={`Perguntas frequentes — FAQ (${faqs.length})`}>
         <div className="space-y-4">
           {faqs.map((faq, i) => (
-            <ItemRow key={i} onRemove={() => setFaqs((prev) => prev.filter((_, j) => j !== i))}>
+            <ItemRow
+              key={i}
+              onRemove={() => setFaqs((prev) => prev.filter((_, j) => j !== i))}
+              removeLabel="Remover pergunta"
+            >
               <Input
                 value={faq.question}
                 onChange={(e) => setFaqs((prev) => prev.map((f, j) => j === i ? { ...f, question: e.target.value } : f))}
@@ -587,6 +599,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                 <button
                   type="button"
                   onClick={() => setGroups((prev) => prev.filter((_, j) => j !== gi))}
+                  aria-label="Remover grupo"
                   className="text-text-tertiary hover:text-danger transition-colors shrink-0"
                 >
                   <Trash2 size={14} />
@@ -617,6 +630,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                           prev.map((g, j) => j !== gi ? g : { ...g, items: g.items.filter((_, k) => k !== ii) })
                         )
                       }
+                      aria-label="Remover funcionalidade"
                       className="text-text-tertiary hover:text-danger transition-colors"
                     >
                       <Trash2 size={13} />
@@ -671,6 +685,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                 <button
                   type="button"
                   onClick={() => setPapermoonDoes((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label="Remover responsabilidade"
                   className="text-text-tertiary hover:text-danger transition-colors"
                 >
                   <Trash2 size={13} />
@@ -709,6 +724,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                 <button
                   type="button"
                   onClick={() => setClientDoes((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label="Remover responsabilidade"
                   className="text-text-tertiary hover:text-danger transition-colors"
                 >
                   <Trash2 size={13} />

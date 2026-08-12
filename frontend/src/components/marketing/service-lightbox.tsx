@@ -178,7 +178,7 @@ export function ServiceGallery({ images, colorBorder }: Props) {
               </p>
             )}
             {images.length > 1 && (
-              <p className="text-center text-xs text-white/40 mt-1">
+              <p className="text-center text-xs text-white/60 mt-1">
                 {index + 1} / {images.length}
               </p>
             )}

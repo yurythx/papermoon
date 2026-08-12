@@ -7,6 +7,8 @@ import { notificationService } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/compound/page-header";
+import { EmptyState } from "@/components/compound/empty-state";
+import { Pagination } from "@/components/compound/pagination";
 import {
   Bell,
   Check,
@@ -121,11 +123,7 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="text-center py-16">
-          <Bell size={32} className="text-text-tertiary mx-auto mb-3" />
-          <p className="text-sm font-medium text-text-primary mb-1">Tudo em dia!</p>
-          <p className="text-xs text-text-secondary">Nenhuma notificação pendente.</p>
-        </div>
+        <EmptyState icon={Bell} title="Tudo em dia!" description="Nenhuma notificação pendente." />
       ) : (
         <div className="space-y-2">
           {notifications.map((n) => (
@@ -139,27 +137,7 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {numPages > 1 && (
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ← Anterior
-          </Button>
-          <span className="text-sm text-text-tertiary">{page} / {numPages}</span>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page === numPages}
-            onClick={() => setPage((p) => Math.min(numPages, p + 1))}
-          >
-            Próxima →
-          </Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={numPages} onPageChange={setPage} align="center" />
     </div>
   );
 }
