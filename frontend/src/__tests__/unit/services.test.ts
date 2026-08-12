@@ -103,4 +103,15 @@ describe("adminService", () => {
     const customer = await adminService.reactivateCustomer("c2");
     expect(customer.status).toBe("active");
   });
+
+  // Regressão: axios.create() fixa Content-Type: application/json no cliente
+  // `api` (src/lib/api.ts). Sem o interceptor que remove esse header pra
+  // corpos FormData, todo upload (capa do blog, hero/galeria do CMS) manda
+  // multipart no corpo com Content-Type: application/json no header, e o
+  // Django rejeita com 415 Unsupported Media Type.
+  it("uploadBlogCover sends multipart/form-data, not the default application/json", async () => {
+    const file = new File(["fake-image-bytes"], "cover.png", { type: "image/png" });
+    const result = await adminService.uploadBlogCover("post1", file);
+    expect(result.cover_image_url).toMatch(/^https:\/\/cdn\.example\.com\/cover\.webp\?ct=multipart\/form-data; boundary=/);
+  });
 });

@@ -7,6 +7,20 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Sem isso, o Content-Type: application/json fixo acima "vence" o FormData nos
+// uploads (hero/galeria do CMS, capa do blog) — axios só troca automaticamente
+// o header por multipart/form-data quando ele já começa como "multipart/form-data"
+// sem boundary; um Content-Type explicitamente diferente (nosso caso) ele deixa
+// como está. Resultado sem isto: o Django recebe Content-Type: application/json
+// com corpo multipart e responde 415 Unsupported Media Type. Ver node_modules/
+// axios/lib/adapters/fetch.js (bloco "delete it so fetch can set it correctly").
+api.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    config.headers.delete("Content-Type");
+  }
+  return config;
+});
+
 // On 401 from BFF proxy routes, the session has fully expired (BFF already attempted refresh).
 // Auth endpoints (/auth/*) returning 401 mean bad credentials — let them propagate as errors.
 api.interceptors.response.use(

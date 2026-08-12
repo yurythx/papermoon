@@ -900,4 +900,14 @@ export const handlers = [
   http.delete("/api/proxy/client/invitations/:id/", () =>
     new HttpResponse(null, { status: 204 })
   ),
+
+  // Regressão: o Content-Type que chega aqui precisa ser multipart/form-data
+  // com boundary, não o application/json default do axios — ver src/lib/api.ts.
+  http.post("/api/proxy/admin/blog/:id/cover/", ({ request }) =>
+    HttpResponse.json({
+      success: true,
+      data: { cover_image_url: `https://cdn.example.com/cover.webp?ct=${request.headers.get("content-type")}` },
+      error: null,
+    })
+  ),
 ];
