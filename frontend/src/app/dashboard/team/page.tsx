@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cardClass } from "@/components/ui/card";
 import { Users, Pencil } from "lucide-react";
 import type { Invitation, TeamMember } from "@/types";
 
@@ -184,7 +185,7 @@ export default function TeamPage() {
           <h2 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">
             Convidar novo membro
           </h2>
-          <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-3">
+          <div className={cardClass({ className: "space-y-3" })}>
             <div className="flex gap-3">
               <Input
                 type="email"

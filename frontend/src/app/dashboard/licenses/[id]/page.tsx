@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/compound/status-badge";
 import { TimeProgress } from "@/components/compound/time-progress";
 import { Badge } from "@/components/ui/badge";
+import { cardClass } from "@/components/ui/card";
 import { ChevronLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,7 @@ export default function LicenseDetailPage({ params }: { params: { id: string } }
 
       {/* Temporal progress */}
       {license.status === "active" && (
-        <div className="bg-surface-1 border border-border-subtle rounded-xl p-5">
+        <div className={cardClass()}>
           <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
             Validade
           </p>
@@ -162,7 +163,7 @@ function ServiceCard({ service }: { service: ServiceAccess }) {
   const config = statusMap[service.status] ?? { variant: "muted" as const, label: service.status };
 
   return (
-    <div className="bg-surface-2 border border-border-subtle rounded-lg px-4 py-3.5 flex items-center justify-between">
+    <div className={cardClass({ tone: "neutral", className: "bg-surface-2 rounded-lg px-4 py-3.5 flex items-center justify-between" })}>
       <div>
         <p className="text-sm font-medium text-text-primary">{service.service_key}</p>
         {service.external_id && (

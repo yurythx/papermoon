@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrength } from "@/components/ui/password-strength";
+import { cardClass } from "@/components/ui/card";
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
@@ -75,7 +76,7 @@ export default function ProfilePage() {
       <PageHeader title="Minha empresa" description="Dados cadastrais e segurança da conta" />
 
       {/* Company data */}
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-5">
+      <div className={cardClass({ className: "p-6 space-y-5" })}>
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
           Dados cadastrais
         </h2>
@@ -123,7 +124,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Change password */}
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6">
+      <div className={cardClass({ className: "p-6" })}>
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-5">
           Alterar senha
         </h2>
@@ -170,7 +171,7 @@ export default function ProfilePage() {
           </div>
 
           {passwordError && (
-            <div className="rounded-lg bg-danger-muted border border-danger/20 px-3 py-2">
+            <div className={cardClass({ tone: "danger", className: "rounded-lg px-3 py-2" })}>
               <p className="text-sm text-danger">{passwordError}</p>
             </div>
           )}

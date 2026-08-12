@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { subscriptionService } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
 import { ErrorState } from "@/components/compound/error-state";
+import { cardClass } from "@/components/ui/card";
+import { ArrowLink } from "@/components/compound/arrow-link";
 import { Package, ExternalLink, CheckCircle2, AlertCircle, Clock, Info, Mail } from "lucide-react";
 import type { ServiceAccess, Subscription } from "@/types";
 
@@ -51,7 +52,7 @@ export default function SubscriptionsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-3">
+            <div key={i} className={cardClass({ className: "space-y-3" })}>
               <div className="flex justify-between">
                 <Skeleton className="h-4 w-1/3" />
                 <Skeleton className="h-5 w-16" />
@@ -83,7 +84,7 @@ export default function SubscriptionsPage() {
       )}
 
       {/* Support footer */}
-      <div className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface-1 px-5 py-4">
+      <div className={cardClass({ className: "flex items-center gap-3 px-5 py-4" })}>
         <Mail size={14} className="text-text-tertiary shrink-0" />
         <p className="text-xs text-text-secondary flex-1">
           Precisa solicitar alterações, cancelamentos ou novos serviços?{" "}
@@ -149,7 +150,7 @@ function SubscriptionCard({ subscription: sub }: { subscription: Subscription })
   const serviceAccesses = sub.license?.service_accesses ?? [];
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-5">
+    <div className={cardClass()}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -197,9 +198,7 @@ function SubscriptionCard({ subscription: sub }: { subscription: Subscription })
       {sub.license && serviceAccesses.length === 0 && (
         <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between">
           <p className="text-xs text-text-tertiary">Licença ativa</p>
-          <Link href={`/dashboard/licenses/${sub.license.id}`} className="text-xs text-brand-accent hover:underline">
-            Ver detalhes →
-          </Link>
+          <ArrowLink href={`/dashboard/licenses/${sub.license.id}`}>Ver detalhes</ArrowLink>
         </div>
       )}
     </div>

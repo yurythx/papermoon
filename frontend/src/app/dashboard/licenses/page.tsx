@@ -10,8 +10,8 @@ import { EmptyState } from "@/components/compound/empty-state";
 import { ErrorState } from "@/components/compound/error-state";
 import { PageHeader } from "@/components/compound/page-header";
 import { Badge } from "@/components/ui/badge";
+import { cardClass } from "@/components/ui/card";
 import { Key, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { License } from "@/types";
 
 const SERVICE_LABEL: Record<string, string> = {
@@ -44,13 +44,15 @@ function getCardState(license: License): CardState {
   return "healthy";
 }
 
-const cardBorderMap: Record<CardState, string> = {
-  healthy:          "border-border-subtle hover:border-border-focus",
-  "expiring-soon":  "border-warning/20 hover:border-warning/40",
-  "expiring-urgent":"border-warning/40 hover:border-warning/60",
-  critical:         "border-danger/40 hover:border-danger/60",
-  suspended:        "border-danger/30 hover:border-danger/50",
-  expired:          "border-border-subtle opacity-70 hover:border-border-default",
+// Urgência codificada por intensidade de fundo (não borda) — quanto mais
+// perto do vencimento/mais crítico, mais forte o tom de aviso/perigo.
+const cardToneMap: Record<CardState, string> = {
+  healthy: "",
+  "expiring-soon": "bg-warning-muted/50",
+  "expiring-urgent": "bg-warning-muted",
+  critical: "bg-danger-muted",
+  suspended: "bg-danger-muted",
+  expired: "opacity-70",
 };
 
 export default function LicensesPage() {
@@ -100,12 +102,7 @@ function LicenseCard({ license }: { license: License }) {
   const state = getCardState(license);
 
   return (
-    <div
-      className={cn(
-        "bg-surface-1 border rounded-xl p-5 transition-all duration-150 space-y-4",
-        cardBorderMap[state]
-      )}
-    >
+    <div className={cardClass({ interactive: true, className: `p-5 space-y-4 ${cardToneMap[state]}` })}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -159,6 +156,7 @@ function LicenseCard({ license }: { license: License }) {
                 : "muted"
               }
               dot
+              pill
             >
               {SERVICE_LABEL[sa.service_key] ?? sa.service_key}
             </Badge>
@@ -173,7 +171,7 @@ function LicensesPageSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-4">
+        <div key={i} className={cardClass({ className: "space-y-4" })}>
           <div className="flex justify-between">
             <div className="space-y-2 flex-1">
               <Skeleton className="h-4 w-1/3" />

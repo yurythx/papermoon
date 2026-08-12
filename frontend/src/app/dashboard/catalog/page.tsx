@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
 import { ErrorState } from "@/components/compound/error-state";
+import { cardClass } from "@/components/ui/card";
 import { ShoppingBag, Zap, Mail } from "lucide-react";
 import type { Product } from "@/types";
 
@@ -45,7 +46,7 @@ export default function CatalogPage() {
       />
 
       {/* Contact CTA banner */}
-      <div className="flex items-center gap-4 rounded-xl border border-brand-accent/25 bg-brand-accent/5 px-5 py-4">
+      <div className={cardClass({ className: "flex items-center gap-4 bg-brand-accent/5 px-5 py-4" })}>
         <div className="w-9 h-9 rounded-lg bg-brand-accent/15 flex items-center justify-center shrink-0">
           <Mail size={16} className="text-brand-accent" />
         </div>
@@ -89,7 +90,7 @@ function ServiceCard({ product }: { product: Product }) {
   const activePricings = product.pricings.filter((p) => p.is_active);
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 flex flex-col hover:border-border-focus transition-all duration-150">
+    <div className={cardClass({ interactive: true, className: "flex flex-col" })}>
       {/* Header */}
       <div className="mb-4">
         <h2 className="text-base font-semibold text-text-primary">{product.name}</h2>
@@ -107,7 +108,7 @@ function ServiceCard({ product }: { product: Product }) {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {product.components.map((c) => (
-              <Badge key={c.id} variant="info">
+              <Badge key={c.id} variant="info" pill>
                 {SERVICE_LABELS[c.service_key] ?? c.service_key}
               </Badge>
             ))}
@@ -144,7 +145,7 @@ function CatalogSkeleton() {
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-3">
+        <div key={i} className={cardClass({ className: "space-y-3" })}>
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-3 w-full" />
           <Skeleton className="h-3 w-4/5" />

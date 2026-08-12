@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
+import { cardClass } from "@/components/ui/card";
 import { Fingerprint, Copy, CheckCheck, Info, Zap, AlertTriangle, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiKey, ApiQuota } from "@/types";
@@ -135,7 +136,7 @@ export default function ApiKeysPage() {
       )}
 
       {/* Usage info */}
-      <div className="bg-surface-2 border border-border-subtle rounded-xl p-4 flex gap-3">
+      <div className={cardClass({ className: "bg-surface-2 flex gap-3 p-4" })}>
         <Info size={15} className="text-info shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-text-primary">Como usar sua API Key</p>
@@ -178,12 +179,7 @@ function QuotaCard({ quota }: { quota: ApiQuota }) {
     : "Plano ativo";
 
   return (
-    <div
-      className={cn(
-        "bg-surface-1 border rounded-xl p-4 space-y-3",
-        isDanger ? "border-danger/40" : isWarning ? "border-warning/40" : "border-border-subtle"
-      )}
-    >
+    <div className={cardClass({ tone: isDanger ? "danger" : isWarning ? "warning" : "neutral", className: "p-4 space-y-3" })}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Zap size={14} className={isDanger ? "text-danger" : isWarning ? "text-warning" : "text-brand-accent"} />
@@ -258,18 +254,17 @@ function KeyRow({
 
   return (
     <div
-      className={cn(
-        "bg-surface-1 border rounded-xl px-4 py-3 flex items-center gap-3 transition-colors",
-        highlight ? "border-success/40 bg-success-muted" : "border-border-subtle",
-        !apiKey.is_active && "opacity-60"
-      )}
+      className={cardClass({
+        tone: highlight ? "success" : "neutral",
+        className: cn("px-4 py-3 flex items-center gap-3 transition-colors", !apiKey.is_active && "opacity-60"),
+      })}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <code className="text-xs font-mono text-text-secondary truncate max-w-xs">
             {apiKey.is_active ? apiKey.key : apiKey.key.slice(0, 8) + "••••••••••"}
           </code>
-          <Badge variant={apiKey.is_active ? "success" : "muted"} dot>
+          <Badge variant={apiKey.is_active ? "success" : "muted"} dot pill>
             {apiKey.is_active ? "ativa" : "revogada"}
           </Badge>
         </div>
@@ -307,7 +302,7 @@ function DailyUsageChart({ data }: { data: DailyUsagePoint[] }) {
 
   if (total === 0) {
     return (
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 flex items-center gap-3">
+      <div className={cardClass({ className: "flex items-center gap-3 p-4" })}>
         <BarChart2 size={15} className="text-text-tertiary shrink-0" />
         <p className="text-sm text-text-tertiary">0 chamadas nos últimos 30 dias</p>
       </div>
@@ -315,7 +310,7 @@ function DailyUsageChart({ data }: { data: DailyUsagePoint[] }) {
   }
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 space-y-3">
+    <div className={cardClass({ className: "p-4 space-y-3" })}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="text-brand-accent" />

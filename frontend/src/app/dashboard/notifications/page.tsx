@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
 import { Pagination } from "@/components/compound/pagination";
+import { cardClass } from "@/components/ui/card";
 import {
   Bell,
   Check,
@@ -113,7 +114,7 @@ export default function NotificationsPage() {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-surface-1 border border-border-subtle rounded-xl p-4 flex gap-3">
+            <div key={i} className={cardClass({ className: "flex gap-3 p-4" })}>
               <Skeleton className="w-8 h-8 rounded-full shrink-0" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-3 w-1/3" />
@@ -161,14 +162,7 @@ function NotificationRow({
   });
 
   return (
-    <div
-      className={cn(
-        "bg-surface-1 border rounded-xl p-4 flex gap-3 transition-colors",
-        !n.is_read
-          ? "border-brand-accent/25 bg-brand-accent/5"
-          : "border-border-subtle"
-      )}
-    >
+    <div className={cardClass({ className: cn("p-4 flex gap-3 transition-colors", !n.is_read && "bg-brand-accent/5") })}>
       {/* Icon badge */}
       <div
         className={cn(

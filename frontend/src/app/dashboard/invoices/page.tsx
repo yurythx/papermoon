@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/compound/status-badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/compound/empty-state";
+import { cardClass } from "@/components/ui/card";
 import { AlertTriangle, Download, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Invoice } from "@/types";
@@ -77,10 +78,10 @@ export default function InvoicesPage() {
             key={opt.value}
             onClick={() => { setStatus(opt.value); setPage(1); }}
             className={cn(
-              "text-xs px-3 py-1.5 rounded-full border transition-colors",
+              "text-xs px-3 py-1.5 rounded-full transition-colors font-medium",
               status === opt.value
-                ? "bg-brand-accent text-slate-950 border-brand-accent"
-                : "bg-surface-2 text-text-secondary border-border-default hover:border-border-focus hover:text-text-primary"
+                ? "bg-brand-accent text-slate-950"
+                : "bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary"
             )}
           >
             {opt.label}
@@ -89,7 +90,7 @@ export default function InvoicesPage() {
       </div>
 
       {showDangerBanner && (
-        <div className="flex items-start gap-3 bg-danger/10 border border-danger/30 text-danger rounded-xl px-4 py-3 text-sm">
+        <div className={cardClass({ tone: "danger", className: "flex items-start gap-3 text-danger px-4 py-3 text-sm" })}>
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <p>
             <span className="font-semibold">Suspensão iminente.</span> Você tem fatura(s) vencida(s) há {maxDaysOverdue} dias.
@@ -99,7 +100,7 @@ export default function InvoicesPage() {
       )}
 
       {showWarningBanner && (
-        <div className="flex items-start gap-3 bg-warning/10 border border-warning/30 text-warning rounded-xl px-4 py-3 text-sm">
+        <div className={cardClass({ tone: "warning", className: "flex items-start gap-3 text-warning px-4 py-3 text-sm" })}>
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <p>
             <span className="font-semibold">Fatura vencida.</span> Você tem fatura(s) vencida(s) há {maxDaysOverdue} dias.

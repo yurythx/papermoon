@@ -9,11 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/compound/status-badge";
 import { TimeProgress } from "@/components/compound/time-progress";
 import { Button } from "@/components/ui/button";
+import { ArrowLink } from "@/components/compound/arrow-link";
+import { cardClass } from "@/components/ui/card";
 import {
   Key,
   CreditCard,
   AlertTriangle,
-  ArrowRight,
   TrendingUp,
   Clock,
   ShoppingBag,
@@ -47,32 +48,32 @@ import type { ServiceAccess } from "@/types";
 
 const SERVICE_TONES = {
   accent: {
-    bgColor: "bg-brand-accent/10 border-brand-accent/20",
+    bgColor: "bg-brand-accent/10",
     iconBg: "bg-brand-accent/10 border-brand-accent/30",
     iconColor: "text-brand-accent",
   },
   whatsapp: {
-    bgColor: "bg-service-whatsapp/10 border-service-whatsapp/20",
+    bgColor: "bg-service-whatsapp/10",
     iconBg: "bg-service-whatsapp/10 border-service-whatsapp/30",
     iconColor: "text-service-whatsapp",
   },
   success: {
-    bgColor: "bg-success-muted border-success/20",
+    bgColor: "bg-success-muted",
     iconBg: "bg-success-muted border-success/25",
     iconColor: "text-success",
   },
   info: {
-    bgColor: "bg-info-muted border-info/20",
+    bgColor: "bg-info-muted",
     iconBg: "bg-info-muted border-info/25",
     iconColor: "text-info",
   },
   warning: {
-    bgColor: "bg-warning-muted border-warning/20",
+    bgColor: "bg-warning-muted",
     iconBg: "bg-warning-muted border-warning/25",
     iconColor: "text-warning",
   },
   neutral: {
-    bgColor: "bg-surface-2 border-border-subtle",
+    bgColor: "bg-surface-2",
     iconBg: "bg-surface-2 border-border-default",
     iconColor: "text-text-tertiary",
   },
@@ -108,7 +109,7 @@ function getServiceInfo(key: string) {
   return SERVICE_MAP[key.toLowerCase()] ?? {
     label: key,
     desc: "Serviço provisionado",
-    bgColor: "bg-brand-accent/10 border-brand-accent/20",
+    bgColor: "bg-brand-accent/10",
     iconBg: "bg-brand-accent/10 border-brand-accent/30",
     iconColor: "text-brand-accent",
     icon: Package,
@@ -136,11 +137,7 @@ const ServiceCard = memo(function ServiceCard({ service, productName }: ServiceC
   const isProvisioning = service.status === "provisioning";
 
   return (
-    <div className={cn(
-      "relative rounded-xl border p-5 flex flex-col gap-4 transition-all duration-200 hover:border-border-focus group",
-      info.bgColor,
-      "bg-surface-1"
-    )}>
+    <div className={cardClass({ interactive: true, className: cn("relative flex flex-col gap-4 group", info.bgColor) })}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border", info.iconBg)}>
@@ -189,13 +186,6 @@ const ServiceCard = memo(function ServiceCard({ service, productName }: ServiceC
 
 type CardStatus = "success" | "warning" | "danger" | "neutral";
 
-const CARD_STATUS_CLASSES: Record<CardStatus, string> = {
-  success: "border-success/20 bg-success-muted",
-  warning: "border-warning/20 bg-warning-muted",
-  danger: "border-danger/20 bg-danger-muted",
-  neutral: "border-border-subtle bg-surface-1",
-};
-
 const ICON_STATUS_CLASSES: Record<CardStatus, string> = {
   success: "text-success",
   warning: "text-warning",
@@ -221,10 +211,7 @@ interface StatusCardProps {
 const StatusCard = memo(function StatusCard({ label, value, icon: Icon, href, status }: StatusCardProps) {
   return (
     <Link href={href} className="block group">
-      <div className={cn(
-        "rounded-xl p-5 border transition-all duration-150 group-hover:border-border-focus",
-        CARD_STATUS_CLASSES[status]
-      )}>
+      <div className={cardClass({ tone: status, interactive: true })}>
         <div className="flex items-start justify-between mb-3">
           <p className="text-xs text-text-secondary font-medium">{label}</p>
           <Icon size={15} className={ICON_STATUS_CLASSES[status]} />
@@ -244,8 +231,8 @@ const StatusCard = memo(function StatusCard({ label, value, icon: Icon, href, st
 /* -- AlertCard -------------------------------------------------------- */
 
 const ALERT_COLORS = {
-  warning: { border: "border-warning/20", bg: "bg-warning-muted", icon: "text-warning", title: "text-warning" },
-  danger:  { border: "border-danger/20",  bg: "bg-danger-muted",  icon: "text-danger",  title: "text-danger"  },
+  warning: { icon: "text-warning", title: "text-warning" },
+  danger:  { icon: "text-danger",  title: "text-danger"  },
 } as const;
 
 interface AlertCardProps {
@@ -259,7 +246,7 @@ interface AlertCardProps {
 const AlertCard = memo(function AlertCard({ variant, title, description, ctaLabel, ctaHref }: AlertCardProps) {
   const c = ALERT_COLORS[variant];
   return (
-    <div className={cn("rounded-xl border p-4 flex items-start gap-3", c.border, c.bg)}>
+    <div className={cardClass({ tone: variant, className: "p-4 flex items-start gap-3" })}>
       <AlertTriangle size={15} className={cn(c.icon, "shrink-0 mt-0.5")} />
       <div className="flex-1 min-w-0">
         <p className={cn("text-sm font-semibold", c.title)}>{title}</p>
@@ -325,7 +312,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
 
       {/* -- Hero header ----------------------------------------------- */}
-      <div className="relative rounded-2xl overflow-hidden border border-border-subtle bg-surface-1 p-6 md:p-8">
+      <div className={cardClass({ className: "relative overflow-hidden p-6 md:p-8" })}>
         {/* Background glow */}
         <div className="pointer-events-none absolute -top-10 right-0 w-72 h-56 bg-brand-accent/10 blur-3xl rounded-full" />
         <div className="pointer-events-none absolute bottom-0 left-24 w-48 h-40 bg-slate-400/10 blur-3xl rounded-full" />
@@ -362,7 +349,7 @@ export default function DashboardPage() {
       </div>
 
       {hasFetchError && (
-        <div className="flex items-center gap-2.5 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className={cardClass({ tone: "danger", className: "flex items-center gap-2.5 px-4 py-3 text-sm text-danger" })}>
           <AlertTriangle size={16} className="shrink-0" />
           Não foi possível carregar todos os seus dados agora. Os números abaixo podem estar
           incompletos — atualize a página em instantes.
@@ -451,9 +438,7 @@ export default function DashboardPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold text-text-tertiary uppercase tracking-widest">Meus Serviços</h2>
-          <Link href="/dashboard/licenses" className="text-xs text-brand-accent hover:underline flex items-center gap-1">
-            Ver licenças <ArrowRight size={11} />
-          </Link>
+          <ArrowLink href="/dashboard/licenses">Ver licenças</ArrowLink>
         </div>
 
         {loadingLicenses ? (
@@ -490,15 +475,13 @@ export default function DashboardPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold text-text-tertiary uppercase tracking-widest">Licenças Ativas</h2>
-            <Link href="/dashboard/licenses" className="text-xs text-brand-accent hover:underline flex items-center gap-1">
-              Ver todas <ArrowRight size={11} />
-            </Link>
+            <ArrowLink href="/dashboard/licenses">Ver todas</ArrowLink>
           </div>
 
           <div className="space-y-3">
             {activeLicenses.slice(0, 3).map((l) => (
               <Link key={l.id} href={`/dashboard/licenses/${l.id}`} className="block group">
-                <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 hover:border-border-focus transition-all duration-150">
+                <div className={cardClass({ interactive: true, className: "p-5" })}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="text-sm font-semibold text-text-primary group-hover:text-white transition-colors">

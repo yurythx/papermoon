@@ -291,7 +291,7 @@ export function Topbar() {
       </div>
 
       {me?.customer && (
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-2 border border-border-subtle">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-2">
           <Building2 size={13} className="text-text-tertiary shrink-0" />
           <span className="text-sm text-text-primary font-medium max-w-[160px] truncate">
             {me.customer.company_name}
