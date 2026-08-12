@@ -158,7 +158,9 @@ class TestValidateKeyCachePaths:
         # Populate cache manually — hashed key, same as ValidateKeyView writes
         # (a plaintext "apikey:<key>" cache key would leak live API Keys from
         # a Redis dump; see apps/licensing/models.py::api_key_cache_key).
-        cache.set(api_key_cache_key(api_key.key), {"valid": True, "quota_remaining": 42}, timeout=60)
+        cache.set(
+            api_key_cache_key(api_key.key), {"valid": True, "quota_remaining": 42}, timeout=60
+        )
 
         resp = api_client.get(f"/api/v1/licensing/validate-key/?key={api_key.key}")
         assert resp.status_code == 200
