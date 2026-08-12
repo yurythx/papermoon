@@ -30,6 +30,8 @@ import { licenseService, invoiceService, notificationService, subscriptionServic
 import type { Subscription } from "@/types";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { cardClass } from "@/components/ui/card";
+import { ArrowLink } from "@/components/compound/arrow-link";
 
 interface NavItem {
   href: string;
@@ -222,12 +224,7 @@ const PlanWidget = memo(function PlanWidget({ customerStatus, subscription }: Pl
 
   return (
     <div className="p-3 border-t border-border-subtle">
-      <div
-        className={cn(
-          "p-3 rounded-lg border",
-          isSuspended ? "bg-danger-muted border-danger/25" : "bg-surface-2 border-border-subtle"
-        )}
-      >
+      <div className={cardClass({ tone: isSuspended ? "danger" : "neutral", className: cn("rounded-lg p-3", !isSuspended && "bg-surface-2") })}>
         {isSuspended ? (
           <div className="flex items-start gap-2">
             <ChevronUp size={14} className="text-danger mt-0.5 shrink-0" />
@@ -258,9 +255,9 @@ const PlanWidget = memo(function PlanWidget({ customerStatus, subscription }: Pl
         ) : (
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1">Nenhum contrato ativo</p>
-            <a href="mailto:contato@papermoon.com.br" className="text-[10px] text-brand-accent hover:underline">
-              Falar com a equipe →
-            </a>
+            <ArrowLink href="mailto:contato@papermoon.com.br" size="xs" external>
+              Falar com a equipe
+            </ArrowLink>
           </div>
         )}
       </div>

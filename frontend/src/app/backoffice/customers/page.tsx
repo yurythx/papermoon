@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
 import { ErrorState } from "@/components/compound/error-state";
 import { Pagination } from "@/components/compound/pagination";
+import { cardClass } from "@/components/ui/card";
 import Link from "next/link";
 import { Users, Plus, Download, ShieldOff, XCircle, Clock, CheckCircle2 } from "lucide-react";
 import type { AdminCustomer, PendingRegistration } from "@/types";
@@ -204,7 +205,7 @@ export default function BackofficeCustomersPage() {
 
       {/* Pending registrations banner */}
       {(pendingLoading || pendingRegistrations.length > 0) && (
-        <div className="bg-warning-muted border border-warning/25 rounded-xl overflow-hidden">
+        <div className={cardClass({ tone: "warning", className: "overflow-hidden p-0" })}>
           <div className="px-4 py-3 flex items-center gap-2 border-b border-warning/15">
             <Clock size={14} className="text-warning shrink-0" />
             <span className="text-sm font-semibold text-warning">

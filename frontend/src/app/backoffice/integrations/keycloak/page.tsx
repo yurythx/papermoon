@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/compound/page-header";
 import { CodeBlock } from "@/components/compound/code-block";
 import { CopyButton } from "@/components/compound/copy-button";
+import { cardClass } from "@/components/ui/card";
 import {
   KeycloakIntegrationManager,
   LanguageTabs,
@@ -73,7 +74,7 @@ function EndpointExplanation({
 }) {
   const info = ENDPOINT_INFO[field];
   return (
-    <div className="border border-border-subtle rounded-lg p-3 space-y-1.5">
+    <div className={cardClass({ className: "bg-surface-2 rounded-lg p-3 space-y-1.5" })}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-text-primary">{info.label}</p>
         <CopyButton value={value} />
@@ -117,7 +118,7 @@ function IssuerValidatorCard({
   });
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+    <div className={cardClass({ className: "space-y-4" })}>
       <div>
         <h2 className="text-sm font-semibold text-text-primary">Validador de issuer</h2>
         <p className="text-xs text-text-tertiary mt-0.5 max-w-lg">
@@ -150,12 +151,7 @@ function IssuerValidatorCard({
 
       {result && (
         <div className="space-y-3 pt-2 border-t border-border-subtle">
-          <div
-            className={cn(
-              "rounded-xl border px-4 py-3 flex items-start gap-2.5",
-              result.verified ? "bg-success-muted border-success/20" : "bg-warning-muted border-warning/20"
-            )}
-          >
+          <div className={cardClass({ tone: result.verified ? "success" : "warning", className: "flex items-start gap-2.5 px-4 py-3" })}>
             {result.verified ? (
               <CheckCircle2 size={15} className="text-success shrink-0 mt-0.5" />
             ) : (
@@ -261,7 +257,7 @@ function CodeExampleCard({ issuer }: { issuer: string }) {
   const canGenerate = issuer.trim().startsWith("http");
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+    <div className={cardClass({ className: "space-y-4" })}>
       <div>
         <h2 className="text-sm font-semibold text-text-primary">Exemplo de código por linguagem</h2>
         <p className="text-xs text-text-tertiary mt-0.5 max-w-lg">
@@ -372,7 +368,7 @@ function ManualClientSetupCard() {
   const canGenerate = Boolean(appName.trim()) && rootUrl !== "";
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+    <div className={cardClass({ className: "space-y-4" })}>
       <div>
         <h2 className="text-sm font-semibold text-text-primary">
           O que preencher no admin do Keycloak
@@ -549,7 +545,7 @@ function CustomerPicker({
   const customers = data?.results ?? [];
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+    <div className={cardClass({ className: "space-y-4" })}>
       <div>
         <h2 className="text-sm font-semibold text-text-primary">Criar/gerenciar integração de um cliente</h2>
         <p className="text-xs text-text-tertiary mt-0.5">

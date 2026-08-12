@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/compound/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cardClass } from "@/components/ui/card";
 import { CheckCircle2, Circle, Clock, FileEdit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CmsPageAdminListItem, Product } from "@/types";
@@ -35,10 +36,10 @@ function CmsRow({
   return (
     <Link
       href={`/backoffice/cms/${item.slug}`}
-      className={cn(
-        "flex items-center justify-between px-5 py-4 rounded-xl border border-border-subtle bg-surface-1 hover:border-border-default hover:bg-surface-2 transition-colors group",
-        !item.is_active && "opacity-60"
-      )}
+      className={cardClass({
+        interactive: true,
+        className: cn("flex items-center justify-between px-5 py-4 group", !item.is_active && "opacity-60"),
+      })}
     >
       <div className="flex items-center gap-4 min-w-0">
         <div className="shrink-0">
@@ -61,12 +62,12 @@ function CmsRow({
 
       <div className="flex items-center gap-3 shrink-0 ml-4">
         {item.has_page ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success">
             <CheckCircle2 size={11} />
             Configurada
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-3 text-text-tertiary border border-border-subtle">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-3 text-text-tertiary">
             <Circle size={11} />
             Vazia
           </span>

@@ -13,6 +13,7 @@ import { CodeBlock } from "@/components/compound/code-block";
 import { CopyButton } from "@/components/compound/copy-button";
 import { EmptyState } from "@/components/compound/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cardClass } from "@/components/ui/card";
 import type {
   KeycloakClientIntegration,
   KeycloakIntegrationCreatePayload,
@@ -180,7 +181,7 @@ function ExistingIntegrationRow({
   });
 
   return (
-    <div className="border border-border-subtle rounded-lg p-4 space-y-3">
+    <div className={cardClass({ className: "space-y-3" })}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-sm font-semibold text-text-primary">{integration.app_name}</p>
@@ -238,7 +239,7 @@ function IntegrationResultDetails({ result }: { result: KeycloakIntegrationCreat
         )}
       </div>
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+      <div className={cardClass({ className: "space-y-4" })}>
         <h3 className="text-sm font-semibold text-text-primary">Credenciais da integração</h3>
         <div className="grid gap-4 md:grid-cols-2">
           <UrlField label="Issuer" value={result.issuer} />
@@ -254,7 +255,7 @@ function IntegrationResultDetails({ result }: { result: KeycloakIntegrationCreat
         </div>
       </div>
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+      <div className={cardClass({ className: "space-y-4" })}>
         <h3 className="text-sm font-semibold text-text-primary">Passo a passo</h3>
         <ol className="space-y-2.5">
           {result.steps.map((step, i) => (
@@ -268,7 +269,7 @@ function IntegrationResultDetails({ result }: { result: KeycloakIntegrationCreat
         </ol>
       </div>
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+      <div className={cardClass({ className: "space-y-4" })}>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-text-primary">Código ({result.package})</h3>
           <code className="bg-surface-3 px-1.5 py-0.5 rounded font-mono text-xs text-info">
@@ -390,7 +391,7 @@ export function KeycloakIntegrationManager({
         </div>
       )}
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-5">
+      <div className={cardClass({ className: "space-y-5" })}>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="text-xs font-medium text-text-tertiary mb-1 block">
@@ -520,7 +521,7 @@ export function KeycloakIntegrationManager({
             )}
           </div>
 
-          <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+          <div className={cardClass({ className: "space-y-4" })}>
             <h3 className="text-sm font-semibold text-text-primary">Valores da integração</h3>
             <div className="grid gap-4 md:grid-cols-2">
               <UrlField label="Issuer" value={guide.issuer ?? ""} />
@@ -538,7 +539,7 @@ export function KeycloakIntegrationManager({
             </div>
           </div>
 
-          <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+          <div className={cardClass({ className: "space-y-4" })}>
             <h3 className="text-sm font-semibold text-text-primary">Passo a passo</h3>
             <ol className="space-y-2.5">
               {(guide.steps ?? []).map((step, i) => (
@@ -552,7 +553,7 @@ export function KeycloakIntegrationManager({
             </ol>
           </div>
 
-          <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
+          <div className={cardClass({ className: "space-y-4" })}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-semibold text-text-primary">
                 Código ({guide.package})

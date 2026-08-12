@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/compound/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { cardClass } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { KeyRound, Copy, CheckCircle2, XCircle, Network } from "lucide-react";
 import type { KeycloakConnectionConfig, SSOConfig } from "@/types";
@@ -136,7 +137,7 @@ function SsoConfigCard() {
   const canActivate = Boolean(issuer && clientId && (clientSecret || config?.client_secret_set));
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-5">
+    <div className={cardClass({ className: "p-6 space-y-5" })}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 border border-border-subtle">
@@ -342,7 +343,7 @@ function KeycloakConnectionCard() {
   const canActivate = Boolean(apiUrl && (adminToken || config?.admin_token_set));
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-5">
+    <div className={cardClass({ className: "p-6 space-y-5" })}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 border border-border-subtle">

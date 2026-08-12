@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cardClass, type CardTone } from "@/components/ui/card";
 
 type ServiceStatus = "ok" | "degraded" | "error" | "unknown";
 
@@ -21,13 +22,15 @@ function statusLabel(s: ServiceStatus): string {
   return { ok: "Operacional", degraded: "Degradado", error: "Falha", unknown: "Desconhecido" }[s];
 }
 
-function statusBg(s: ServiceStatus): string {
-  return {
-    ok: "bg-success/10 border-success/20",
-    degraded: "bg-warning/10 border-warning/20",
-    error: "bg-danger/10 border-danger/20",
-    unknown: "bg-surface-2 border-border-subtle",
-  }[s];
+const STATUS_TONE: Record<ServiceStatus, CardTone> = {
+  ok: "success",
+  degraded: "warning",
+  error: "danger",
+  unknown: "neutral",
+};
+
+function statusTone(s: ServiceStatus): CardTone {
+  return STATUS_TONE[s];
 }
 
 const SERVICE_NAMES: Record<string, string> = {
@@ -92,7 +95,7 @@ export default function HealthPage() {
       />
 
       {/* Overall banner */}
-      <div className={cn("flex items-center gap-3 rounded-xl border px-5 py-4", statusBg(overallStatus))}>
+      <div className={cardClass({ tone: statusTone(overallStatus), className: "flex items-center gap-3 px-5 py-4" })}>
         <Activity size={20} className={anyError ? "text-danger" : anyDegraded ? "text-warning" : "text-success"} />
         <div>
           <p className="font-semibold text-text-primary">
@@ -114,19 +117,13 @@ export default function HealthPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {isLoading
           ? [1, 2, 3].map((i) => (
-              <div key={i} className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-3">
+              <div key={i} className={cardClass({ className: "space-y-3" })}>
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-5 w-20" />
               </div>
             ))
           : services.map(({ key, status }) => (
-              <div
-                key={key}
-                className={cn(
-                  "bg-surface-1 border rounded-xl p-5 flex items-start gap-3",
-                  statusBg(status)
-                )}
-              >
+              <div key={key} className={cardClass({ tone: statusTone(status), className: "flex items-start gap-3" })}>
                 <StatusIcon status={status} />
                 <div>
                   <p className="text-sm font-semibold text-text-primary">
@@ -144,7 +141,7 @@ export default function HealthPage() {
       </div>
 
       {isError && (
-        <div className="bg-danger/5 border border-danger/20 rounded-xl p-5 text-sm text-danger">
+        <div className={cardClass({ tone: "danger", className: "text-sm text-danger" })}>
           Não foi possível contatar o backend. Verifique se o serviço está rodando.
         </div>
       )}

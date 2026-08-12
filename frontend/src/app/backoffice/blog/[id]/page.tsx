@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/compound/status-badge";
+import { cardClass } from "@/components/ui/card";
 import {
   ArrowLeft,
   Save,
@@ -80,7 +81,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-border-subtle bg-surface-1 overflow-hidden">
+    <div className={cardClass({ className: "overflow-hidden p-0" })}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -303,7 +304,7 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
       </div>
 
       {isPublished && (
-        <div className="rounded-xl border border-success/20 bg-success-muted px-4 py-3 text-sm text-success">
+        <div className={cardClass({ tone: "success", className: "px-4 py-3 text-sm text-success" })}>
           Publicado{publishedAt ? ` em ${new Date(publishedAt).toLocaleString("pt-BR")}` : ""} — visível em{" "}
           <span className="font-mono">/blog/{slug}</span>.
         </div>
@@ -392,7 +393,7 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
           </Button>
         </div>
         {showPreview ? (
-          <div className="rounded-md border border-border-subtle bg-surface-0 px-4 py-3 text-sm text-text-primary">
+          <div className="rounded-md bg-surface-0 px-4 py-3 text-sm text-text-primary">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_PREVIEW_COMPONENTS}>
               {body || "*Nada para pré-visualizar ainda.*"}
             </ReactMarkdown>

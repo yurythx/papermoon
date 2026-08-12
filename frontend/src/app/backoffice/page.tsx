@@ -5,6 +5,7 @@ import { adminService } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/compound/page-header";
+import { cardClass } from "@/components/ui/card";
 import {
   TrendingUp,
   Users,
@@ -117,7 +118,7 @@ export default function BackofficeMetricsPage() {
       {/* Monthly revenue chart + Revenue by plan — side by side on wide screens */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Revenue trend */}
-        <div className="xl:col-span-2 bg-surface-1 border border-border-subtle rounded-xl p-6">
+        <div className={cardClass({ className: "xl:col-span-2 p-6" })}>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-5">
             Receita mensal (12 meses)
           </h2>
@@ -133,7 +134,7 @@ export default function BackofficeMetricsPage() {
         </div>
 
         {/* Revenue by plan */}
-        <div className="bg-surface-1 border border-border-subtle rounded-xl p-6">
+        <div className={cardClass({ className: "p-6" })}>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-5">
             Receita por plano
           </h2>
@@ -226,12 +227,12 @@ export default function BackofficeMetricsPage() {
 
 type KpiStatus = "success" | "info" | "warning" | "danger" | "neutral";
 
-const kpiStatusClasses: Record<KpiStatus, { card: string; icon: string; value: string }> = {
-  success: { card: "border-success/20 bg-success-muted", icon: "text-success", value: "text-success" },
-  info:    { card: "border-info/20 bg-info-muted",       icon: "text-info",    value: "text-info" },
-  warning: { card: "border-warning/20 bg-warning-muted", icon: "text-warning", value: "text-warning" },
-  danger:  { card: "border-danger/20 bg-danger-muted",   icon: "text-danger",  value: "text-danger" },
-  neutral: { card: "border-border-subtle bg-surface-1",  icon: "text-text-tertiary", value: "text-text-primary" },
+const kpiStatusClasses: Record<KpiStatus, { icon: string; value: string }> = {
+  success: { icon: "text-success", value: "text-success" },
+  info:    { icon: "text-info",    value: "text-info" },
+  warning: { icon: "text-warning", value: "text-warning" },
+  danger:  { icon: "text-danger",  value: "text-danger" },
+  neutral: { icon: "text-text-tertiary", value: "text-text-primary" },
 };
 
 function KpiCard({
@@ -249,7 +250,7 @@ function KpiCard({
 }) {
   const c = kpiStatusClasses[status];
   return (
-    <div className={`rounded-xl p-5 border ${c.card}`}>
+    <div className={cardClass({ tone: status, className: "p-5" })}>
       <div className="flex items-start justify-between mb-2">
         <p className="text-xs text-text-secondary font-medium">{label}</p>
         <Icon size={15} className={c.icon} />

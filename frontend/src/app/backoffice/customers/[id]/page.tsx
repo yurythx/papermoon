@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/compound/status-badge";
+import { cardClass } from "@/components/ui/card";
 import type { AdminCustomer, AdminInvoice, CustomerQuota, Subscription } from "@/types";
 
 type Action = "suspend" | "reactivate" | "cancel";
@@ -359,7 +360,7 @@ function QuotaSection({
         )}
       </div>
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-4">
+      <div className={cardClass({ className: "space-y-4" })}>
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs text-text-tertiary mb-1">Chamadas usadas</p>

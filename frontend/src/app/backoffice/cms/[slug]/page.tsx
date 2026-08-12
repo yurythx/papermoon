@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cardClass } from "@/components/ui/card";
 import {
   ArrowLeft,
   Plus,
@@ -69,7 +70,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-border-subtle bg-surface-1 overflow-hidden">
+    <div className={cardClass({ className: "overflow-hidden p-0" })}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -319,7 +320,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
       </div>
 
       {!isActive && (
-        <div className="rounded-xl border border-warning/20 bg-warning-muted px-4 py-3 text-sm text-warning">
+        <div className={cardClass({ tone: "warning", className: "px-4 py-3 text-sm text-warning" })}>
           Este serviço está indisponível — não aparece na home, na listagem de
           serviços nem tem página pública própria (a URL retorna 404). O
           conteúdo abaixo continua editável normalmente.
@@ -585,7 +586,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
       <Section title={`Grupos de funcionalidades (${groups.length})`}>
         <div className="space-y-5">
           {groups.map((group, gi) => (
-            <div key={gi} className="rounded-lg border border-border-subtle bg-surface-0 p-4 space-y-3">
+            <div key={gi} className="rounded-lg bg-surface-0 p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <GripVertical size={15} className="text-text-tertiary shrink-0 cursor-grab" />
                 <Input

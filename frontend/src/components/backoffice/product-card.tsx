@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cardClass } from "@/components/ui/card";
 import { Pencil, DollarSign } from "lucide-react";
 import type { Product } from "@/types";
 
@@ -26,7 +27,7 @@ export const ProductCard = memo(function ProductCard({
   const oneTimePrice = product.pricings.find((p) => p.billing_cycle === "one_time");
 
   return (
-    <div className={`bg-surface-1 border border-border-subtle rounded-xl p-5 transition-opacity ${!product.is_active ? "opacity-50" : ""}`}>
+    <div className={cardClass({ className: `transition-opacity ${!product.is_active ? "opacity-50" : ""}` })}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -43,7 +44,7 @@ export const ProductCard = memo(function ProductCard({
           {product.components.length > 0 && (
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {product.components.map((c) => (
-                <Badge key={c.id} variant="info">
+                <Badge key={c.id} variant="info" pill>
                   {c.service_key}
                 </Badge>
               ))}
