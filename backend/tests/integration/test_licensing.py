@@ -153,8 +153,12 @@ class TestValidateKeyCachePaths:
     def test_cache_hit_returns_cached_result(self, api_client, api_key):
         from django.core.cache import cache
 
-        # Populate cache manually
-        cache.set(f"apikey:{api_key.key}", {"valid": True, "quota_remaining": 42}, timeout=60)
+        from apps.licensing.models import api_key_cache_key
+
+        # Populate cache manually — hashed key, same as ValidateKeyView writes
+        # (a plaintext "apikey:<key>" cache key would leak live API Keys from
+        # a Redis dump; see apps/licensing/models.py::api_key_cache_key).
+        cache.set(api_key_cache_key(api_key.key), {"valid": True, "quota_remaining": 42}, timeout=60)
 
         resp = api_client.get(f"/api/v1/licensing/validate-key/?key={api_key.key}")
         assert resp.status_code == 200
@@ -208,9 +212,11 @@ class TestValidateKeyCachePaths:
     def test_invalid_key_is_cached(self, api_client):
         from django.core.cache import cache
 
+        from apps.licensing.models import api_key_cache_key
+
         cache.clear()
         api_client.get("/api/v1/licensing/validate-key/?key=fake_key_xyz")
-        assert cache.get("apikey:fake_key_xyz") is not None
+        assert cache.get(api_key_cache_key("fake_key_xyz")) is not None
 
 
 # ---------------------------------------------------------------------------

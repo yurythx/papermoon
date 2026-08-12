@@ -74,24 +74,40 @@ def process_outbox_events() -> None:
             ) as span:
                 span.set_attribute("outbox.event_id", str(event.id))
                 span.set_attribute("outbox.event_type", event.event_type)
-                try:
-                    for handler in handlers:
+
+                # Each handler gets its own try/except — a single `try` around
+                # the whole loop meant one failing handler (e.g. a provisioner
+                # timeout in apps/provisioning/handlers.py) stopped every
+                # sibling handler registered for the same event_type from
+                # running at all, including customer-facing email
+                # notifications and quota sync. Handlers are expected to be
+                # idempotent (re-run safely on retry) — see e.g.
+                # Notification.objects.get_or_create(outbox_event_id=...) in
+                # the email tasks below, and provisioning's suspend/
+                # reactivate/deprovision, which are safe no-ops when re-applied.
+                errors: list[Exception] = []
+                for handler in handlers:
+                    try:
                         handler(event.payload, str(event.id))
-                    event.processed = True
-                    event.processed_at = timezone.now()
-                except Exception as exc:
-                    span.record_exception(exc)
+                    except Exception as exc:
+                        span.record_exception(exc)
+                        errors.append(exc)
+
+                if errors:
                     event.retry_count += 1
-                    event.last_error = str(exc)
+                    event.last_error = "; ".join(str(exc) for exc in errors)
                     if event.retry_count >= _MAX_RETRIES:
                         event.failed_at = timezone.now()
                         logger.error(
                             "notifications.process_outbox_events max_retries "
-                            "event_id=%s event_type=%s error=%s",
+                            "event_id=%s event_type=%s errors=%s",
                             event.id,
                             event.event_type,
-                            exc,
+                            event.last_error,
                         )
+                else:
+                    event.processed = True
+                    event.processed_at = timezone.now()
             event.save()
 
 

@@ -14,6 +14,25 @@ from apps.provisioning.registry import get_provisioner
 logger = logging.getLogger(__name__)
 
 
+def _alert_and_raise_on_failures(
+    action_label: str, failures: list[str], customer_id: str | None
+) -> None:
+    """Shared by _act_on_services and reactivate_services so the Telegram
+    message format and the retry-triggering raise can't drift between the
+    two independently — no-op when there's nothing to report."""
+    if not failures:
+        return
+    _alert_telegram(
+        f"<b>{action_label} failed</b>\n"
+        f"Services: <code>{', '.join(failures)}</code>\n"
+        f"Customer: <code>{customer_id}</code>\n"
+        f"Outbox vai reprocessar automaticamente (até 5 tentativas)."
+    )
+    raise RuntimeError(
+        f"{action_label}: failed for service_keys={failures} customer_id={customer_id}"
+    )
+
+
 def _emit_provisioned(customer_id: str, service_key: str) -> None:
     """Writes a service.provisioned OutboxEvent so notification handlers can react."""
     from shared.models import OutboxEvent
@@ -145,19 +164,10 @@ def reactivate_services(payload: dict, event_id: str) -> None:
             logger.error("reactivate_services failed service_key=%s error=%s", sa.service_key, exc)
             failures.append(sa.service_key)
 
-    if failures:
-        # Cliente pagou e reativou, mas o serviço externo continua suspenso —
-        # mesmo raciocínio de _act_on_services: reactivate é idempotente,
-        # deixa o Outbox tentar de novo em vez de só logar e esquecer.
-        _alert_telegram(
-            f"<b>Reactivate failed</b>\n"
-            f"Services: <code>{', '.join(failures)}</code>\n"
-            f"Customer: <code>{customer_id}</code>\n"
-            f"Outbox vai reprocessar automaticamente (até 5 tentativas)."
-        )
-        raise RuntimeError(
-            f"reactivate_services: failed for service_keys={failures} customer_id={customer_id}"
-        )
+    # Cliente pagou e reativou, mas o serviço externo continua suspenso se
+    # isso falhar — mesmo raciocínio de _act_on_services: reactivate é
+    # idempotente, deixa o Outbox tentar de novo em vez de só logar e esquecer.
+    _alert_and_raise_on_failures("Reactivate", failures, customer_id)
 
 
 @register("subscription.grace_period")
@@ -220,16 +230,7 @@ def _act_on_services(payload: dict, action: str) -> None:
             )
             failures.append(service_key)
 
-    if failures:
-        _alert_telegram(
-            f"<b>{action.capitalize()} failed</b>\n"
-            f"Services: <code>{', '.join(failures)}</code>\n"
-            f"Customer: <code>{customer_id}</code>\n"
-            f"Outbox vai reprocessar automaticamente (até 5 tentativas)."
-        )
-        raise RuntimeError(
-            f"_act_on_services: {action} failed for service_keys={failures} customer_id={customer_id}"
-        )
+    _alert_and_raise_on_failures(action.capitalize(), failures, customer_id)
 
 
 @register("subscription.created")

@@ -225,7 +225,7 @@ class TestActOnServices:
         mock_prov.suspend.side_effect = RuntimeError("connection refused")
 
         with patch("apps.provisioning.handlers.get_provisioner", return_value=mock_prov):
-            with pytest.raises(RuntimeError, match="_act_on_services"):
+            with pytest.raises(RuntimeError, match="Suspend: failed for service_keys"):
                 suspend_services(
                     {
                         "license_id": str(lic.id),
@@ -297,7 +297,7 @@ class TestReactivateServices:
         mock_prov.reactivate.side_effect = RuntimeError("connection refused")
 
         with patch("apps.provisioning.handlers.get_provisioner", return_value=mock_prov):
-            with pytest.raises(RuntimeError, match="reactivate_services"):
+            with pytest.raises(RuntimeError, match="Reactivate: failed for service_keys"):
                 reactivate_services(
                     {"license_id": str(lic.id), "customer_id": str(customer.id)},
                     str(uuid.uuid4()),

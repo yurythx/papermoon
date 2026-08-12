@@ -23,7 +23,7 @@ def _replace_with_webp(field_file, slug_for_path: str, subfolder: str) -> None:
     other paths that can set these fields (Django Admin, fixtures/scripts),
     so a non-image never gets silently persisted as-is under an image URL.
     """
-    if not field_file or not hasattr(field_file, "file"):
+    if not field_file:
         return
     field_file.seek(0)
     original_bytes = field_file.read()
@@ -48,8 +48,15 @@ def convert_hero_to_webp(
 ) -> None:
     if not instance.hero_image:
         return
-    # Only process newly uploaded files (not already-saved paths)
-    if hasattr(instance.hero_image, "file"):
+    # Only process newly uploaded files, not a page re-saved for unrelated
+    # reasons (e.g. editing FAQs re-triggers pre_save for the whole model).
+    # hasattr(field_file, "file") is *always* True once accessed — Django's
+    # FieldFile.file is a property that lazily opens from storage on demand,
+    # for an already-persisted path just as much as a fresh upload (verified
+    # against django/db/models/fields/files.py). `_committed` is the actual
+    # signal Django itself uses for "this is a pending, not-yet-saved file"
+    # (set False in FileDescriptor.__get__ when a raw upload is assigned).
+    if not instance.hero_image._committed:
         slug = instance.product.slug if instance.product_id else "unknown"
         _replace_with_webp(instance.hero_image, slug, "heroes")
 
@@ -60,7 +67,7 @@ def convert_gallery_image_to_webp(
 ) -> None:
     if not instance.file:
         return
-    if hasattr(instance.file, "file"):
+    if not instance.file._committed:  # see convert_hero_to_webp for why
         slug = (
             instance.page.product.slug
             if instance.page_id and instance.page.product_id

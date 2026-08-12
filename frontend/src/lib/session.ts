@@ -48,8 +48,7 @@ export function getRefreshToken(): string | undefined {
 // Real client IP as visto pela borda da Cloudflare — o único hop entre o
 // navegador e este BFF em produção (ver docs/deployment.md). `cf-connecting-ip`
 // é setado pela própria Cloudflare e não pode ser forjado pelo cliente depois
-// que o tráfego atravessa a borda; os outros headers são fallback pra dev
-// local (sem Cloudflare na frente) ou qualquer outro proxy reverso.
+// que o tráfego atravessa a borda.
 //
 // Isso existe porque, sem isso, TODO login/cadastro/reset de senha que passa
 // pelo BFF chega no Django com o mesmo IP de origem (o do container do
@@ -58,12 +57,25 @@ export function getRefreshToken(): string | undefined {
 // tentativas/15min do LoginAttemptGuard (apps/accounts/security.py) passam a
 // valer pra TODOS os usuários juntos, e qualquer um errando a senha 5x
 // derruba o login de todo mundo por 15 minutos.
+//
+// Em produção, nextjs nunca é exposto sem passar pela Cloudflare (nenhuma
+// porta do container é publicada — só a rede do tunnel, ver
+// docs/deployment.md), então cf-connecting-ip está sempre presente e não é
+// forjável. x-forwarded-for/x-real-ip só são aceitos em dev (sem Cloudflare
+// na frente) — confiar neles em produção reabriria exatamente o spoofing que
+// este helper existe pra fechar, caso a topologia de rede algum dia mude.
 export function getClientIp(req: NextRequest): string {
   const cf = req.headers.get("cf-connecting-ip");
   if (cf) return cf.trim();
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return req.headers.get("x-real-ip")?.trim() ?? "unknown";
+
+  if (!isProd) {
+    const xff = req.headers.get("x-forwarded-for");
+    if (xff) return xff.split(",")[0].trim();
+    const realIp = req.headers.get("x-real-ip");
+    if (realIp) return realIp.trim();
+  }
+
+  return "unknown";
 }
 
 // Direct call to Django — used only from server-side BFF routes

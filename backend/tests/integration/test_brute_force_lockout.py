@@ -228,20 +228,47 @@ class TestLoginAttemptGuardUnit:
         guard.clear()
         assert guard.lockout_remaining() == 0
 
-    def test_x_forwarded_for_header_used_when_present(self):
+    def test_x_forwarded_for_trusts_only_the_last_hop(self):
+        """NUM_PROXIES=1 (core/settings/base.py): only the entry appended by
+        our one trusted hop (the BFF/Cloudflare — see shared/net.py) counts.
+        An attacker-supplied *leading* entry must not let them pick a
+        different lockout bucket per request by varying it."""
         req = self._FakeRequest()
-        req.META["HTTP_X_FORWARDED_FOR"] = "203.0.113.5, 10.0.0.1"
+        req.META["HTTP_X_FORWARDED_FOR"] = "203.0.113.5, 10.0.0.9"
         guard = LoginAttemptGuard(req)
-        # Guard should use the first IP from X-Forwarded-For
-        # Verify by checking that a different IP's lockout state is unaffected
-        guard2 = LoginAttemptGuard(self._FakeRequest("10.0.0.1"))
+
+        req2 = self._FakeRequest()
+        # Different attacker-controlled leading entry, same trusted-hop entry
+        # (last one) — must land in the same bucket as `guard`.
+        req2.META["HTTP_X_FORWARDED_FOR"] = "198.51.100.1, 10.0.0.9"
+        guard2 = LoginAttemptGuard(req2)
+
         for _ in range(LoginAttemptGuard.MAX_ATTEMPTS):
             guard.record_failure()
-        # 203.0.113.5 is locked, but 10.0.0.1 should not be
+
+        assert guard.lockout_remaining() > 0
+        assert guard2.lockout_remaining() > 0
+        _clear_lockout_for_ip("10.0.0.9")
+
+    def test_x_forwarded_for_different_trusted_hop_entry_is_isolated(self):
+        """A genuinely different trusted-hop-reported IP (the last XFF entry)
+        must still get its own bucket — that's the real identity now, the
+        spoofable leading entry no longer matters at all."""
+        req = self._FakeRequest()
+        req.META["HTTP_X_FORWARDED_FOR"] = "203.0.113.5, 10.0.0.9"
+        guard = LoginAttemptGuard(req)
+
+        req2 = self._FakeRequest()
+        req2.META["HTTP_X_FORWARDED_FOR"] = "203.0.113.5, 10.0.0.10"
+        guard2 = LoginAttemptGuard(req2)
+
+        for _ in range(LoginAttemptGuard.MAX_ATTEMPTS):
+            guard.record_failure()
+
         assert guard.lockout_remaining() > 0
         assert guard2.lockout_remaining() == 0
-        # cleanup
-        _clear_lockout_for_ip("203.0.113.5")
+        _clear_lockout_for_ip("10.0.0.9")
+        _clear_lockout_for_ip("10.0.0.10")
 
 
 # ---------------------------------------------------------------------------
