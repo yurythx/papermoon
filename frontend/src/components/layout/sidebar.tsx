@@ -278,6 +278,28 @@ export function Sidebar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // Sem isso, o drawer mobile abre por cima da página mas o body por trás
+  // continua rolando (scroll/momentum em iOS) — mesma classe de bug do menu
+  // "Serviços" do marketing/nav.tsx, só que pelo lado do body em vez do
+  // próprio menu. Todo outro overlay do app (Dialog, service-lightbox) já
+  // trava o body enquanto aberto; o drawer nunca tinha esse cuidado.
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeMobile();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileOpen, closeMobile]);
+
   const isAdmin = me?.user?.is_staff === true;
   const isBackoffice = pathname.startsWith("/backoffice");
 

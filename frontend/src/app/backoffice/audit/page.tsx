@@ -36,7 +36,7 @@ export default function BackofficeAuditPage() {
     <div className="space-y-6">
       <PageHeader title="Audit Log" description="Trilha de auditoria de todas as ações na plataforma" />
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center flex-wrap">
         <label className="sr-only" htmlFor="audit-resource-type">Filtrar por tipo de recurso</label>
         <select
           id="audit-resource-type"

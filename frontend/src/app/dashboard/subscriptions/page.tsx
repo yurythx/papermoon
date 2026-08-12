@@ -56,7 +56,7 @@ export default function SubscriptionsPage() {
                 <Skeleton className="h-4 w-1/3" />
                 <Skeleton className="h-5 w-16" />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[1, 2, 3].map((j) => <Skeleton key={j} className="h-3 w-full" />)}
               </div>
             </div>
@@ -160,7 +160,7 @@ function SubscriptionCard({ subscription: sub }: { subscription: Subscription })
       </div>
 
       {/* Details grid */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-xs text-text-tertiary mb-1">Ciclo</p>
           <p className="text-sm text-text-secondary">

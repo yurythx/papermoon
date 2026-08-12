@@ -109,6 +109,7 @@ function ServiceAccessRow({ sa, onReprovision, onEdit, reprovisioning }: {
         <Button
           variant="ghost"
           size="xs"
+          className="p-2.5 -m-1"
           onClick={() => onEdit(sa)}
           title="Editar ID externo"
         >

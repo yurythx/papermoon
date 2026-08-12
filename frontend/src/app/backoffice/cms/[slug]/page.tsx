@@ -447,7 +447,7 @@ function CmsEditor({ slug, initial }: { slug: string; initial: CmsPageAdmin }) {
                   onClick={() => galleryDeleteMutation.mutate(img.id)}
                   disabled={galleryDeleteMutation.isPending}
                   aria-label="Remover imagem da galeria"
-                  className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-danger/80"
+                  className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-danger/80"
                 >
                   <X size={12} />
                 </button>

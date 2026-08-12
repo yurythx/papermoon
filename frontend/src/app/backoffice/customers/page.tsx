@@ -243,7 +243,7 @@ export default function BackofficeCustomersPage() {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center flex-wrap">
         <label className="sr-only" htmlFor="customers-search">Buscar por razão social ou CNPJ</label>
         <Input
           id="customers-search"
@@ -270,7 +270,7 @@ export default function BackofficeCustomersPage() {
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-brand-accent/10 border border-brand-accent/30 rounded-xl text-sm">
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-2 px-4 py-3 bg-brand-accent/10 border border-brand-accent/30 rounded-xl text-sm">
           <span className="font-medium text-text-primary mr-1">
             {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
           </span>
