@@ -372,8 +372,10 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      {/* Header — empilha em telas estreitas: com os 4 botões de ação (Ver
+          post/Excluir/Publicar/Salvar) + o bloco de título/badge/slug, uma
+          única linha "justify-between" sem quebra colidia tudo no mobile. */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/backoffice/blog"
@@ -391,10 +393,10 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
               <h1 className="text-lg font-bold text-text-primary truncate">{title || "Sem título"}</h1>
               <StatusBadge status={status} />
             </div>
-            <p className="text-xs text-text-tertiary font-mono">{slug}</p>
+            <p className="text-xs text-text-tertiary font-mono truncate">{slug}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap lg:shrink-0">
           {isPublished && (
             <a
               href={`/blog/${slug}`}

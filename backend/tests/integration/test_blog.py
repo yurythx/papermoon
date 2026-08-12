@@ -246,6 +246,28 @@ class TestBlogBodyImageUpload:
         assert resp.status_code == 403
 
 
+class TestBlogPublicThrottling:
+    """fetchBlogPosts/fetchBlogPost (frontend/src/lib/blog.ts) chamam o Django
+    a partir do servidor Next.js — todos os visitantes do site compartilham
+    esse único IP de origem do ponto de vista do Django. O throttle 'anon'
+    padrão (200/dia) é por IP, então vira um limite pro blog inteiro, não por
+    visitante: bug real observado em produção (mesma causa já corrigida uma
+    vez em SSOStatusRateThrottle). Views públicas de conteúdo (não
+    sensíveis a abuso, ao contrário de login/password-reset) usam
+    throttle_classes = [] — mesmo padrão de ActiveServiceSlugsView e do CMS
+    público."""
+
+    def test_list_view_has_no_throttle(self):
+        from apps.blog.views_public import BlogPostListView
+
+        assert BlogPostListView.throttle_classes == []
+
+    def test_detail_view_has_no_throttle(self):
+        from apps.blog.views_public import BlogPostDetailView
+
+        assert BlogPostDetailView.throttle_classes == []
+
+
 class TestBlogTags:
     def test_admin_creates_post_with_tags(self, admin_client):
         resp = admin_client.post(

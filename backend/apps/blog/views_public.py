@@ -17,6 +17,16 @@ class BlogPostListView(APIView):
     """GET /api/v1/blog/ — published posts only, paginated, no auth required."""
 
     permission_classes = [AllowAny]
+    # Sem throttle_classes=[] aqui, o 'anon' padrão (200/dia) vira um bug real:
+    # quem chama isso é o Next.js renderizando /blog no servidor (fetchBlogPosts,
+    # lib/blog.ts), não o navegador do visitante — todo mundo que visita o blog
+    # compartilha o mesmo IP de origem do ponto de vista do Django. 200/dia pro
+    # site inteiro estoura em horas, devolve 429, e fetchBlogPosts (que falha
+    # fechado: `if (!res.ok) return EMPTY_PAGE`) mostra "nenhum post publicado"
+    # mesmo com posts publicados. Mesmo bug já corrigido uma vez em
+    # SSOStatusRateThrottle (shared/throttling.py) e em ActiveServiceSlugsView/
+    # CMS público (mesmo padrão de BFF server-to-server).
+    throttle_classes = []
 
     @extend_schema(
         summary="Lista posts publicados do blog",
@@ -50,6 +60,11 @@ class BlogPostDetailView(APIView):
     anyone with the URL read unpublished content."""
 
     permission_classes = [AllowAny]
+    # Mesmo raciocínio de BlogPostListView.throttle_classes — e aqui o risco é
+    # ainda maior: fetchBlogPost usa cache: "no-store" (sem ISR, ver lib/blog.ts),
+    # então CADA visita a uma página de post dispara uma chamada nova, sem a
+    # janela de 60s da listagem suavizando o volume.
+    throttle_classes = []
 
     @extend_schema(
         summary="Detalhe de um post publicado",
