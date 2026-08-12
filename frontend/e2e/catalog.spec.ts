@@ -13,8 +13,10 @@ test.describe("Nossos Serviços (catalog)", () => {
 
   test("lists at least one service card", async ({ page }) => {
     await page.goto("/dashboard/catalog");
+    // Cards usam cardClass() (components/ui/card.tsx) — bg-contrast + rounded-2xl,
+    // sem borda de propósito (redesign "estilo AWS").
     await expect(
-      page.locator("[class*='bg-surface-1'][class*='rounded-xl']").first()
+      page.locator("[class*='bg-surface-1'][class*='rounded-2xl']").first()
     ).toBeVisible({ timeout: 8000 });
   });
 

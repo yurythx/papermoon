@@ -42,6 +42,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (body.type === "blog") {
+    // As duas primeiras linhas hoje são no-op — lib/blog.ts:fetchBlogPost usa
+    // cache: "no-store" (sem ISR, de propósito: ver o comentário lá sobre
+    // notFound() não invalidando corretamente uma rota dinâmica já cacheada).
+    // Mantidas por segurança caso a página volte a cachear no futuro; quem
+    // precisa mesmo desse purge é a listagem, que ainda usa a tag "blog-posts".
     revalidatePath(`/blog/${slug}`);
     revalidateTag(`blog-post-${slug}`);
     revalidatePath("/blog");

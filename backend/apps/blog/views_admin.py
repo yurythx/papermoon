@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -11,7 +15,7 @@ from rest_framework.views import APIView
 
 from apps.blog.models import BlogPost
 from apps.blog.serializers import BlogPostAdminListSerializer, BlogPostAdminSerializer
-from apps.cms.services import InvalidImageUploadError, validate_image_upload
+from apps.cms.services import ImageProcessor, InvalidImageUploadError, validate_image_upload
 from shared.public_urls import build_public_media_url
 from shared.throttling import AdminWriteThrottle
 
@@ -37,7 +41,11 @@ class BlogPostAdminListCreateView(APIView):
         responses={200: BlogPostAdminListSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
-        qs = BlogPost.objects.select_related("author").order_by("-created_at")
+        qs = (
+            BlogPost.objects.select_related("author")
+            .prefetch_related("tags")
+            .order_by("-created_at")
+        )
         status_filter = request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -72,7 +80,7 @@ class BlogPostAdminDetailView(APIView):
 
     def _get_post(self, pk: str) -> BlogPost:
         try:
-            return BlogPost.objects.select_related("author").get(pk=pk)
+            return BlogPost.objects.select_related("author").prefetch_related("tags").get(pk=pk)
         except (BlogPost.DoesNotExist, ValueError):
             raise NotFound("Post não encontrado.") from None
 
@@ -96,7 +104,7 @@ class BlogPostAdminDetailView(APIView):
         serializer.save()
         return Response(
             BlogPostAdminSerializer(
-                BlogPost.objects.select_related("author").get(pk=post.pk),
+                BlogPost.objects.select_related("author").prefetch_related("tags").get(pk=post.pk),
                 context={"request": request},
             ).data
         )
@@ -149,3 +157,43 @@ class BlogPostCoverUploadView(APIView):
         if post.cover_image:
             post.cover_image.delete(save=True)
         return Response({"cover_image_url": None})
+
+
+@extend_schema(tags=["Blog — Admin"])
+class BlogPostBodyImageUploadView(APIView):
+    """POST /api/v1/admin/blog/{id}/body-image/ — upload de imagem pra inserir
+    no corpo em Markdown (`![alt](url)`, botão de imagem da toolbar).
+
+    Sem model próprio (ao contrário da galeria do CMS — ServiceImage, ordenada,
+    com alt/caption estruturados): o Markdown do post já é a única fonte de
+    verdade de onde/quantas vezes cada imagem é usada, então isso aqui é só um
+    arquivo em storage — o front recebe a URL e insere a sintaxe ele mesmo."""
+
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser]
+    throttle_classes = [AdminWriteThrottle]
+
+    def _get_post(self, pk: str) -> BlogPost:
+        try:
+            return BlogPost.objects.get(pk=pk)
+        except (BlogPost.DoesNotExist, ValueError):
+            raise NotFound("Post não encontrado.") from None
+
+    @extend_schema(summary="Faz upload de uma imagem pro corpo de um post")
+    def post(self, request: Request, pk: str) -> Response:
+        post = self._get_post(pk)
+        image_file = request.FILES.get("image")
+        if not image_file:
+            raise ValidationError({"image": "Arquivo de imagem obrigatório."})
+        data = image_file.read()
+        try:
+            validate_image_upload(image_file.content_type, image_file.size, data)
+        except InvalidImageUploadError as exc:
+            raise ValidationError({"image": str(exc)}) from exc
+
+        webp_bytes = ImageProcessor.to_webp(data)
+        path = default_storage.save(
+            f"blog/body/{post.slug}/{uuid4().hex}.webp", ContentFile(webp_bytes)
+        )
+        image_url = build_public_media_url(default_storage.url(path), request)
+        return Response({"image_url": image_url}, status=201)

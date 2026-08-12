@@ -521,6 +521,17 @@ export const adminService = {
   deleteBlogCover: (id: string): Promise<void> =>
     api.delete(`/proxy/admin/blog/${id}/cover/`).then(() => undefined),
 
+  uploadBlogBodyImage: (id: string, file: File): Promise<{ image_url: string }> => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return api
+      .post<{ success: boolean; data: { image_url: string }; error: null }>(
+        `/proxy/admin/blog/${id}/body-image/`,
+        formData
+      )
+      .then(unwrap);
+  },
+
   // SSO (Configurações)
   getSSOConfig: (): Promise<SSOConfig> =>
     api.get<{ success: boolean; data: SSOConfig; error: null }>("/proxy/admin/sso-config/").then(unwrap),

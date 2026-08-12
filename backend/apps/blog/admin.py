@@ -1,18 +1,26 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from apps.blog.models import BlogPost
+from apps.blog.models import BlogPost, Tag
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug"]
+    search_fields = ["name", "slug"]
+    prepopulated_fields = {"slug": ("name",)}
 
 
 @admin.register(BlogPost)
 class BlogPostAdmin(admin.ModelAdmin):
     list_display = ["title", "author", "status", "published_at", "updated_at"]
-    list_filter = ["status"]
+    list_filter = ["status", "tags"]
     search_fields = ["title", "slug", "excerpt", "author__email"]
     readonly_fields = ["id", "created_at", "updated_at", "cover_preview"]
     prepopulated_fields = {"slug": ("title",)}
+    filter_horizontal = ["tags"]
     fieldsets = [
-        ("Conteúdo", {"fields": ["title", "slug", "excerpt", "body", "author"]}),
+        ("Conteúdo", {"fields": ["title", "slug", "excerpt", "body", "author", "tags"]}),
         (
             "Capa",
             {

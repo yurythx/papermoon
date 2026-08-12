@@ -8,9 +8,13 @@ import remarkGfm from "remark-gfm";
 import { ArrowLeft } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { Badge } from "@/components/ui/badge";
 import { fetchBlogPost } from "@/lib/blog";
 
-export const revalidate = 60;
+// fetchBlogPost usa cache: "no-store" (ver comentário em lib/blog.ts) — a rota
+// já é dinâmica na prática, então declara isso explicitamente em vez de um
+// `revalidate = 60` que o Next ignoraria silenciosamente.
+export const dynamic = "force-dynamic";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
 
@@ -142,8 +146,19 @@ export default async function BlogPostPage({
           <header className="mb-8 space-y-4">
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">{post.title}</h1>
             <p className="text-sm text-text-tertiary">
-              {formatDate(post.published_at)} · {post.author_name}
+              {formatDate(post.published_at)} · {post.author_name} · {post.reading_time} min de leitura
             </p>
+            {post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {post.tags.map((t) => (
+                  <Link key={t.slug} href={`/blog?tag=${t.slug}`}>
+                    <Badge variant="muted" pill className="hover:bg-surface-4 transition-colors">
+                      {t.name}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
           </header>
 
           {post.cover_image_url && (

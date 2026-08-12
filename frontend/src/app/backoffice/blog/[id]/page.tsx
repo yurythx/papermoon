@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -9,10 +9,12 @@ import Image from "next/image";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { adminService } from "@/lib/services";
+import { estimateReadingTime } from "@/lib/blog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { StatusBadge } from "@/components/compound/status-badge";
 import { cardClass } from "@/components/ui/card";
 import {
@@ -26,6 +28,10 @@ import {
   Upload,
   X,
   Trash2,
+  Bold,
+  Italic,
+  Link2,
+  List,
 } from "lucide-react";
 import type { BlogPostAdmin, BlogPostAdminPayload } from "@/types";
 
@@ -57,6 +63,11 @@ const MARKDOWN_PREVIEW_COMPONENTS: Components = {
   ),
   strong: ({ children }) => <strong className="font-semibold text-text-primary">{children}</strong>,
   hr: () => <hr className="border-border-subtle my-4" />,
+  img: ({ src, alt }) =>
+    typeof src === "string" ? (
+      // eslint-disable-next-line @next/next/no-img-element -- markdown-authored, dimensões desconhecidas em tempo de build (mesma razão de blog/[slug]/page.tsx)
+      <img src={src} alt={alt ?? ""} className="rounded-md my-3 w-full h-auto" />
+    ) : null,
   table: ({ children }) => (
     <div className="overflow-x-auto mb-3">
       <table className="w-full text-sm border-collapse">{children}</table>
@@ -104,21 +115,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function TextArea({
-  value,
-  onChange,
-  rows = 3,
-  placeholder,
-  mono,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  rows?: number;
-  placeholder?: string;
-  mono?: boolean;
-}) {
+const TextArea = forwardRef<
+  HTMLTextAreaElement,
+  {
+    value: string;
+    onChange: (v: string) => void;
+    rows?: number;
+    placeholder?: string;
+    mono?: boolean;
+  }
+>(function TextArea({ value, onChange, rows = 3, placeholder, mono }, ref) {
   return (
     <textarea
+      ref={ref}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       rows={rows}
@@ -126,7 +135,7 @@ function TextArea({
       className={`w-full rounded-md border border-border-subtle bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-brand-accent resize-none ${mono ? "font-mono text-xs" : ""}`}
     />
   );
-}
+});
 
 /* ── Delete confirmation ─────────────────────────────────────────── */
 
@@ -171,6 +180,11 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
   const qc = useQueryClient();
   const router = useRouter();
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const bodyImageInputRef = useRef<HTMLInputElement>(null);
+  // O input de arquivo rouba o foco do textarea antes do onChange disparar —
+  // sem isso a posição do cursor pra inserir a imagem já teria se perdido.
+  const bodyImageCursorRef = useRef(0);
   const [showPreview, setShowPreview] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -184,6 +198,35 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(initial.cover_image_url);
   const [status, setStatus] = useState(initial.status);
   const [publishedAt, setPublishedAt] = useState(initial.published_at);
+  const initialTagsInput = initial.tags.map((t) => t.name).join(", ");
+  const [tagsInput, setTagsInput] = useState(initialTagsInput);
+
+  // Derivado por comparação com `initial` em vez de um setDirty(true) espalhado
+  // em cada onChange — se corrige sozinho depois de salvar, já que o save
+  // atualiza `initial` (via qc.setQueryData) e os campos locais já batem com
+  // o que acabou de ser salvo.
+  const isDirty =
+    title !== initial.title ||
+    slug !== initial.slug ||
+    excerpt !== initial.excerpt ||
+    body !== initial.body ||
+    coverAlt !== initial.cover_image_alt ||
+    metaTitle !== initial.meta_title ||
+    metaDesc !== initial.meta_description ||
+    tagsInput !== initialTagsInput;
+
+  // Cobre fechar a aba, atualizar a página ou digitar outra URL — navegação
+  // dentro do app (o link "← Blog") é interceptada separadamente, já que
+  // beforeunload não dispara para isso.
+  useEffect(() => {
+    if (!isDirty) return;
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   const mutation = useMutation({
     mutationFn: (payload: BlogPostAdminPayload) => adminService.updateBlogPost(id, payload),
@@ -192,6 +235,11 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
       qc.setQueryData(["admin-blog-post", id], data);
       setStatus(data.status);
       setPublishedAt(data.published_at);
+      // O back normaliza (trim, ordena por nome, dedup por slug) — sem
+      // ressincronizar aqui, isDirty ficaria preso em "true" depois de um
+      // save bem-sucedido sempre que a formatação digitada não bater 1:1
+      // com o que o servidor devolveu (ordem alfabética, espaços, etc.).
+      setTagsInput(data.tags.map((t) => t.name).join(", "));
       toast.success("Post salvo! ISR revalidando em segundos.");
     },
     onError: () => toast.error("Erro ao salvar o post."),
@@ -203,6 +251,24 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
       setCoverImageUrl(data.cover_image_url);
       qc.invalidateQueries({ queryKey: ["admin-blog-posts"] });
       toast.success("Capa atualizada!");
+    },
+    onError: () => toast.error("Erro ao enviar imagem."),
+  });
+
+  const bodyImageUploadMutation = useMutation({
+    mutationFn: (file: File) => adminService.uploadBlogBodyImage(id, file),
+    onSuccess: (data) => {
+      const pos = bodyImageCursorRef.current;
+      const markdown = `![](${data.image_url})`;
+      setBody((current) => current.slice(0, pos) + markdown + current.slice(pos));
+      toast.success("Imagem inserida — preencha o alt entre os colchetes.");
+      requestAnimationFrame(() => {
+        const el = bodyTextareaRef.current;
+        if (!el) return;
+        el.focus();
+        // Seleciona o "alt" vazio entre `![` e `]` pra digitar na hora.
+        el.setSelectionRange(pos + 2, pos + 2);
+      });
     },
     onError: () => toast.error("Erro ao enviar imagem."),
   });
@@ -240,13 +306,69 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
         cover_image_alt: coverAlt,
         meta_title: metaTitle,
         meta_description: metaDesc,
+        tag_names: tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         ...(nextStatus ? { status: nextStatus } : {}),
       });
     },
-    [title, slug, excerpt, body, coverAlt, metaTitle, metaDesc, mutation]
+    [title, slug, excerpt, body, coverAlt, metaTitle, metaDesc, tagsInput, mutation]
   );
 
   const isPublished = status === "published";
+
+  // Toolbar do Markdown — insere sintaxe na posição do cursor/seleção do
+  // textarea. requestAnimationFrame porque o valor do DOM só reflete o
+  // novo `body` depois do próximo render (setBody é assíncrono).
+  const wrapSelection = useCallback(
+    (before: string, after: string, placeholder: string) => {
+      const el = bodyTextareaRef.current;
+      if (!el) return;
+      const { selectionStart: start, selectionEnd: end } = el;
+      const selected = body.slice(start, end) || placeholder;
+      setBody(body.slice(0, start) + before + selected + after + body.slice(end));
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(start + before.length, start + before.length + selected.length);
+      });
+    },
+    [body]
+  );
+
+  const insertLink = useCallback(() => {
+    const el = bodyTextareaRef.current;
+    if (!el) return;
+    const { selectionStart: start, selectionEnd: end } = el;
+    const selected = body.slice(start, end);
+    const label = selected || "texto do link";
+    setBody(`${body.slice(0, start)}[${label}](url)${body.slice(end)}`);
+    requestAnimationFrame(() => {
+      el.focus();
+      if (selected) {
+        const urlStart = start + label.length + 3; // depois de "[label]("
+        el.setSelectionRange(urlStart, urlStart + 3);
+      } else {
+        el.setSelectionRange(start + 1, start + 1 + label.length);
+      }
+    });
+  }, [body]);
+
+  const applyListPrefix = useCallback(() => {
+    const el = bodyTextareaRef.current;
+    if (!el) return;
+    const { selectionStart: start, selectionEnd: end } = el;
+    const selected = body.slice(start, end) || "item da lista";
+    const prefixed = selected
+      .split("\n")
+      .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
+      .join("\n");
+    setBody(body.slice(0, start) + prefixed + body.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start, start + prefixed.length);
+    });
+  }, [body]);
 
   return (
     <div className="space-y-4">
@@ -255,6 +377,11 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/backoffice/blog"
+            onClick={(e) => {
+              if (isDirty && !window.confirm("Há mudanças não salvas. Sair mesmo assim?")) {
+                e.preventDefault();
+              }
+            }}
             className="shrink-0 text-text-tertiary hover:text-text-primary transition-colors"
           >
             <ArrowLeft size={18} />
@@ -320,6 +447,13 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
         </Field>
         <Field label="Resumo (aparece no card da listagem e como descrição pra buscadores)">
           <TextArea value={excerpt} onChange={setExcerpt} rows={3} placeholder="Resumo curto do post..." />
+        </Field>
+        <Field label="Tags (separadas por vírgula — cria automaticamente as que não existirem)">
+          <Input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="Zabbix, Monitoramento, Tutorial"
+          />
         </Field>
 
         {/* Cover image upload */}
@@ -387,7 +521,10 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
 
       {/* Corpo em Markdown */}
       <Section title="Corpo do post (Markdown)">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-text-tertiary">
+            {body.trim() ? `${estimateReadingTime(body)} min de leitura estimados` : "Vazio"}
+          </p>
           <Button type="button" variant="ghost" size="xs" onClick={() => setShowPreview((v) => !v)}>
             {showPreview ? "Editar" : "Pré-visualizar"}
           </Button>
@@ -399,7 +536,54 @@ function BlogEditor({ id, initial }: { id: string; initial: BlogPostAdmin }) {
             </ReactMarkdown>
           </div>
         ) : (
-          <TextArea value={body} onChange={setBody} rows={18} mono placeholder="# Título&#10;&#10;Escreva o post em Markdown..." />
+          <>
+            <div className="flex items-center gap-1 rounded-md bg-surface-2 p-1 w-fit">
+              <Button type="button" variant="ghost" size="xs" title="Negrito" onClick={() => wrapSelection("**", "**", "texto em negrito")}>
+                <Bold size={13} />
+              </Button>
+              <Button type="button" variant="ghost" size="xs" title="Itálico" onClick={() => wrapSelection("_", "_", "texto em itálico")}>
+                <Italic size={13} />
+              </Button>
+              <Button type="button" variant="ghost" size="xs" title="Link" onClick={insertLink}>
+                <Link2 size={13} />
+              </Button>
+              <Button type="button" variant="ghost" size="xs" title="Lista" onClick={applyListPrefix}>
+                <List size={13} />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                title="Imagem"
+                disabled={bodyImageUploadMutation.isPending}
+                onClick={() => {
+                  bodyImageCursorRef.current = bodyTextareaRef.current?.selectionStart ?? body.length;
+                  bodyImageInputRef.current?.click();
+                }}
+              >
+                {bodyImageUploadMutation.isPending ? <Spinner size="xs" /> : <ImageIcon size={13} />}
+              </Button>
+              <input
+                ref={bodyImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) bodyImageUploadMutation.mutate(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <TextArea
+              ref={bodyTextareaRef}
+              value={body}
+              onChange={setBody}
+              rows={18}
+              mono
+              placeholder="# Título&#10;&#10;Escreva o post em Markdown..."
+            />
+          </>
         )}
       </Section>
 

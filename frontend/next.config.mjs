@@ -35,7 +35,7 @@ const nextConfig = {
               `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://www.chatwoot.com https://n8niostorageaccount.blob.core.windows.net",
+              "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://*.papermoon.com.br https://www.chatwoot.com https://n8niostorageaccount.blob.core.windows.net",
               "connect-src 'self' https://*.sentry.io",
               "frame-ancestors 'none'",
               "base-uri 'self'",

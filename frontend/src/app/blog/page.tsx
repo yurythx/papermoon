@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Newspaper } from "lucide-react";
+import { ArrowLeft, Newspaper, Rss, X } from "lucide-react";
 import { LandingNav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
 import { cardClass } from "@/components/ui/card";
 import { ArrowLink } from "@/components/compound/arrow-link";
+import { Badge } from "@/components/ui/badge";
 import { fetchBlogPosts } from "@/lib/blog";
 
 export const revalidate = 60;
@@ -26,7 +27,10 @@ export const metadata: Metadata = {
   title: "Blog — PaperMoon",
   description:
     "Melhores práticas, implementações e novidades sobre os serviços de TI gerenciados pela PaperMoon.",
-  alternates: { canonical: `${SITE_URL}/blog` },
+  alternates: {
+    canonical: `${SITE_URL}/blog`,
+    types: { "application/rss+xml": `${SITE_URL}/blog/rss.xml` },
+  },
   openGraph: {
     title: "Blog — PaperMoon",
     description: "Melhores práticas, implementações e novidades sobre os serviços da PaperMoon.",
@@ -49,12 +53,13 @@ function formatDate(iso: string | null): string {
 export default async function BlogIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; tag?: string }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, tag } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { results: posts, count } = await fetchBlogPosts(page);
+  const { results: posts, count } = await fetchBlogPosts(page, tag);
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const pageHref = (n: number) => (tag ? `/blog?page=${n}&tag=${tag}` : `/blog?page=${n}`);
 
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
@@ -72,14 +77,33 @@ export default async function BlogIndexPage({
             Voltar para o início
           </Link>
 
-          <p className="text-xs font-semibold text-brand-accent uppercase tracking-widest mb-3">
-            Conteúdo
-          </p>
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+            <p className="text-xs font-semibold text-brand-accent uppercase tracking-widest">
+              Conteúdo
+            </p>
+            <a
+              href="/blog/rss.xml"
+              className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
+            >
+              <Rss size={12} />
+              RSS
+            </a>
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">Blog</h1>
           <p className="text-text-secondary max-w-xl text-sm leading-relaxed">
             Melhores práticas, implementações e novidades sobre os serviços que a PaperMoon
             instala, configura e mantém para você.
           </p>
+
+          {tag && (
+            <Link
+              href="/blog"
+              className="inline-flex items-center gap-1.5 mt-5 px-3 py-1 rounded-full bg-surface-2 text-xs text-text-secondary hover:bg-surface-3 transition-colors"
+            >
+              Filtrando por <span className="font-semibold text-text-primary">{tag}</span>
+              <X size={11} />
+            </Link>
+          )}
         </div>
       </section>
 
@@ -88,7 +112,9 @@ export default async function BlogIndexPage({
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
             <Newspaper size={28} className="text-text-tertiary" />
-            <p className="text-sm text-text-secondary">Ainda não publicamos nenhum post.</p>
+            <p className="text-sm text-text-secondary">
+              {tag ? "Nenhum post com essa tag ainda." : "Ainda não publicamos nenhum post."}
+            </p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -113,8 +139,17 @@ export default async function BlogIndexPage({
                 </div>
                 <div className="flex-1 flex flex-col gap-2 p-5">
                   <p className="text-[11px] text-text-tertiary">
-                    {formatDate(post.published_at)} · {post.author_name}
+                    {formatDate(post.published_at)} · {post.author_name} · {post.reading_time} min
                   </p>
+                  {post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {post.tags.slice(0, 3).map((t) => (
+                        <Badge key={t.slug} variant="muted" pill>
+                          {t.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <h2 className="text-sm font-bold text-text-primary line-clamp-2 group-hover:text-brand-accent transition-colors">
                     {post.title}
                   </h2>
@@ -133,7 +168,7 @@ export default async function BlogIndexPage({
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-4 mt-12">
             <Link
-              href={page > 1 ? `/blog?page=${page - 1}` : "#"}
+              href={page > 1 ? pageHref(page - 1) : "#"}
               aria-disabled={page <= 1}
               className={`text-xs font-semibold ${page <= 1 ? "text-text-tertiary pointer-events-none opacity-40" : "text-text-secondary hover:text-text-primary"}`}
             >
@@ -143,7 +178,7 @@ export default async function BlogIndexPage({
               Página {page} de {totalPages}
             </span>
             <Link
-              href={page < totalPages ? `/blog?page=${page + 1}` : "#"}
+              href={page < totalPages ? pageHref(page + 1) : "#"}
               aria-disabled={page >= totalPages}
               className={`text-xs font-semibold ${page >= totalPages ? "text-text-tertiary pointer-events-none opacity-40" : "text-text-secondary hover:text-text-primary"}`}
             >

@@ -1,8 +1,20 @@
 """Integration tests for the Blog API endpoints (public + admin)."""
 
+import io
+from unittest.mock import patch
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+from PIL import Image as PILImage
 
 from apps.blog.models import BlogPost
+
+
+def _make_image_upload(name: str = "photo.png", fmt: str = "PNG") -> SimpleUploadedFile:
+    buf = io.BytesIO()
+    PILImage.new("RGB", (40, 30), color=(100, 150, 200)).save(buf, format=fmt)
+    content_type = "image/png" if fmt == "PNG" else "image/jpeg"
+    return SimpleUploadedFile(name, buf.getvalue(), content_type=content_type)
 
 
 def _make_post(author, status=BlogPost.Status.DRAFT, slug="post-1", **overrides):
@@ -41,6 +53,21 @@ class TestBlogPublicList:
         _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="publicado")
         resp = api_client.get("/api/v1/blog/")
         assert "body" not in resp.json()["data"]["results"][0]
+
+    def test_reading_time_is_computed_from_body_word_count(self, api_client, admin_user):
+        # 400 palavras / 200 wpm = 2 min — sem precisar expor o body em si na listagem.
+        _make_post(
+            admin_user,
+            status=BlogPost.Status.PUBLISHED,
+            slug="longo",
+            body=" ".join(["palavra"] * 400),
+        )
+        _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="curto", body="Só isso.")
+
+        resp = api_client.get("/api/v1/blog/")
+        by_slug = {row["slug"]: row["reading_time"] for row in resp.json()["data"]["results"]}
+        assert by_slug["longo"] == 2
+        assert by_slug["curto"] == 1  # mínimo de 1 minuto mesmo pra posts curtíssimos
 
 
 class TestBlogPublicDetail:
@@ -168,3 +195,148 @@ class TestBlogAdminDetail:
         assert resp.status_code == 200
         post.refresh_from_db()
         assert post.author_id == admin_user.id
+
+
+class TestBlogBodyImageUpload:
+    def test_admin_uploads_body_image(self, admin_client, admin_user):
+        post = _make_post(admin_user, slug="post-com-imagem")
+        resp = admin_client.post(
+            f"/api/v1/admin/blog/{post.id}/body-image/",
+            {"image": _make_image_upload()},
+            format="multipart",
+        )
+        assert resp.status_code == 201
+        image_url = resp.json()["data"]["image_url"]
+        assert image_url
+        assert post.slug in image_url
+        assert image_url.endswith(".webp")  # convertida, igual à capa
+
+    def test_missing_file_returns_400(self, admin_client, admin_user):
+        post = _make_post(admin_user, slug="sem-arquivo")
+        resp = admin_client.post(
+            f"/api/v1/admin/blog/{post.id}/body-image/", {}, format="multipart"
+        )
+        assert resp.status_code == 400
+
+    def test_non_image_file_rejected(self, admin_client, admin_user):
+        post = _make_post(admin_user, slug="arquivo-invalido")
+        bogus = SimpleUploadedFile(
+            "not-an-image.png", b"isso nao e uma imagem", content_type="image/png"
+        )
+        resp = admin_client.post(
+            f"/api/v1/admin/blog/{post.id}/body-image/", {"image": bogus}, format="multipart"
+        )
+        assert resp.status_code == 400
+
+    def test_unknown_post_returns_404(self, admin_client):
+        resp = admin_client.post(
+            "/api/v1/admin/blog/00000000-0000-0000-0000-000000000000/body-image/",
+            {"image": _make_image_upload()},
+            format="multipart",
+        )
+        assert resp.status_code == 404
+
+    def test_non_admin_cannot_upload(self, customer_client, admin_user):
+        post = _make_post(admin_user, slug="sem-permissao")
+        resp = customer_client.post(
+            f"/api/v1/admin/blog/{post.id}/body-image/",
+            {"image": _make_image_upload()},
+            format="multipart",
+        )
+        assert resp.status_code == 403
+
+
+class TestBlogTags:
+    def test_admin_creates_post_with_tags(self, admin_client):
+        resp = admin_client.post(
+            "/api/v1/admin/blog/",
+            {
+                "title": "Post com tags",
+                "slug": "post-com-tags",
+                "excerpt": "x",
+                "body": "",
+                "tag_names": ["Zabbix", "Monitoramento"],
+            },
+            format="json",
+        )
+        assert resp.status_code == 201
+        names = {t["name"] for t in resp.json()["data"]["tags"]}
+        assert names == {"Zabbix", "Monitoramento"}
+
+    def test_admin_updates_tags_reuses_existing_tag_by_slug(self, admin_client, admin_user):
+        post = _make_post(admin_user, slug="post-tag-update")
+        first = admin_client.patch(
+            f"/api/v1/admin/blog/{post.id}/", {"tag_names": ["Backup"]}, format="json"
+        )
+        assert first.status_code == 200
+        from apps.blog.models import Tag
+
+        assert Tag.objects.filter(slug="backup").count() == 1
+
+        # "backup" de novo (case diferente) não deve criar uma segunda tag
+        second_post = _make_post(admin_user, slug="post-tag-update-2")
+        second = admin_client.patch(
+            f"/api/v1/admin/blog/{second_post.id}/", {"tag_names": ["backup"]}, format="json"
+        )
+        assert second.status_code == 200
+        assert Tag.objects.filter(slug="backup").count() == 1
+
+    def test_admin_clears_tags_with_empty_list(self, admin_client, admin_user):
+        post = _make_post(admin_user, slug="post-tag-clear")
+        admin_client.patch(f"/api/v1/admin/blog/{post.id}/", {"tag_names": ["x"]}, format="json")
+        resp = admin_client.patch(
+            f"/api/v1/admin/blog/{post.id}/", {"tag_names": []}, format="json"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["tags"] == []
+
+    def test_public_list_includes_tags(self, api_client, admin_user):
+        post = _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="publicado-com-tag")
+        from apps.blog.models import Tag
+
+        tag = Tag.objects.create(name="GLPI", slug="glpi")
+        post.tags.add(tag)
+
+        resp = api_client.get("/api/v1/blog/")
+        row = resp.json()["data"]["results"][0]
+        assert row["tags"] == [{"name": "GLPI", "slug": "glpi"}]
+
+    def test_public_list_filters_by_tag_slug(self, api_client, admin_user):
+        from apps.blog.models import Tag
+
+        glpi = Tag.objects.create(name="GLPI", slug="glpi")
+        zabbix = Tag.objects.create(name="Zabbix", slug="zabbix")
+        post_glpi = _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="sobre-glpi")
+        post_glpi.tags.add(glpi)
+        post_zabbix = _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="sobre-zabbix")
+        post_zabbix.tags.add(zabbix)
+
+        resp = api_client.get("/api/v1/blog/?tag=glpi")
+        results = resp.json()["data"]["results"]
+        assert len(results) == 1
+        assert results[0]["slug"] == "sobre-glpi"
+
+    def test_unknown_tag_slug_returns_empty_list(self, api_client, admin_user):
+        _make_post(admin_user, status=BlogPost.Status.PUBLISHED, slug="publicado")
+        resp = api_client.get("/api/v1/blog/?tag=nao-existe")
+        assert resp.json()["data"]["results"] == []
+
+
+class TestBlogRevalidationSignals:
+    """Sem isso, despublicar ou excluir um post publicado deixa a URL antiga
+    no ar: fetchBlogPost no frontend não tem ISR (cache: "no-store", ver
+    lib/blog.ts) especificamente porque revalidateTag/revalidatePath não
+    invalidam de forma confiável uma rota que passa a chamar notFound() — a
+    garantia real de que o Next é avisado da mudança é essa task disparada
+    pelo signal, tanto no save quanto no delete."""
+
+    def test_save_triggers_revalidation_task(self, admin_user, db):
+        with patch("apps.blog.tasks.revalidate_blog_post.delay") as mock_delay:
+            post = _make_post(admin_user, slug="dispara-no-save")
+        mock_delay.assert_called_once_with(post.slug)
+
+    def test_delete_triggers_revalidation_task(self, admin_user, db):
+        post = _make_post(admin_user, slug="dispara-no-delete")
+        with patch("apps.blog.tasks.revalidate_blog_post.delay") as mock_delay:
+            post.delete()
+        mock_delay.assert_called_once_with("dispara-no-delete")

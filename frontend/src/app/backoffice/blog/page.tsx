@@ -10,6 +10,7 @@ import { adminService } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/compound/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
 import { ErrorState } from "@/components/compound/error-state";
@@ -102,6 +103,7 @@ export default function BackofficeBlogPage() {
                 <tr className="border-b border-border-subtle">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Título</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Autor</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Tags</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Publicado em</th>
                 </tr>
@@ -119,6 +121,22 @@ export default function BackofficeBlogPage() {
                       <p className="text-xs text-text-tertiary font-mono mt-0.5">{post.slug}</p>
                     </td>
                     <td className="px-5 py-3 text-text-secondary">{post.author_name}</td>
+                    <td className="px-5 py-3">
+                      {post.tags.length === 0 ? (
+                        <span className="text-text-tertiary">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {post.tags.slice(0, 2).map((t) => (
+                            <Badge key={t.slug} variant="muted" pill>
+                              {t.name}
+                            </Badge>
+                          ))}
+                          {post.tags.length > 2 && (
+                            <span className="text-xs text-text-tertiary">+{post.tags.length - 2}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-3"><StatusBadge status={post.status} /></td>
                     <td className="px-5 py-3 text-text-secondary">
                       {post.published_at ? new Date(post.published_at).toLocaleDateString("pt-BR") : "—"}

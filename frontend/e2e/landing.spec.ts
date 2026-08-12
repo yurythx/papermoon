@@ -62,7 +62,10 @@ test.describe("Landing page", () => {
     const footer = page.locator("footer");
     await footer.scrollIntoViewIfNeeded();
     await expect(footer.getByRole("link", { name: /sobre/i })).toBeVisible();
-    await expect(footer.getByRole("link", { name: /termos/i })).toBeVisible();
+    // A variante "full" tem dois links pro mesmo /termos: "Termos" (nav) e
+    // "Termos de uso" (barra legal inferior) — ambos legítimos, então usa
+    // .first() em vez de um regex frouxo que bate nos dois.
+    await expect(footer.getByRole("link", { name: /termos/i }).first()).toBeVisible();
   });
 
   test("hero CTA Entrar navigates to login", async ({ page }) => {

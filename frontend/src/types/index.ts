@@ -515,6 +515,11 @@ export type CmsPageAdminPayload = Omit<CmsPageAdmin, "product_id" | "slug" | "pr
 // Blog
 export type BlogPostStatus = "draft" | "published";
 
+export interface BlogTag {
+  name: string;
+  slug: string;
+}
+
 export interface BlogPostListItem {
   slug: string;
   title: string;
@@ -523,6 +528,8 @@ export interface BlogPostListItem {
   cover_image_alt: string;
   author_name: string;
   published_at: string | null;
+  reading_time: number;
+  tags: BlogTag[];
 }
 
 export interface BlogPostDetail extends BlogPostListItem {
@@ -545,6 +552,7 @@ export interface BlogPostAdmin {
   published_at: string | null;
   meta_title: string;
   meta_description: string;
+  tags: BlogTag[];
   created_at: string;
   updated_at: string;
 }
@@ -557,6 +565,7 @@ export interface BlogPostAdminListItem {
   author_name: string;
   published_at: string | null;
   updated_at: string;
+  tags: BlogTag[];
 }
 
 export type BlogPostAdminPayload = Partial<
@@ -564,4 +573,7 @@ export type BlogPostAdminPayload = Partial<
     BlogPostAdmin,
     "title" | "slug" | "excerpt" | "body" | "cover_image_alt" | "status" | "meta_title" | "meta_description"
   >
->;
+> & {
+  /** Nomes de tags — cria automaticamente as que não existirem ainda (ver apps/blog/serializers.py). */
+  tag_names?: string[];
+};

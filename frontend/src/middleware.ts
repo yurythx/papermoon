@@ -38,7 +38,13 @@ export async function middleware(req: NextRequest) {
     `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob:",
+    // Capa (next/image, via /_next/image, mesma origem) não precisa disso —
+    // mas imagens inseridas no corpo do post em Markdown renderizam como
+    // <img> puro (dimensões arbitrárias, decididas pelo autor, não dá pra
+    // usar next/image sem conhecer width/height author-by-author) e por
+    // isso pedem a origem do Django direto. Mesmos hosts do
+    // images.remotePatterns em next.config.mjs.
+    "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://*.papermoon.com.br",
     "connect-src 'self' https://*.sentry.io",
     "frame-ancestors 'none'",
     "base-uri 'self'",

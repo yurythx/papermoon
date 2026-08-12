@@ -636,7 +636,7 @@ Dispara revalidação ISR do Next.js via Celery para um serviço específico.
 ## Blog (Público)
 
 ### `GET /blog/`
-Lista posts com `status=published`, paginado (`PageNumberPagination`, `PAGE_SIZE=20`), ordenado por `-published_at`.
+Lista posts com `status=published`, paginado (`PageNumberPagination`, `PAGE_SIZE=20`), ordenado por `-published_at`. Filtro opcional `?tag=<slug>`.
 
 **Response:**
 ```json
@@ -652,16 +652,22 @@ Lista posts com `status=published`, paginado (`PageNumberPagination`, `PAGE_SIZE
       "cover_image_url": "https://app.papermoon.com.br/media/blog/covers/....webp",
       "cover_image_alt": "Tela de configuração do Keycloak",
       "author_name": "Ana Silva",
-      "published_at": "2026-06-21T12:00:00Z"
+      "published_at": "2026-06-21T12:00:00Z",
+      "reading_time": 4,
+      "tags": [{ "name": "Keycloak", "slug": "keycloak" }, { "name": "SSO", "slug": "sso" }]
     }
   ]
 }
 ```
 
+`reading_time` é estimado no backend por contagem de palavras do `body` (200 palavras/min) — presente em `/blog/` e `/blog/<slug>/` mesmo sem expor o `body` na listagem.
+
 ### `GET /blog/<slug>/`
 Retorna o post completo (corpo em Markdown + SEO). Um `slug` de rascunho (`status=draft`) responde `404` — nunca vaza conteúdo não publicado, mesmo pra quem tem a URL exata.
 
 **Response:** objeto acima + `body` (Markdown), `meta_title`, `meta_description`.
+
+> **Nota de cache (frontend):** `fetchBlogPost` (`frontend/src/lib/blog.ts`) usa `cache: "no-store"`, sem ISR — o Next.js App Router não invalida de forma confiável o Full Route Cache quando essa rota passa de um render bem-sucedido pra `notFound()` (post despublicado/excluído), nem via `revalidateTag`/`revalidatePath` explícitos nem pela janela passiva de `revalidate`. Confirmado ao vivo contra o build standalone real. `fetchBlogPosts` (listagem) não tem esse problema e mantém `revalidate: 60` + tag `blog-posts`.
 
 ## Blog (Admin)
 
@@ -670,7 +676,7 @@ Retorna o post completo (corpo em Markdown + SEO). Um `slug` de rascunho (`statu
 ### `GET /admin/blog/`
 Lista todos os posts (rascunho e publicado), paginado. Filtro opcional `?status=draft|published`.
 
-**Response:** lista leve — `id`, `title`, `slug`, `status`, `author_name`, `published_at`, `updated_at`.
+**Response:** lista leve — `id`, `title`, `slug`, `status`, `author_name`, `published_at`, `updated_at`, `tags`.
 
 ### `POST /admin/blog/`
 Cria um post como `draft`. `author` é sempre o usuário autenticado — não é um campo aceito no body.
@@ -683,14 +689,19 @@ Retorna o post completo pra edição.
 ### `PATCH /admin/blog/<id>/`
 Atualiza qualquer subconjunto de campos, incluindo `status`. Ao transicionar `draft` → `published` pela primeira vez, `published_at` é preenchido automaticamente e nunca mais sobrescrito por publicações subsequentes (republicar não reseta a data original).
 
+**Body opcional:** `tag_names: string[]` — lista de nomes de tags; get-or-create por slug (`django.utils.text.slugify`), então `"Backup"` e `"backup"` resolvem pra mesma tag. Enviar `[]` remove todas as tags do post. Omitir o campo não mexe nas tags atuais.
+
 ### `DELETE /admin/blog/<id>/`
-Remove o post permanentemente (capa incluída).
+Remove o post permanentemente (capa incluída). Dispara a mesma revalidação ISR do save (`apps/blog/signals.py`, `post_delete`) — sem isso, excluir um post publicado não avisava o Next pra purgar `/blog/<slug>`.
 
 ### `POST /admin/blog/<id>/cover/`
 Upload da imagem de capa (`multipart/form-data`, campo `cover_image`). Convertida para WebP automaticamente (mesmo pipeline do CMS — `apps.cms.services.ImageProcessor`).
 
 ### `DELETE /admin/blog/<id>/cover/`
 Remove a imagem de capa do post.
+
+### `POST /admin/blog/<id>/body-image/`
+Upload de uma imagem pra inserir no corpo em Markdown (`multipart/form-data`, campo `image`; botão de imagem da toolbar do editor). Convertida para WebP, sem model próprio — o Markdown do post já é a fonte de verdade de onde cada imagem é usada. Resposta: `{ "image_url": "https://..." }`.
 
 ---
 

@@ -12,13 +12,31 @@ def _blog_cover_upload_path(instance: BlogPost, filename: str) -> str:
     return f"blog/covers/{instance.slug}{ext}"
 
 
+class Tag(models.Model):
+    """Free-form label a post can carry — added once the blog was expected to
+    scale to ~200+ posts (browsing/filtering that many by hand doesn't work).
+    Still deliberately simple: no hierarchy, no per-tag description/SEO page,
+    just a name+slug pair get-or-created from whatever the editor types in
+    BlogPostAdminSerializer.tag_names."""
+
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=60, unique=True)
+
+    class Meta:
+        db_table = "blog_tags"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class BlogPost(models.Model):
     """A blog post authored by staff — best practices, implementation notes,
     news about the services PaperMoon offers. Public once status=PUBLISHED.
 
-    Deliberately no categories/tags/comments in this first version — see
-    docs/backend/blog.md for the rationale (content-ops risk > engineering
-    risk; ship the smallest useful thing first)."""
+    Categorias/tags chegaram só quando o volume de posts (~200+) justificou —
+    ver Tag acima. Ainda sem comentários: esse risco de moderação/content-ops
+    continua não valendo a pena pro tamanho do time."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Rascunho"
@@ -42,6 +60,7 @@ class BlogPost(models.Model):
         help_text="Convertida para WebP automaticamente.",
     )
     cover_image_alt = models.CharField(max_length=200, blank=True)
+    tags = models.ManyToManyField(Tag, related_name="posts", blank=True)
     author = models.ForeignKey(
         "accounts.CustomUser",
         on_delete=models.PROTECT,

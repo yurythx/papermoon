@@ -14,7 +14,7 @@ import logging
 import os
 
 from django.core.files.base import ContentFile
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from apps.blog.models import BlogPost
@@ -48,6 +48,18 @@ def convert_cover_to_webp(sender: type[BlogPost], instance: BlogPost, **kwargs: 
 def trigger_revalidation_on_post_save(
     sender: type[BlogPost], instance: BlogPost, **kwargs: object
 ) -> None:
+    from apps.blog.tasks import revalidate_blog_post
+
+    revalidate_blog_post.delay(instance.slug)
+
+
+@receiver(post_delete, sender=BlogPost)
+def trigger_revalidation_on_post_delete(
+    sender: type[BlogPost], instance: BlogPost, **kwargs: object
+) -> None:
+    # Sem isso, excluir um post publicado não purga o ISR — /blog/<slug>, a
+    # listagem e o RSS continuam servindo o conteúdo apagado até a janela
+    # passiva de revalidate=60s expirar, mesmo a API do Django já dando 404.
     from apps.blog.tasks import revalidate_blog_post
 
     revalidate_blog_post.delay(instance.slug)

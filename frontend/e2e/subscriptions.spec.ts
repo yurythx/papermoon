@@ -9,8 +9,10 @@ test.describe("Meus Contratos", () => {
 
   test("shows subscription cards when data loads", async ({ page }) => {
     await page.goto("/dashboard/subscriptions");
+    // cardClass() (components/ui/card.tsx) — bg-contrast + rounded-2xl, sem
+    // borda de propósito (redesign "estilo AWS").
     await expect(
-      page.locator("[class*='rounded-xl'][class*='border']").first()
+      page.locator("[class*='bg-surface-1'][class*='rounded-2xl']").first()
     ).toBeVisible({ timeout: 8000 });
   });
 

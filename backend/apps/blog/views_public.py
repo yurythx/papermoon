@@ -20,15 +20,22 @@ class BlogPostListView(APIView):
 
     @extend_schema(
         summary="Lista posts publicados do blog",
-        parameters=[OpenApiParameter("page", int)],
+        parameters=[
+            OpenApiParameter("page", int),
+            OpenApiParameter("tag", str, description="Filtra por slug da tag"),
+        ],
         responses={200: BlogPostPublicListSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
         qs = (
             BlogPost.objects.filter(status=BlogPost.Status.PUBLISHED)
             .select_related("author")
+            .prefetch_related("tags")
             .order_by("-published_at")
         )
+        tag_slug = request.query_params.get("tag")
+        if tag_slug:
+            qs = qs.filter(tags__slug=tag_slug)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(
@@ -50,8 +57,10 @@ class BlogPostDetailView(APIView):
     )
     def get(self, request: Request, slug: str) -> Response:
         try:
-            post = BlogPost.objects.select_related("author").get(
-                slug=slug, status=BlogPost.Status.PUBLISHED
+            post = (
+                BlogPost.objects.select_related("author")
+                .prefetch_related("tags")
+                .get(slug=slug, status=BlogPost.Status.PUBLISHED)
             )
         except BlogPost.DoesNotExist:
             raise NotFound(f"Post '{slug}' não encontrado.") from None
