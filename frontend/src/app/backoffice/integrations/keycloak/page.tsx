@@ -217,28 +217,35 @@ function FieldRow({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function CodeExampleSection({
-  issuer,
-  clientId,
-  baseUrl,
-  redirectUri,
-}: {
-  issuer: string;
-  clientId: string;
-  baseUrl: string;
-  redirectUri: string;
-}) {
+/* ── Guia de código por linguagem — genérico, só precisa do issuer ────
+ * Antes só existia dentro de ManualClientSetupCard (exigia preencher nome
+ * do app + redirect URI primeiro). Movido pra cá: o objetivo real é servir
+ * de BASE pra integrar um sistema novo, então usa valores de exemplo
+ * (editáveis) em vez de depender de um client já configurado. */
+
+const DEFAULT_CLIENT_ID = "minha-aplicacao";
+const DEFAULT_BASE_URL = "https://meusistema.com.br";
+const DEFAULT_REDIRECT_URI = "https://meusistema.com.br/auth/callback";
+
+function CodeExampleCard({ issuer }: { issuer: string }) {
   const [language, setLanguage] = useState<KeycloakIntegrationLanguage>("nextjs");
+  const [clientId, setClientId] = useState(DEFAULT_CLIENT_ID);
+  const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL);
+  const [redirectUri, setRedirectUri] = useState(DEFAULT_REDIRECT_URI);
+  const [showCustomize, setShowCustomize] = useState(false);
   const [result, setResult] = useState<KeycloakCodeSnippetResult | null>(null);
+  const clientIdId = useId();
+  const baseUrlId = useId();
+  const redirectUriId = useId();
 
   const mutation = useMutation({
     mutationFn: () =>
       adminService.renderKeycloakCodeSnippet({
         language,
         issuer,
-        client_id: clientId,
-        base_url: baseUrl,
-        redirect_uri: redirectUri,
+        client_id: clientId.trim() || DEFAULT_CLIENT_ID,
+        base_url: baseUrl.trim() || DEFAULT_BASE_URL,
+        redirect_uri: redirectUri.trim() || DEFAULT_REDIRECT_URI,
       }),
     onSuccess: setResult,
     onError: (err) => {
@@ -254,22 +261,56 @@ function CodeExampleSection({
   const canGenerate = issuer.trim().startsWith("http");
 
   return (
-    <div className="space-y-4 pt-3 border-t border-border-subtle">
+    <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 space-y-4">
       <div>
-        <Badge variant="info">4. Exemplo de código</Badge>
-        <p className="text-xs text-text-tertiary mt-1.5 max-w-lg">
-          Escolha a linguagem/framework do sistema do cliente — gera um exemplo pronto (função ou
-          classe de configuração OIDC) usando os valores acima e o issuer validado no card de cima.
+        <h2 className="text-sm font-semibold text-text-primary">Exemplo de código por linguagem</h2>
+        <p className="text-xs text-text-tertiary mt-0.5 max-w-lg">
+          Guia genérico pra começar a integrar um sistema novo com este realm — escolha a
+          linguagem/framework e use como base. Os valores de client ID e URL abaixo são só
+          exemplo; ajuste depois de criar o client de verdade (card &quot;O que preencher no
+          admin do Keycloak&quot; logo abaixo, ou aba &quot;Criar/gerenciar integração de um
+          cliente&quot;).
         </p>
       </div>
 
       {!canGenerate && (
         <p className="text-xs text-warning">
-          Valide um issuer no card &quot;Validador de issuer&quot; acima primeiro.
+          Preencha e valide um issuer no card &quot;Validador de issuer&quot; acima primeiro.
         </p>
       )}
 
       <LanguageTabs value={language} onChange={setLanguage} />
+
+      <button
+        type="button"
+        onClick={() => setShowCustomize((v) => !v)}
+        className="text-xs font-medium text-brand-accent hover:underline"
+      >
+        {showCustomize ? "Ocultar valores de exemplo" : "Personalizar valores de exemplo"}
+      </button>
+
+      {showCustomize && (
+        <div className="grid gap-3 sm:grid-cols-3 pt-1">
+          <div>
+            <label htmlFor={clientIdId} className="text-xs font-medium text-text-tertiary mb-1 block">
+              Client ID
+            </label>
+            <Input id={clientIdId} value={clientId} onChange={(e) => setClientId(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor={baseUrlId} className="text-xs font-medium text-text-tertiary mb-1 block">
+              Base URL
+            </label>
+            <Input id={baseUrlId} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor={redirectUriId} className="text-xs font-medium text-text-tertiary mb-1 block">
+              Redirect URI
+            </label>
+            <Input id={redirectUriId} value={redirectUri} onChange={(e) => setRedirectUri(e.target.value)} />
+          </div>
+        </div>
+      )}
 
       <Button
         variant="secondary"
@@ -313,7 +354,7 @@ function CodeExampleSection({
   );
 }
 
-function ManualClientSetupCard({ issuer }: { issuer: string }) {
+function ManualClientSetupCard() {
   const [appName, setAppName] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
   const [clientType, setClientType] = useState<"confidential" | "public">("confidential");
@@ -482,13 +523,6 @@ function ManualClientSetupCard({ issuer }: { issuer: string }) {
               />
             </div>
           </div>
-
-          <CodeExampleSection
-            issuer={issuer}
-            clientId={clientId}
-            baseUrl={rootUrl}
-            redirectUri={redirectUri}
-          />
         </div>
       )}
     </div>
@@ -584,7 +618,8 @@ export default function BackofficeKeycloakIntegrationsPage() {
         onIssuerChange={setIssuer}
         onValidated={(result) => setIssuer(result.issuer)}
       />
-      <ManualClientSetupCard issuer={issuer} />
+      <CodeExampleCard issuer={issuer} />
+      <ManualClientSetupCard />
       <CustomerPicker customerId={customerId} onSelect={setCustomerId} />
 
       {customerId && (
