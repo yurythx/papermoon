@@ -79,3 +79,24 @@ class KeycloakClientCreateRateThrottle(ScopedRateThrottle):
     cliente com várias integrações (uma por linguagem/ambiente) sem travar."""
 
     scope = "keycloak_client_create"
+
+
+class AsaasWebhookRateThrottle(ScopedRateThrottle):
+    """600/minuto por IP — a autenticação real é o header asaas-access-token
+    (comparado com hmac.compare_digest, obrigatório em produção), este
+    throttle é só uma camada extra contra alguém martelando o endpoint
+    tentando adivinhar o token. Bem folgado pra não derrubar rajadas
+    legítimas de eventos do Asaas em dias de fechamento de fatura."""
+
+    scope = "asaas_webhook"
+
+
+class ValidateKeyRateThrottle(ScopedRateThrottle):
+    """600/minuto por IP — /validate-key/ é chamado a cada requisição por
+    automações externas (n8n, uma instância por customer), não por um único
+    servidor interno como ActiveServiceSlugsView, então zerar o throttle
+    aqui abriria uma superfície de força-bruta pra adivinhar API Keys
+    válidas. 600/min é folgado o bastante pra não atrapalhar uso legítimo
+    intenso, mas limita o custo de uma campanha de tentativa e erro."""
+
+    scope = "validate_key"

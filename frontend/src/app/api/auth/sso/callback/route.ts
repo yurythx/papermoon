@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { applyAuthCookies, djangoFetch } from "@/lib/session";
+import { applyAuthCookies, djangoFetch, getClientIp } from "@/lib/session";
 
 // Base para os redirects deste handler. NÃO usar `req.url`: em standalone mode
 // com HOSTNAME=0.0.0.0 (obrigatório pro bind do Docker), o Next.js reflete esse
@@ -23,10 +23,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=sso_failed", SITE_URL));
   }
 
-  const django = await djangoFetch("/auth/sso/callback/", {
-    method: "POST",
-    body: JSON.stringify({ code, state }),
-  });
+  const django = await djangoFetch(
+    "/auth/sso/callback/",
+    { method: "POST", body: JSON.stringify({ code, state }) },
+    undefined,
+    getClientIp(req)
+  );
   const payload = await django.json();
 
   if (!django.ok || !payload.success) {

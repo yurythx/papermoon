@@ -153,8 +153,12 @@ class TestValidateKeyCachePaths:
     def test_cache_hit_returns_cached_result(self, api_client, api_key):
         from django.core.cache import cache
 
-        # Populate cache manually
-        cache.set(f"apikey:{api_key.key}", {"valid": True, "quota_remaining": 42}, timeout=60)
+        from apps.licensing.models import api_key_cache_key
+
+        # Populate cache manually — hashed key, same as ValidateKeyView writes
+        # (a plaintext "apikey:<key>" cache key would leak live API Keys from
+        # a Redis dump; see apps/licensing/models.py::api_key_cache_key).
+        cache.set(api_key_cache_key(api_key.key), {"valid": True, "quota_remaining": 42}, timeout=60)
 
         resp = api_client.get(f"/api/v1/licensing/validate-key/?key={api_key.key}")
         assert resp.status_code == 200
@@ -208,9 +212,11 @@ class TestValidateKeyCachePaths:
     def test_invalid_key_is_cached(self, api_client):
         from django.core.cache import cache
 
+        from apps.licensing.models import api_key_cache_key
+
         cache.clear()
         api_client.get("/api/v1/licensing/validate-key/?key=fake_key_xyz")
-        assert cache.get("apikey:fake_key_xyz") is not None
+        assert cache.get(api_key_cache_key("fake_key_xyz")) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +273,8 @@ class TestSnapshotDailyApiUsage:
     def test_creates_daily_usage_row_per_customer(self):
         import datetime
 
+        from django.utils import timezone as django_timezone
+
         from apps.licensing.models import DailyApiUsage
         from apps.licensing.tasks import snapshot_daily_api_usage
 
@@ -280,11 +288,17 @@ class TestSnapshotDailyApiUsage:
 
         snapshot_daily_api_usage()
 
-        row = DailyApiUsage.objects.get(customer=customer, date=datetime.date.today())
+        # timezone.localdate() — not datetime.date.today() — matches what
+        # snapshot_daily_api_usage() itself uses (TIME_ZONE-aware "today").
+        # date.today() is the host clock's local date, which can be a
+        # different calendar day than TIME_ZONE's near midnight.
+        row = DailyApiUsage.objects.get(customer=customer, date=django_timezone.localdate())
         assert row.calls_count == 42
 
     def test_rerun_same_day_updates_existing_row(self):
         import datetime
+
+        from django.utils import timezone as django_timezone
 
         from apps.licensing.models import DailyApiUsage
         from apps.licensing.tasks import snapshot_daily_api_usage
@@ -302,7 +316,7 @@ class TestSnapshotDailyApiUsage:
         quota.save()
         snapshot_daily_api_usage()
 
-        rows = DailyApiUsage.objects.filter(customer=customer, date=datetime.date.today())
+        rows = DailyApiUsage.objects.filter(customer=customer, date=django_timezone.localdate())
         assert rows.count() == 1
         assert rows.first().calls_count == 25
 

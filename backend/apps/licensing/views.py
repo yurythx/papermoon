@@ -9,13 +9,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.licensing.commands import CreateApiKeyCommand, RevokeApiKeyCommand
-from apps.licensing.models import ApiKey
+from apps.licensing.models import ApiKey, api_key_cache_key
 from apps.licensing.queries import list_api_keys
 from shared.schemas import (
     ApiKeyCreateResponseSerializer,
     ApiKeyItemSerializer,
     ValidateApiKeyResponseSerializer,
 )
+from shared.throttling import ValidateKeyRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ _CACHE_TTL = 60  # seconds
 @extend_schema(tags=["Licensing"])
 class ValidateKeyView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ValidateKeyRateThrottle]
 
     @extend_schema(
         summary="Validar API Key (endpoint público)",
@@ -45,7 +47,7 @@ class ValidateKeyView(APIView):
                 status=400,
             )
 
-        cache_key = f"apikey:{key}"
+        cache_key = api_key_cache_key(key)
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -75,20 +77,28 @@ class ValidateKeyView(APIView):
             cache.set(cache_key, result, timeout=_CACHE_TTL)
             return Response(result)
 
-        remaining = quota.max_api_calls - quota.used_api_calls
-        if remaining <= 0:
+        # Check-and-increment as a single conditional UPDATE — reading
+        # `remaining` first and incrementing after (two separate statements)
+        # let two concurrent cache-miss requests both pass the check before
+        # either had incremented, overshooting max_api_calls. The WHERE
+        # clause makes the DB the one place that decides atomically.
+        from apps.licensing.models import LicenseQuota
+
+        updated = LicenseQuota.objects.filter(
+            customer=api_key.customer,
+            used_api_calls__lt=F("max_api_calls"),
+        ).update(used_api_calls=F("used_api_calls") + 1)
+
+        if not updated:
             result = {"valid": False, "reason": "quota_exceeded", "quota_remaining": 0}
             cache.set(cache_key, result, timeout=_CACHE_TTL)
             return Response(result)
 
-        # Increment atomically — never read-then-write
-        from apps.licensing.models import LicenseQuota
-
-        LicenseQuota.objects.filter(customer=api_key.customer).update(
-            used_api_calls=F("used_api_calls") + 1
-        )
-
-        result = {"valid": True, "quota_remaining": remaining - 1}
+        quota.refresh_from_db(fields=["used_api_calls"])
+        result = {
+            "valid": True,
+            "quota_remaining": max(0, quota.max_api_calls - quota.used_api_calls),
+        }
         cache.set(cache_key, result, timeout=_CACHE_TTL)
         return Response(result)
 

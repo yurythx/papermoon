@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { applyAuthCookies, djangoFetch, getAccessToken, getRefreshToken } from "@/lib/session";
+import { NextRequest, NextResponse } from "next/server";
+import { applyAuthCookies, djangoFetch, getAccessToken, getClientIp, getRefreshToken } from "@/lib/session";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   let access = getAccessToken();
 
   if (!access) {
@@ -22,10 +22,12 @@ export async function GET() {
       );
     }
 
-    const refreshRes = await djangoFetch("/auth/refresh/", {
-      method: "POST",
-      body: JSON.stringify({ refresh }),
-    });
+    const refreshRes = await djangoFetch(
+      "/auth/refresh/",
+      { method: "POST", body: JSON.stringify({ refresh }) },
+      undefined,
+      getClientIp(req)
+    );
 
     if (!refreshRes.ok) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { djangoFetch } from "@/lib/session";
+import { djangoFetch, getClientIp } from "@/lib/session";
 
 // No cookies/headers/searchParams read here, so Next.js would otherwise treat this
 // as a static route candidate and try to prerender it at build time — with no Django
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // state/PKCE/nonce — see docs/adrs/0002-sso-keycloak-staff.md) and only then redirects
 // the browser, keeping the BFF as the sole point of contact for the client.
 export async function GET(req: NextRequest) {
-  const django = await djangoFetch("/auth/sso/login/");
+  const django = await djangoFetch("/auth/sso/login/", {}, undefined, getClientIp(req));
   const payload = await django.json();
 
   if (!django.ok || !payload.success || !payload.data?.authorize_url) {

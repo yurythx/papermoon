@@ -23,6 +23,17 @@ if not SIMPLE_JWT.get("VERIFYING_KEY"):
     )
 
 # ------------------------------------------------------------------
+# Asaas webhook token — obrigatório em produção. Sem isso, um token vazio
+# faz a comparação em AsaasWebhookView virar "" == "" (passa sem header
+# nenhum), permitindo forjar eventos de pagamento sem autenticação.
+# ------------------------------------------------------------------
+if not ASAAS_WEBHOOK_TOKEN:
+    raise ImproperlyConfigured(
+        "ASAAS_WEBHOOK_TOKEN must be set in production — an empty token makes "
+        "the webhook accept requests with no authentication at all."
+    )
+
+# ------------------------------------------------------------------
 # Security headers — Cloudflare Tunnel termina TLS; Django recebe HTTP puro.
 #
 # SECURE_SSL_REDIRECT = False: evita loop infinito (Django não sabe que a

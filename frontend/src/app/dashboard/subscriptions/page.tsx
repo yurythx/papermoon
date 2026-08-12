@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/compound/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
+import { ErrorState } from "@/components/compound/error-state";
 import { Package, ExternalLink, CheckCircle2, AlertCircle, Clock, Info, Mail } from "lucide-react";
 import type { ServiceAccess, Subscription } from "@/types";
 
@@ -33,7 +34,7 @@ const CYCLE_LABEL: Record<string, string> = {
 };
 
 export default function SubscriptionsPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["subscriptions"],
     queryFn: subscriptionService.list,
   });
@@ -61,6 +62,11 @@ export default function SubscriptionsPage() {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar seus contratos"
+          onRetry={() => refetch()}
+        />
       ) : subscriptions.length === 0 ? (
         <EmptyState
           title="Nenhum contrato encontrado"

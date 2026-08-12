@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.utils import timezone
 from rest_framework.exceptions import NotFound
 
-from apps.licensing.models import ApiKey
+from apps.licensing.models import ApiKey, api_key_cache_key
 
 
 class CreateApiKeyCommand:
@@ -22,5 +22,5 @@ class RevokeApiKeyCommand:
         api_key.is_active = False
         api_key.revoked_at = timezone.now()
         api_key.save()
-        cache.delete(f"apikey:{api_key.key}")
+        cache.delete(api_key_cache_key(api_key.key))
         return api_key

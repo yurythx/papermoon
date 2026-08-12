@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminService } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/compound/page-header";
 import { EmptyState } from "@/components/compound/empty-state";
+import { ErrorState } from "@/components/compound/error-state";
+import { Pagination } from "@/components/compound/pagination";
 import { ShieldCheck } from "lucide-react";
 
 const RESOURCE_TYPES = ["Customer", "Subscription", "Invoice", "ApiKey", "License"];
@@ -17,7 +18,7 @@ export default function BackofficeAuditPage() {
   const [action, setAction] = useState("");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-audit", resourceType, action, page],
     queryFn: () =>
       adminService.getAuditLogs({
@@ -36,7 +37,10 @@ export default function BackofficeAuditPage() {
       <PageHeader title="Audit Log" description="Trilha de auditoria de todas as ações na plataforma" />
 
       <div className="flex gap-3">
+        <label className="sr-only" htmlFor="audit-resource-type">Filtrar por tipo de recurso</label>
         <select
+          id="audit-resource-type"
+          aria-label="Filtrar por tipo de recurso"
           value={resourceType}
           onChange={(e) => { setResourceType(e.target.value); setPage(1); }}
           className="bg-surface-1 border border-border-default text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
@@ -46,7 +50,9 @@ export default function BackofficeAuditPage() {
             <option key={rt} value={rt}>{rt}</option>
           ))}
         </select>
+        <label className="sr-only" htmlFor="audit-action-filter">Filtrar por ação</label>
         <Input
+          id="audit-action-filter"
           type="text"
           placeholder="Filtrar por ação (ex: customer.created)"
           value={action}
@@ -60,6 +66,12 @@ export default function BackofficeAuditPage() {
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
+        ) : isError ? (
+          <ErrorState
+            className="py-12"
+            title="Não foi possível carregar o audit log"
+            onRetry={() => refetch()}
+          />
         ) : logs.length === 0 ? (
           <EmptyState icon={ShieldCheck} title="Nenhum registro encontrado" description="Tente ajustar os filtros." />
         ) : (
@@ -108,20 +120,13 @@ export default function BackofficeAuditPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-text-secondary">
-          <span>{data?.count} registro{data?.count !== 1 ? "s" : ""}</span>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Anterior
-            </Button>
-            <span className="px-3 text-text-tertiary">{page} / {totalPages}</span>
-            <Button variant="secondary" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Próxima
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        count={data?.count}
+        countLabel={(c) => `${c} registro${c !== 1 ? "s" : ""}`}
+      />
     </div>
   );
 }

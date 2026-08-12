@@ -333,17 +333,11 @@ class RegisterView(APIView):
 class PendingRegistrationsView(APIView):
     """Lista usuários que se auto-cadastraram mas ainda não foram provisionados (sem CustomerProfile)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request: Request) -> Response:
         from apps.customers.models import CustomerProfile
         from shared.models import OutboxEvent
-
-        if not request.user.is_staff:
-            return Response(
-                {"code": "permission_denied", "message": "Acesso negado.", "details": []},
-                status=403,
-            )
 
         provisioned_ids = CustomerProfile.objects.values_list("user_id", flat=True)
         pending_users = (
@@ -379,7 +373,8 @@ class PendingRegistrationsView(APIView):
 class ProvisionUserView(APIView):
     """Cria Customer + CustomerProfile para um usuário pendente de provisionamento."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+    throttle_classes = [AdminWriteThrottle]
 
     def post(self, request: Request, user_id: str) -> Response:
         from django.db import transaction
@@ -387,12 +382,6 @@ class ProvisionUserView(APIView):
         from apps.customers.models import Customer, CustomerProfile  # noqa: F401
         from apps.customers.repositories import DjangoCustomerRepository
         from apps.customers.services import CustomerService
-
-        if not request.user.is_staff:
-            return Response(
-                {"code": "permission_denied", "message": "Acesso negado.", "details": []},
-                status=403,
-            )
 
         try:
             target_user = User.objects.get(pk=user_id, is_staff=False, is_active=True)

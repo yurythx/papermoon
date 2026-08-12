@@ -6,6 +6,37 @@ import io
 
 from PIL import Image
 
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB — plenty for a hero/gallery source image
+
+
+class InvalidImageUploadError(ValueError):
+    """Raised when an upload isn't a decodable image within the allowed limits."""
+
+
+def validate_image_upload(content_type: str | None, size: int, data: bytes) -> None:
+    """Reject uploads that aren't a real, size-bounded image before any DB write.
+
+    Content-type is client-supplied and spoofable, so it's only a fast
+    pre-filter — Image.open()/.verify() is what actually proves the bytes
+    decode as an image. This closes off SVG (possible stored-XSS if ever
+    served with an image/svg+xml content-type or linked directly) and any
+    other non-image upload that convert_hero_to_webp (apps/cms/signals.py)
+    would otherwise silently swallow and save as-is.
+    """
+    if size > MAX_IMAGE_UPLOAD_BYTES:
+        raise InvalidImageUploadError(
+            f"Arquivo maior que {MAX_IMAGE_UPLOAD_BYTES // (1024 * 1024)}MB."
+        )
+    if content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise InvalidImageUploadError(
+            f"Tipo de arquivo não suportado: {content_type or 'desconhecido'}."
+        )
+    try:
+        Image.open(io.BytesIO(data)).verify()
+    except Exception as exc:
+        raise InvalidImageUploadError("Arquivo não é uma imagem válida.") from exc
+
 
 class ImageProcessor:
     MAX_WIDTH = 1200

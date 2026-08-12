@@ -279,23 +279,29 @@ const AlertCard = memo(function AlertCard({ variant, title, description, ctaLabe
 export default function DashboardPage() {
   const { me } = useAuth();
 
-  const { data: metrics, isLoading: loadingMetrics } = useQuery({
+  const { data: metrics, isLoading: loadingMetrics, isError: metricsError } = useQuery({
     queryKey: ["metrics"],
     queryFn: customerService.getMetrics,
     enabled: !!me?.customer,
   });
 
-  const { data: licenses, isLoading: loadingLicenses } = useQuery({
+  const { data: licenses, isLoading: loadingLicenses, isError: licensesError } = useQuery({
     queryKey: ["licenses"],
     queryFn: licenseService.list,
     enabled: !!me?.customer,
   });
 
-  const { data: overdueInvoices } = useQuery({
+  const { data: overdueInvoices, isError: overdueError } = useQuery({
     queryKey: ["invoices-overdue"],
     queryFn: () => invoiceService.list({ status: "overdue" }),
     enabled: !!me?.customer,
   });
+
+  // metrics/licenses/overdueInvoices ?? fall back to [] / 0 below — sem isso,
+  // uma falha de rede vira silenciosamente "0 alertas, tudo certo" (nenhum
+  // dado real chegou a ser consultado). Um banner visível é melhor que
+  // esconder um vencimento/licença crítica real.
+  const hasFetchError = metricsError || licensesError || overdueError;
 
   const allLicenses = licenses?.results ?? [];
   const activeLicenses = allLicenses.filter((l) => l.status === "active");
@@ -354,6 +360,14 @@ export default function DashboardPage() {
           </a>
         </div>
       </div>
+
+      {hasFetchError && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <AlertTriangle size={16} className="shrink-0" />
+          Não foi possível carregar todos os seus dados agora. Os números abaixo podem estar
+          incompletos — atualize a página em instantes.
+        </div>
+      )}
 
       {/* -- KPI cards ------------------------------------------------- */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">

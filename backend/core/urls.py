@@ -1,7 +1,9 @@
+import re
+
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as serve_static
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from shared.urls import contact_urlpatterns
@@ -52,5 +54,16 @@ urlpatterns = [
     path("api/v1/admin/cms/", include("apps.cms.urls_admin")),
 ]
 
-# Serve /media/ in all environments — Cloudflare caches it at the edge in production
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve /media/ in all environments — Cloudflare caches it at the edge in production.
+# django.conf.urls.static.static() is a documented no-op whenever DEBUG=False (which
+# production.py sets), so it was silently adding zero routes here in production —
+# every uploaded CMS image 404'd. Registering django.views.static.serve directly
+# bypasses that DEBUG gate; it's not hardened for high-traffic serving, but that's
+# exactly what the Cloudflare edge cache in front of it is for.
+urlpatterns += [
+    re_path(
+        rf"^{re.escape(settings.MEDIA_URL.lstrip('/'))}(?P<path>.*)$",
+        serve_static,
+        {"document_root": settings.MEDIA_ROOT},
+    ),
+]

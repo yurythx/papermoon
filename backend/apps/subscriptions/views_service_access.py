@@ -126,11 +126,19 @@ class AdminServiceAccessDetailView(APIView):
     )
     def patch(self, request: Request, pk: str) -> Response:
         sa = self._get(pk)
-        allowed_fields = {"config", "external_id"}
-        for field in allowed_fields:
-            if field in request.data:
-                setattr(sa, field, request.data[field])
-        sa.save(update_fields=[*list(allowed_fields & request.data.keys()), "updated_at"])
+        # ServiceAccessPatchRequestSerializer já existia só pra documentação do
+        # schema (@extend_schema abaixo) — o patch de verdade fazia
+        # setattr(request.data[field]) direto, sem checar se config era mesmo
+        # um dict ou external_id uma string. Agora valida antes de aplicar.
+        serializer = ServiceAccessPatchRequestSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        update_fields = [f for f in ("config", "external_id") if f in validated]
+        for field in update_fields:
+            setattr(sa, field, validated[field])
+        if update_fields:
+            sa.save(update_fields=[*update_fields, "updated_at"])
         return Response(ServiceAccessSerializer(sa).data)
 
     @extend_schema(summary="Desprovisionar serviço", responses={204: None})

@@ -137,7 +137,8 @@ class TestProration:
             customer=customer, invoice_type=Invoice.Type.SUBSCRIPTION
         ).first()
         assert inv is not None
-        expected_due = datetime.date.today() + datetime.timedelta(days=3)
+        # timezone.localdate(), not datetime.date.today() — see test_dunning.py
+        expected_due = timezone.localdate() + datetime.timedelta(days=3)
         assert inv.due_date == expected_due
 
     def test_proration_emits_renewal_invoice_outbox_event(self, db):
