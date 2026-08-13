@@ -240,7 +240,15 @@ export function LandingNav({
       {open && (
         <div
           id={mobileMenuId}
-          className="md:hidden bg-surface-1/95 backdrop-blur-xl border-t border-border-subtle px-6 py-5 space-y-1 animate-slide-up max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
+          // [-webkit-overflow-scrolling:touch]: sem isso, um <div> com
+          // overflow-y-auto aninhado dentro de um ancestral position:fixed
+          // (o <header>) fica tecnicamente scrollável (confirmado via
+          // getComputedStyle: max-height/overflow corretos) mas NÃO responde
+          // ao gesto de arrastar no Safari iOS — bug antigo e bem documentado
+          // do WebKit. Sem essa propriedade, o fim do menu (Entrar/Começar
+          // agora) fica inacessível no toque real, mesmo funcionando em
+          // devtools/emuladores baseados em mouse.
+          className="md:hidden bg-surface-1/95 backdrop-blur-xl border-t border-border-subtle px-6 py-5 space-y-1 animate-slide-up max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
         >
           <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest px-2 pb-2">
             Serviços

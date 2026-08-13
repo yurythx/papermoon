@@ -393,7 +393,11 @@ export function Sidebar() {
           isOpen ? "md:w-60" : "md:w-16"
         )}
       >
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2">
+        {/* [-webkit-overflow-scrolling:touch]: mesmo motivo do menu mobile
+            em nav.tsx — overflow-y-auto aninhado num ancestral position:fixed
+            (o <aside>) não responde ao arrastar no Safari iOS sem isso,
+            mesmo com max-height/overflow computados corretamente. */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 [-webkit-overflow-scrolling:touch]">
           {isBackoffice ? (
             <>
               {ADMIN_NAV.map((group) => (

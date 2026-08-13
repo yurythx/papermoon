@@ -107,7 +107,10 @@ const NotificationBellMenu = memo(function NotificationBellMenu() {
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          {/* [-webkit-overflow-scrolling:touch]: mesmo motivo do menu mobile
+              em nav.tsx — overflow-y-auto aninhado num ancestral
+              position:fixed não responde ao arrastar no Safari iOS sem isso. */}
+          <div className="max-h-80 overflow-y-auto [-webkit-overflow-scrolling:touch]">
             {!data?.results?.length ? (
               <div className="px-4 py-8 text-center text-sm text-text-tertiary">
                 Nenhuma notificação
