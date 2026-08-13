@@ -26,12 +26,18 @@ const nextConfig = {
   // (shared/public_urls.py) precisa de um MEDIA_PUBLIC_BASE_URL apontando pra
   // cá, e esse rewrite fecha o outro lado: proxya /media/* pro django-api
   // internamente, sem precisar de uma rota nova no painel do Cloudflare.
+  //
+  // Hostname fixo de propósito, não `process.env.DJANGO_INTERNAL_URL` — com
+  // output: "standalone", rewrites() é resolvido durante `next build` (dentro
+  // do estágio builder do Dockerfile), onde DJANGO_INTERNAL_URL não existe
+  // (é secret só de runtime, injetado pelo docker-compose ao subir o
+  // container). Ler o env aqui congelava sempre o fallback "localhost:8000" —
+  // confirmado ao vivo: ECONNREFUSED ::1:8000 dentro do container do Next.js.
+  // "django-api" é o nome do serviço no Compose, fixo entre ambientes onde
+  // esse rewrite de fato importa (produção — localmente MEDIA_PUBLIC_BASE_URL
+  // não é setado, então essa rota nunca é exercitada).
   async rewrites() {
-    const djangoRoot = (process.env.DJANGO_INTERNAL_URL ?? "http://localhost:8000/api/v1").replace(
-      /\/api\/v1\/?$/,
-      ""
-    );
-    return [{ source: "/media/:path*", destination: `${djangoRoot}/media/:path*` }];
+    return [{ source: "/media/:path*", destination: "http://django-api:8000/media/:path*" }];
   },
   async headers() {
     return [
