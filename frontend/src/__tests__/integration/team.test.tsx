@@ -16,6 +16,7 @@ const OWNER_ME = {
   user: { id: "u1", email: "owner@acme.com", username: "owner", is_staff: false },
   customer: { id: "c1", company_name: "Acme Ltda", document: "00.000.000/0001-00", status: "active" as const, asaas_customer_id: "", created_at: "", updated_at: "" },
   role: "owner" as const,
+  feature_flags: [],
 };
 
 describe("TeamPage", () => {

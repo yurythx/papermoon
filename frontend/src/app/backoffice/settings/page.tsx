@@ -11,36 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { cardClass } from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
 import { KeyRound, Copy, CheckCircle2, XCircle, Network } from "lucide-react";
 import type { KeycloakConnectionConfig, SSOConfig } from "@/types";
-
-/* ── Toggle ─────────────────────────────────────────────────────────── */
-
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-1",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
-        checked ? "bg-brand-accent" : "bg-surface-3 border border-border-default"
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-[rgb(var(--papermoon-moonlight-fixed-rgb))] transition-transform duration-150",
-          checked ? "translate-x-6" : "translate-x-1"
-        )}
-      />
-    </button>
-  );
-}
 
 function TestResultBanner({ result }: { result: { reachable: boolean; message: string } | null }) {
   if (!result) return null;

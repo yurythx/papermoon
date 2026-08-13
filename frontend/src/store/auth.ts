@@ -9,6 +9,7 @@ interface AuthState {
   setMe: (me: MeResponse) => void;
   clearMe: () => void;
   isAdmin: () => boolean;
+  hasFlag: (key: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -21,6 +22,8 @@ export const useAuthStore = create<AuthState>()(
       clearMe: () => set({ me: null }),
 
       isAdmin: () => get().me?.user.is_staff ?? false,
+
+      hasFlag: (key) => get().me?.feature_flags.includes(key) ?? false,
     }),
     {
       name: "papermoon-auth",

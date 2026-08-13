@@ -16,6 +16,8 @@ import type {
   CmsPageAdminPayload,
   Customer,
   CustomerQuota,
+  FeatureFlag,
+  FeatureFlagPayload,
   FinancialMetrics,
   InAppNotificationList,
   Invitation,
@@ -623,6 +625,24 @@ export const adminService = {
         `/proxy/admin/customers/${customerId}/keycloak-integrations/${integrationId}/secret/`
       )
       .then(unwrap),
+
+  listFeatureFlags: (): Promise<FeatureFlag[]> =>
+    api
+      .get<{ success: boolean; data: FeatureFlag[]; error: null }>("/proxy/admin/feature-flags/")
+      .then(unwrap),
+
+  createFeatureFlag: (data: FeatureFlagPayload): Promise<FeatureFlag> =>
+    api
+      .post<{ success: boolean; data: FeatureFlag; error: null }>("/proxy/admin/feature-flags/", data)
+      .then(unwrap),
+
+  updateFeatureFlag: (id: number, data: FeatureFlagPayload): Promise<FeatureFlag> =>
+    api
+      .patch<{ success: boolean; data: FeatureFlag; error: null }>(`/proxy/admin/feature-flags/${id}/`, data)
+      .then(unwrap),
+
+  deleteFeatureFlag: (id: number): Promise<void> =>
+    api.delete(`/proxy/admin/feature-flags/${id}/`).then(() => undefined),
 };
 
 export const notificationService = {

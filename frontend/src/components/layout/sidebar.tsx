@@ -22,6 +22,7 @@ import {
   FileEdit,
   KeyRound,
   Newspaper,
+  FlaskConical,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/sidebar";
 import { useAuthStore } from "@/store/auth";
@@ -110,6 +111,7 @@ const ADMIN_NAV: { section: string; items: NavItem[] }[] = [
     section: "Sistema",
     items: [
       { href: "/backoffice/integrations/keycloak", label: "Integração Keycloak", icon: KeyRound },
+      { href: "/backoffice/feature-flags", label: "Feature Flags", icon: FlaskConical },
       { href: "/backoffice/audit", label: "Auditoria", icon: Shield },
       { href: "/backoffice/health", label: "Status", icon: Activity },
       { href: "/backoffice/settings", label: "Configurações", icon: Settings },

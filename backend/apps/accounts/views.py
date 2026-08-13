@@ -158,9 +158,11 @@ class MeView(APIView):
     )
     def get(self, request: Request) -> Response:
         from apps.customers.models import CustomerProfile
+        from apps.flags.services import list_enabled_keys
 
         user = request.user
         profile = CustomerProfile.objects.select_related("customer").filter(user=user).first()
+        customer_id = profile.customer_id if profile else None
 
         data: dict = {
             "user": {
@@ -171,6 +173,7 @@ class MeView(APIView):
             },
             "customer": None,
             "role": None,
+            "feature_flags": list_enabled_keys(customer_id),
         }
 
         if profile:

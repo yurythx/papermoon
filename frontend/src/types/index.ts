@@ -27,6 +27,7 @@ export interface MeResponse {
   user: AuthUser;
   customer: Customer | null;
   role: "owner" | "admin" | "member" | null;
+  feature_flags: string[];
 }
 
 // Customer (tenant)
@@ -558,4 +559,27 @@ export type BlogPostAdminPayload = Partial<
 > & {
   /** Nomes de tags — cria automaticamente as que não existirem ainda (ver apps/blog/serializers.py). */
   tag_names?: string[];
+};
+
+// Feature flags
+export interface FeatureFlagCustomer {
+  id: string;
+  company_name: string;
+}
+
+export interface FeatureFlag {
+  id: number;
+  key: string;
+  name: string;
+  description: string;
+  enabled_globally: boolean;
+  enabled_customers: FeatureFlagCustomer[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type FeatureFlagPayload = Partial<
+  Pick<FeatureFlag, "key" | "name" | "description" | "enabled_globally">
+> & {
+  enabled_customer_ids?: string[];
 };

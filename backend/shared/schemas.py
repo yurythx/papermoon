@@ -36,6 +36,7 @@ class MeResponseSerializer(serializers.Serializer):
     user = MeUserSerializer()
     customer = MeCustomerSerializer(allow_null=True)
     role = serializers.CharField(allow_null=True)
+    feature_flags = serializers.ListField(child=serializers.CharField())
 
 
 class ApiKeyItemSerializer(serializers.Serializer):

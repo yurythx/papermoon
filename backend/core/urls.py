@@ -56,6 +56,8 @@ urlpatterns = [
     path("api/v1/blog/", include("apps.blog.urls_public")),
     # Blog — admin CRUD
     path("api/v1/admin/blog/", include("apps.blog.urls_admin")),
+    # Feature flags (admin)
+    path("api/v1/admin/", include("apps.flags.urls_admin")),
 ]
 
 # Serve /media/ in all environments — Cloudflare caches it at the edge in production.

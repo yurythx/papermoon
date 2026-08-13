@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.provisioning",
     "apps.cms",
     "apps.blog",
+    "apps.flags",
 ]
 
 MIDDLEWARE = [

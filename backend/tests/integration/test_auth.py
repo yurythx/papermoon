@@ -125,6 +125,32 @@ class TestMeEndpoint:
         resp = client.get("/api/v1/auth/me/")
         assert resp.status_code == 401
 
+    def test_me_includes_feature_flags_enabled_for_the_customer(self, client, db):
+        from apps.accounts.models import CustomUser
+        from apps.customers.models import Customer, CustomerProfile
+        from apps.flags.models import FeatureFlag
+
+        user = CustomUser.objects.create_user(
+            username="flaguser", email="flaguser@papermoon.com", password="pass123"
+        )
+        customer = Customer.objects.create(company_name="Flag Corp", document="22.222.222/0001-22")
+        CustomerProfile.objects.create(user=user, customer=customer, role="owner")
+        FeatureFlag.objects.create(key="site_wide", name="Site wide", enabled_globally=True)
+        beta = FeatureFlag.objects.create(key="beta_widget", name="Beta widget")
+        beta.enabled_customers.add(customer)
+        FeatureFlag.objects.create(key="off_for_everyone", name="Off")
+
+        login = client.post(
+            "/api/v1/auth/login/",
+            {"email": "flaguser@papermoon.com", "password": "pass123"},
+            format="json",
+        ).json()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login['data']['access']}")
+
+        resp = client.get("/api/v1/auth/me/")
+        assert resp.status_code == 200
+        assert sorted(resp.json()["data"]["feature_flags"]) == ["beta_widget", "site_wide"]
+
 
 @pytest.mark.django_db
 class TestChangePasswordEndpoint:
