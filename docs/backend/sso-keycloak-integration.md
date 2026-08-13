@@ -141,7 +141,7 @@ modelo de sessão diferente do BFF+JWT da PaperMoon (ver ADR 0002).
    - **Authentication flow:** `Standard flow` (Authorization Code) habilitado
    - **Valid redirect URIs:** o valor exato mostrado no campo "Redirect URI" da tela
      Configurações do backoffice — algo como
-     `https://app.papermoon.com.br/api/auth/sso/callback`
+     `https://papermoon.cloud/api/auth/sso/callback`
 3. Salve e copie o **Client Secret** (aba *Credentials*).
 4. (Opcional, recomendado) Restrinja quem pode logar nesse client a usuários/grupos que
    correspondem a e-mails de staff cadastrados na PaperMoon — a PaperMoon já rejeita

@@ -188,6 +188,14 @@ Sem o serviço `beat`, nenhuma task agendada (scan_overdue_invoices, cleanup_old
   - `process_outbox_events` — `apps.licensing.tasks.process_outbox_events`, a cada 5 segundos (`timedelta(seconds=5)`)
   - `process_support_outbox_events` — `apps.support.tasks.process_outbox_events`, a cada 5 segundos
 
+> **Estado real do `beat_schedule` hoje** (bem além da fundação — ver `core/celery_app.py`):
+> os dois pollers de Outbox acima viraram um só, `process_outbox_events` →
+> `apps.notifications.tasks.process_outbox_events` (ver nota na seção de `apps/support/tasks.py`
+> mais abaixo), e o schedule cresceu com o que a Fase 4 trouxe: `scan_upcoming_invoices` e
+> `process_dunning` (billing), `snapshot_daily_api_usage` (licensing), `scan_expiring_subscriptions`,
+> `scan_expiring_soon`, `generate_renewal_invoices`, `scan_quota_warnings` (subscriptions). Tabela
+> completa e atualizada em `docs/backend/architecture.md#celery-beat-schedule`.
+
 ### `shared/models.py`
 Criar modelo `OutboxEvent` com campos:
 - `id`: UUIDField, primary_key, default=uuid4
@@ -381,8 +389,17 @@ Consumidor do Outbox para eventos de suporte:
 - `event_type='customer.created'` → executa `ProvisionCustomerCommand`
 Mesma lógica de retry e `select_for_update(skip_locked=True)` do `licensing/tasks.py`.
 
-**Nota arquitetural:** em versões futuras, considerar consolidar os consumers de `licensing` e `support`
-em um único dispatcher em `shared/tasks.py` que roteia por `event_type` para evitar polling duplo do banco.
+> **Atualizado (consolidação já feita):** os dois consumers acima (`apps/licensing/tasks.py` e
+> `apps/support/tasks.py`) foram **substituídos** por um único dispatcher em
+> `apps/notifications/tasks.py::process_outbox_events` (não `shared/tasks.py` como a nota original
+> cogitava), registrado sozinho no beat como `process_outbox_events` a cada 5s — ver
+> `docs/backend/architecture.md` pela tabela completa de `event_type` → handler por app.
+> `apps/licensing/tasks.py` hoje só tem `snapshot_daily_api_usage`/`reset_quota_monthly`;
+> `apps/support/tasks.py` não processa mais Outbox — só expõe `ChatwootClient`/commands pros
+> handlers de `apps/support/handlers.py` chamarem. Mantido o texto original acima porque ainda
+> descreve corretamente a *lógica de negócio* de cada evento (quem desativa ApiKeys, quem chama o
+> Chatwoot) — só o *mecanismo de consumo* do Outbox mudou de "um poller por app" pra "um poller
+> único que roteia por handler".
 
 ---
 
@@ -396,12 +413,15 @@ Os apps abaixo foram adicionados no roadmap Fase 4 e estão em `INSTALLED_APPS` 
 - **`apps/subscriptions`** — `Subscription`, `License`, `ServiceAccess`. Assinatura de um customer a
   um produto, com renovação (`renewal.py`), proration de troca de plano e provisionamento de acessos
   por serviço. Segue o mesmo padrão repository/commands/queries de `customers`/`billing`.
-- **`apps/provisioning`** — adapters por serviço (`chatwoot.py`, `glpi.py`, `zabbix.py`, `n8n.py`,
-  `evolution_api.py`, `meta_api.py`, `nextcloud.py`, `proxmox.py`, `aapanel.py`, `truenas.py`,
-  `rustdesk.py`) + `registry.py` e `handlers.py` que reagem a eventos do Outbox
-  (`subscription.created`, `service_access.provision`, etc.) para criar/revogar acesso ao serviço.
-  Todos os provisioners implementam `AbstractProvisioner` e fazem graceful fallback (log-only) quando
-  as credenciais não estão configuradas.
+- **`apps/provisioning`** — adapters por serviço, 19 ao todo (`chatwoot.py`, `glpi.py`, `zabbix.py`,
+  `n8n.py`, `evolution_api.py`, `meta_api.py`, `nextcloud.py`, `proxmox.py`, `aapanel.py`,
+  `truenas.py`, `rustdesk.py` da fundação + `keycloak.py`, `crowdsec.py`, `samba.py`,
+  `tailscale.py`, `twenty_crm.py`, `papermark.py`, `plone.py`, `windows_server.py` adicionados na
+  expansão de portfólio — ver `docs/adrs/0003-portfolio-tech-expansion.md`) + `registry.py` e
+  `handlers.py` que reagem a eventos do Outbox (`subscription.created`, `service_access.provision`,
+  etc.) para criar/revogar acesso ao serviço. Todos os provisioners implementam
+  `AbstractProvisioner` e fazem graceful fallback (log-only) quando as credenciais não estão
+  configuradas.
 - **`apps/notifications`** — `Notification` (in-app) + `handlers.py`/`registry.py`: registry central
   que roteia `event_type` do Outbox para handlers de e-mail e notificação in-app (cobrança vencendo,
   pagamento confirmado, assinatura expirando, etc.). Inclui o handler `user.registered` que notifica

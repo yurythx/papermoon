@@ -159,7 +159,7 @@ else
   printf "${NC}\n"
 
   # Domínio
-  ask "Domínio base (ex: papermoon.com.br, SEM https://):"
+  ask "Domínio base (ex: papermoon.cloud, SEM https://):"
   read -r DOMAIN
   [[ -z "$DOMAIN" ]] && die "Domínio é obrigatório."
   DOMAIN="${DOMAIN#https://}"  # Remove https:// se o usuário digitou
@@ -218,17 +218,17 @@ else
     printf '# ── Django ──────────────────────────────────────────────────────────\n'
     printf 'SECRET_KEY=%s\n' "$SECRET_KEY"
     printf 'DEBUG=False\n'
-    printf 'ALLOWED_HOSTS=app.%s,webhooks.%s,django-api\n' "$DOMAIN" "$DOMAIN"
-    printf 'CORS_ALLOWED_ORIGINS=https://app.%s\n\n' "$DOMAIN"
+    printf 'ALLOWED_HOSTS=%s,django-api\n' "$DOMAIN"
+    printf 'CORS_ALLOWED_ORIGINS=https://%s\n\n' "$DOMAIN"
 
     printf '# ── JWT RS256 (gerado automaticamente pelo deploy.sh) ───────────────\n'
     printf 'JWT_PRIVATE_KEY=\n'
     printf 'JWT_PUBLIC_KEY=\n\n'
 
     printf '# ── URLs ────────────────────────────────────────────────────────────\n'
-    printf 'FRONTEND_URL=https://app.%s\n' "$DOMAIN"
+    printf 'FRONTEND_URL=https://%s\n' "$DOMAIN"
     printf 'NEXTJS_INTERNAL_URL=http://nextjs:3000\n'
-    printf 'NEXT_PUBLIC_SITE_URL=https://app.%s\n\n' "$DOMAIN"
+    printf 'NEXT_PUBLIC_SITE_URL=https://%s\n\n' "$DOMAIN"
 
     printf '# ── E-mail / SMTP ───────────────────────────────────────────────────\n'
     printf 'EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend\n'
@@ -457,9 +457,9 @@ printf '  │  Próximos passos                                                 
 printf '  ├──────────────────────────────────────────────────────────────────┤\n'
 printf '  │  1. Cole os 5 secrets acima no GitHub                            │\n'
 printf '  │  2. Crie o environment "production" em Settings → Environments   │\n'
-printf '  │  3. Configure o Cloudflare Tunnel apontando para:                │\n'
-printf '  │       app.<dominio>      → nextjs:3000                           │\n'
-printf '  │       webhooks.<dominio> → django-api:8000                       │\n'
+printf '  │  3. Configure o Cloudflare Tunnel apontando <dominio> → nextjs:3000│\n'
+printf '  │       (domínio único — sem app./webhooks. como subdomínios       │\n'
+printf '  │        separados; /api/v1/webhooks/asaas/ vive na mesma origem)  │\n'
 printf '  │  4. Crie o superusuário admin:                                   │\n'
 printf '  │       make prod-superuser                                         │\n'
 printf '  └──────────────────────────────────────────────────────────────────┘\n'

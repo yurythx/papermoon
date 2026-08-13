@@ -48,10 +48,12 @@ backend/
     │   ├── registry.py      # Dispatcher de handlers por event_type
     │   └── handlers.py      # Handlers: email_payment_confirmed, etc.
     ├── cms/                 # Páginas de serviço editáveis no backoffice; merge com conteúdo estático no Next.js
+    ├── blog/                # Posts do blog (draft/publish), capa WebP, ISR
+    ├── flags/                # Feature flags por customer (global ou M2M), resolvidas em /auth/me
     ├── products/            # Catálogo de produtos + ServiceComponents + Pricings
     ├── provisioning/        # Adapters por serviço (chatwoot, n8n, glpi, zabbix, proxmox…) + registry + handlers
     ├── subscriptions/       # Assinaturas + Licenças + ServiceAccesses + renovação + proration
-    └── support/             # Integração Chatwoot (legado — novos provisionamentos usam apps/provisioning)
+    └── support/             # ChatwootClient + commands (não processa Outbox — ver Event-Driven abaixo)
 ```
 
 ## Padrões Aplicados
@@ -152,9 +154,12 @@ Todas as crontabs usam `timezone = "America/Sao_Paulo"` (UTC-3 em horário padr�
 
 | Task | Frequência | Descrição |
 |---|---|---|
-| `process_outbox_events` | a cada 5s | Processa OutboxEvents pendentes com `select_for_update(skip_locked=True)` |
+| `process_outbox_events` | a cada 5s | `apps.notifications.tasks` — dispatcher único, processa OutboxEvents pendentes com `select_for_update(skip_locked=True)` e roteia por `event_type` (substituiu os pollers separados de licensing/support) |
 | `scan_overdue_invoices` | diário 00:00 | Marca faturas `pending` vencidas como `overdue` |
+| `scan_upcoming_invoices` | diário 09:00 | Emite `payment.due_soon` para faturas vencendo em breve |
+| `process_dunning` | diário 10:00 | Emite `payment.dunning_d3` pra faturas vencidas há 3 dias |
 | `cleanup_old_outbox_events` | diário 00:00 | Remove OutboxEvents processados há > 30 dias |
+| `snapshot_daily_api_usage` | diário 23:55 | Grava snapshot de `used_api_calls` em `DailyApiUsage` (histórico pro gráfico do dashboard) |
 | `reset_quota_monthly` | diário 01:00 | Reseta `used_api_calls` de todas as LicenseQuotas |
 | `scan_expiring_subscriptions` | diário 00:30 | Move assinaturas `active → grace_period` e `grace_period → expired` |
 | `scan_expiring_soon` | diário 08:00 | Emite `subscription.expiring_soon` em D-7, D-3, D-1 |
@@ -197,5 +202,6 @@ Todas as crontabs usam `timezone = "America/Sao_Paulo"` (UTC-3 em horário padr�
 |---|---|
 | `DJANGO_INTERNAL_URL` | URL interna do Django (ex: `http://django-api:8000/api/v1`) |
 | `NEXT_PUBLIC_SENTRY_DSN` | DSN do Sentry para o frontend |
-| `NEXT_PUBLIC_SITE_URL` | URL pública do frontend (ex: `https://app.papermoon.com.br`) |
+| `NEXT_PUBLIC_SITE_URL` | URL pública do frontend — `https://papermoon.cloud` em produção |
+| `REVALIDATE_SECRET` | Segredo compartilhado com o backend pra autorizar `POST /api/revalidate` (ISR do CMS/blog) |
 | `SECURE_COOKIES` | `false` em dev (sem HTTPS), omitir em prod |

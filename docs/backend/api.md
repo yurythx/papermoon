@@ -6,8 +6,9 @@
 
 ```
 http://localhost:8000/api/v1                  # dev — acesso direto ao django-api
-https://app.papermoon.com.br/api/proxy/v1         # prod — via BFF do Next.js (injeta o JWT)
-https://webhooks.papermoon.com.br/api/v1          # prod — exceção: só /webhooks/asaas/, acesso direto ao django-api
+https://papermoon.cloud/api/proxy/v1          # prod — via BFF do Next.js (injeta o JWT)
+https://papermoon.cloud/api/v1/webhooks/asaas/ # prod — exceção: sem JWT, valida o header asaas-access-token
+                                                # (domínio único — ver aviso no topo de docs/deployment.md)
 ```
 
 ## Autenticação
@@ -68,9 +69,10 @@ Retorna dados do usuário autenticado + customer vinculado + papel.
 **Response:**
 ```json
 {
-  "user": { "id": "...", "email": "...", "username": "...", "is_staff": false },
+  "user": { "id": "...", "email": "...", "username": "...", "first_name": "...", "last_name": "...", "is_staff": false },
   "customer": { "id": "...", "company_name": "...", "status": "active", ... },
-  "role": "owner"
+  "role": "owner",
+  "feature_flags": ["beta_widget", "site_wide"]
 }
 ```
 
@@ -363,6 +365,62 @@ Lista o audit log. Suporta `?resource_type=customer&action=customer.suspended&pa
 
 ---
 
+## Admin — Feature Flags
+
+> Requer `is_staff=True`
+
+### `GET /admin/feature-flags/`
+Lista todas as feature flags.
+
+### `POST /admin/feature-flags/`
+Cria uma flag.
+
+**Body:**
+```json
+{
+  "key": "beta-widget",
+  "name": "Beta widget",
+  "description": "Widget experimental do dashboard.",
+  "enabled_globally": false,
+  "enabled_customer_ids": ["uuid-customer-1", "uuid-customer-2"]
+}
+```
+
+### `GET /admin/feature-flags/<id>/`
+Detalhe de uma flag, incluindo `enabled_customers` (lista `{id, company_name}`).
+
+### `PATCH /admin/feature-flags/<id>/`
+Atualização parcial — mesmos campos do POST.
+
+### `DELETE /admin/feature-flags/<id>/`
+Remove a flag.
+
+> Resolução: `GET /auth/me/` devolve `feature_flags: string[]` com as keys habilitadas
+> pro usuário logado (globais + específicas do customer). Sem rollout por porcentagem —
+> ver `apps/flags/services.py`.
+
+---
+
+## Contato (Público)
+
+### `POST /contact/`
+Formulário de contato do site público — envia e-mail interno pra
+`DEFAULT_FROM_EMAIL`, não persiste nada no banco.
+
+**Body:**
+```json
+{
+  "name": "Fulano de Tal",
+  "email": "fulano@empresa.com",
+  "phone": "(66) 99999-0000",
+  "service": "Chatwoot",
+  "message": "Gostaria de um orçamento."
+}
+```
+`phone` e `service` são opcionais.
+
+---
+
 ## Client — Perfil e Empresa
 
 > Requer autenticação. Dados filtrados pelo customer do usuário logado.
@@ -593,7 +651,7 @@ Retorna o conteúdo completo de uma página de serviço (texto rico, passos, FAQ
 ```json
 {
   "slug": "zabbix",
-  "hero_image_url": "https://app.papermoon.com.br/media/...",
+  "hero_image_url": "https://papermoon.cloud/media/...",
   "hero_image_alt": "Painel de monitoramento",
   "tagline": "Visibilidade total da sua infra",
   "description": "Monitore servidores, redes e VMs.",
@@ -604,7 +662,7 @@ Retorna o conteúdo completo de uma página de serviço (texto rico, passos, FAQ
   "steps": [{ "number": "01", "title": "Levantamento", "description": "Mapeamos.", "order": 1 }],
   "feature_groups": [{ "title": "Monitoramento", "items": [{ "text": "Dashboards", "order": 1 }], "order": 1 }],
   "faqs": [{ "question": "Quanto custa?", "answer": "Consulte.", "order": 1 }],
-  "images": [{ "url": "https://app.papermoon.com.br/media/...", "alt": "", "caption": "", "order": 1 }],
+  "images": [{ "url": "https://papermoon.cloud/media/...", "alt": "", "caption": "", "order": 1 }],
   "updated_at": "2026-06-21T12:00:00Z"
 }
 ```
@@ -649,7 +707,7 @@ Lista posts com `status=published`, paginado (`PageNumberPagination`, `PAGE_SIZE
       "slug": "como-configurar-sso-com-keycloak",
       "title": "Como configurar SSO com Keycloak",
       "excerpt": "Passo a passo pra integrar...",
-      "cover_image_url": "https://app.papermoon.com.br/media/blog/covers/....webp",
+      "cover_image_url": "https://papermoon.cloud/media/blog/covers/....webp",
       "cover_image_alt": "Tela de configuração do Keycloak",
       "author_name": "Ana Silva",
       "published_at": "2026-06-21T12:00:00Z",

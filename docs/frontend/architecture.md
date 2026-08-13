@@ -30,8 +30,11 @@ frontend/src/
 │   ├── not-found.tsx             # Página 404 customizada
 │   ├── error.tsx                 # Error boundary global (reporta ao Sentry)
 │   ├── page.tsx                  # Landing page pública
-│   ├── servicos/[slug]/          # Página pública de detalhe por serviço (SEO/marketing)
+│   ├── servicos/                 # Grid de todos os serviços + [slug]/ (detalhe SEO/marketing)
+│   ├── blog/                     # Lista pública de posts + [slug]/ (detalhe, nunca mostra draft)
+│   ├── sobre/                    # Página institucional
 │   ├── termos/                   # Termos de uso (página estática pública)
+│   ├── register/                 # Auto-cadastro público (cria CustomUser sem Customer)
 │   │
 │   ├── login/                    # Formulario JWT com identidade visual da plataforma
 │   ├── forgot-password/          # Solicitar reset de senha
@@ -59,6 +62,12 @@ frontend/src/
 │   │   ├── invoices/             # Todas as faturas (soft-delete)
 │   │   ├── subscriptions/        # Admin de assinaturas (suspend/cancel/renew)
 │   │   ├── products/             # Produtos + pricings (criar/editar/toggle)
+│   │   ├── cms/                  # Editor de páginas de serviço + upload de imagens WebP
+│   │   ├── blog/                 # CRUD de posts (draft/publish) + [id]/ (editor Markdown)
+│   │   ├── feature-flags/        # CRUD de flags (global ou por customer)
+│   │   ├── integrations/keycloak/# Ferramentas de suporte: validador + gerador manual de campos
+│   │   ├── health/               # Status de DB/Redis/Celery em tempo real
+│   │   ├── settings/             # Config runtime do SSO Keycloak (issuer/client/teste de conexão)
 │   │   └── audit/                # Audit trail com filtros
 │   │
 │   └── api/                      # BFF — Next.js Route Handlers
@@ -99,7 +108,14 @@ frontend/src/
 ├── lib/
 │   ├── api.ts                    # Axios instance com base URL → /api/...
 │   ├── services.ts               # Todas as chamadas ao BFF (tipadas, com unwrap)
-│   └── utils.ts                  # cn(), formatters
+│   ├── services-content.ts       # Conteúdo estático de cada serviço (hero, features, FAQ)
+│   ├── merge-service.ts          # Mescla services-content.ts (estático) com CMS (apps/cms)
+│   ├── active-services.ts        # Fail-open: quais slugs de serviço aparecem no nav/grid
+│   ├── blog.ts                   # fetchBlogPosts()/fetchBlogPost() — consome /api/v1/blog/
+│   ├── cms.ts                    # Fetch de ServicePage do CMS
+│   ├── faq-content.ts            # Conteúdo estático do FAQ da home
+│   ├── session.ts                # Leitura de cookies httpOnly no BFF (route handlers)
+│   └── utils.ts                  # cn(), formatters, slugify()
 ├── store/
 │   ├── auth.ts                   # Zustand: { me, setMe, clearMe }
 │   └── sidebar.ts                # Zustand: { isOpen, toggle, mobileOpen, toggleMobile }
@@ -136,6 +152,15 @@ Django → { user, customer, role }
 O BFF realiza refresh transparente: se o Django retorna 401, o BFF tenta renovar com `papermoon_refresh` e repete a requisicao original sem que o browser perceba.
 
 > Os cookies do BFF agora seguem o prefixo `papermoon_*`. Em ambientes ja autenticados, a troca exige invalidacao controlada de sessao ou uma janela de compatibilidade para evitar logout inesperado.
+
+### SSO (Keycloak) — só para staff
+
+`/login` mostra um botão extra "Entrar com Keycloak" quando `GET /api/auth/sso/status/` reporta
+habilitado. Fluxo: `GET /api/auth/sso/login/` (BFF → Django, gera `authorize_url` com PKCE/state) →
+browser navega direto pro Keycloak → volta com `code`/`state` → BFF chama
+`POST /api/auth/sso/callback/`, que troca pelo par de tokens `papermoon_*` do jeito de sempre. Só
+autentica contas `is_staff=True` (JIT provisiona na primeira vez, se o grupo do AD autorizar) — ver
+`docs/backend/sso-keycloak-integration.md`.
 
 ## Proxy Catch-All
 
@@ -180,8 +205,8 @@ O BFF realiza refresh transparente: se o Django retorna 401, o BFF tenta renovar
 
 | Tipo | Ferramenta | Quantidade |
 |---|---|---|
-| Unitário + Integração | Vitest + Testing Library + MSW | 151 |
-| E2E | Playwright | 10 specs |
+| Unitário + Integração | Vitest + Testing Library + MSW | ~256 testes em 28 arquivos |
+| E2E | Playwright | 19 specs |
 
 - Mocks em `src/__tests__/mocks/handlers.ts` — MSW intercepta chamadas ao BFF
 - E2E requerem frontend + backend rodando com seed data (`make seed`)

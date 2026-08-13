@@ -21,9 +21,9 @@ aplicados: CQRS, Repository, Service layer, Outbox transacional — ver
 ### Docker & Docker Compose
 
 Todo o ambiente — dev e produção — roda containerizado. `docker-compose.yml` (dev)
-sobe 8 serviços (Postgres, Redis, Django, Celery worker, Celery beat, Flower,
-MailHog, Next.js) com healthchecks e hot-reload via `docker compose watch` no
-backend. `docker-compose.prod.yml` replica a topologia com Gunicorn, Whitenoise e
+sobe 9 serviços (Postgres, Redis, Jaeger, Django, Celery worker, Celery beat,
+Flower, MailHog, Next.js) com healthchecks e hot-reload via `docker compose watch`
+no backend. `docker-compose.prod.yml` replica a topologia com Gunicorn, Whitenoise e
 segredos via `.env.production`. Build multi-stage no frontend (`deps` → `builder` →
 `runner`, imagem final standalone do Next.js). Deploy automatizado via
 `deploy.sh` + GitHub Actions (CI → CD com rollback automático em caso de falha de

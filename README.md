@@ -31,8 +31,8 @@ Credenciais seed:
 | Conta | Senha | Papel |
 |---|---|---|
 | admin@papermoon.com | admin123 | superadmin |
-| owner@acme.com | demo123 | owner |
-| owner@techcorp.com | demo123 | owner |
+| owner@acme.com | demo1234 | owner |
+| owner@techflow.com | demo1234 | owner |
 
 ---
 
@@ -93,6 +93,7 @@ backend/
     ├── cms/
     ├── blog/
     ├── support/
+    ├── flags/
     └── audit/
 
 frontend/

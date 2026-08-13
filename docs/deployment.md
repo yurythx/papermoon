@@ -5,13 +5,24 @@ Guia de deploy para produção e para testes locais do stack de produção.
 > Antes do corte, percorra também a checklist operacional em
 > [production-deploy-checklist.md](checklists/production-deploy-checklist.md).
 
-> **Arquitetura de rede:** Este guia usa **Cloudflare Tunnel** como único ponto de entrada.
-> Não há Nginx, Caddy ou Let's Encrypt — o TLS é terminado na borda da Cloudflare.
-> O cloudflared já está rodando como container no servidor.
+> **Arquitetura de rede:** Cloudflare fica na frente como proxy/TLS (`papermoon.cloud` resolve
+> pros IPs anycast da Cloudflare — confirmado via DNS). Não há Nginx/Caddy/Let's Encrypt neste
+> host. **Diferença confirmada em relação ao desenho original abaixo:** o host onde este
+> `docker-compose.prod.yml` roda (LXC, ver [[papermoon-infra-topology]]) **não** tem um container
+> `cloudflared` local nem participa de `papermoon-network` com ele — `docker network inspect
+> papermoon-network` está vazio e `docker ps` não mostra `cloudflared` neste host. As portas
+> `3000` (nextjs) e `8000` (django-api) estão expostas direto em `0.0.0.0` neste host
+> (`192.168.1.102`), então o ponto de entrada real (provavelmente uma LXC de tunnel separada, no
+> mesmo padrão das outras LXCs dedicadas do ambiente) fica fora do que este guia consegue
+> documentar sem acesso a ela. **Domínio real em produção é `papermoon.cloud` (sem `app.`
+> prefixo)** — `ALLOWED_HOSTS`/`FRONTEND_URL`/`CORS_ALLOWED_ORIGINS` em `.env.production` já usam
+> só `papermoon.cloud`. O desenho abaixo é o objetivo original de arquitetura; trate as seções que
+> mencionam `app.papermoon.cloud`, `webhooks.papermoon.cloud` e "nenhuma porta exposta" como
+> aspiracionais até alguém com acesso à LXC de tunnel confirmar/atualizar.
 
 ---
 
-## Visão Geral da Arquitetura
+## Visão Geral da Arquitetura (desenho original — ver aviso acima)
 
 ```
 Usuário ──HTTPS──► Cloudflare Edge ──Tunnel──► cloudflared (container)
@@ -44,10 +55,10 @@ Usuário ──HTTPS──► Cloudflare Edge ──Tunnel──► cloudflared 
 ## Pré-requisitos
 
 - Docker Engine 24+ e Docker Compose v2 no servidor
-- Cloudflared já rodando como container (instalado previamente)
-- Domínios configurados no Cloudflare:
-  - `app.papermoon.cloud` → app principal
-  - `webhooks.papermoon.cloud` → webhook Asaas (exclusivo)
+- Cloudflared já rodando (instalado previamente) — **em produção, roda numa LXC separada**, não
+  neste host (ver aviso no topo deste guia)
+- Domínio configurado no Cloudflare: `papermoon.cloud` (app + webhook do Asaas no mesmo domínio,
+  não em subdomínios separados)
 - Conta Asaas com API key de produção
 - Repositório em `github.com/yurythx/papermoon`
 
@@ -62,8 +73,8 @@ cria rede Docker, roda o primeiro deploy e instala o cron de backup.
 
 ```bash
 # Na VPS, como root
-git clone https://github.com/yurythx/papermoon.git /opt/papermoon
-cd /opt/papermoon
+git clone https://github.com/yurythx/papermoon.git /opt/docker/papermoon
+cd /opt/docker/papermoon
 sudo bash setup.sh
 ```
 
@@ -135,6 +146,10 @@ make local-prod-down     # parar tudo
 
 ## Configuração Manual da Rede Docker (se necessário)
 
+> Em produção hoje isso **não está conectado** (ver aviso no topo do guia) — o tunnel roda numa
+> LXC separada e alcança este host pela LAN, não por essa rede Docker. Os comandos abaixo só
+> fazem sentido se o cloudflared rodar no mesmo host que este `docker-compose.prod.yml`.
+
 ```bash
 # Criar rede (uma única vez por servidor)
 make tunnel-network
@@ -152,7 +167,7 @@ docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}
 
 ---
 
-## Configuração do Tunnel no Cloudflare Dashboard
+## Configuração do Tunnel no Cloudflare Dashboard (desenho original — ver aviso no topo)
 
 No painel da Cloudflare → **Zero Trust → Networks → Tunnels → seu tunnel → Configure**:
 
@@ -161,8 +176,11 @@ No painel da Cloudflare → **Zero Trust → Networks → Tunnels → seu tunnel
 | `app.papermoon.cloud` | `http://nextjs:3000` | App principal — todo o tráfego de usuário |
 | `webhooks.papermoon.cloud` | `http://django-api:8000` | Só o webhook do Asaas |
 
-> Os nomes `django-api` e `nextjs` são service names do Docker Compose. O cloudflared os resolve
-> porque está na mesma rede `papermoon-network`.
+> Os nomes `django-api` e `nextjs` são service names do Docker Compose. Esse desenho só funciona
+> se o cloudflared estiver na mesma rede `papermoon-network` — **confirmado que não é o caso em
+> produção hoje** (ver aviso no topo do guia). Na prática, `papermoon.cloud` (sem subdomínio)
+> resolve pra Cloudflare e chega neste host via a LAN em `192.168.1.102:3000`/`:8000` — a
+> configuração real do tunnel/ingress fica numa LXC separada, fora do alcance deste repositório.
 
 ---
 
@@ -216,10 +234,17 @@ make prod-build          # rebuild completo sem cache
 
 ## Webhook Asaas
 
+> `webhooks.papermoon.cloud` não existe mais (não resolve em DNS, e `ALLOWED_HOSTS` em
+> `.env.production` só lista `papermoon.cloud` — um request com esse Host antigo tomaria
+> `DisallowedHost` no Django mesmo que chegasse). A URL abaixo usa o domínio único real; ainda
+> assim, **confirme no painel Asaas qual URL está de fato cadastrada** antes de assumir que bate
+> com isto — a configuração do ingress que decide se `/api/v1/webhooks/asaas/` chega até o
+> `django-api` fica fora deste repositório (ver aviso no topo do guia).
+
 Registrar no painel Asaas:
 
 ```
-URL: https://webhooks.papermoon.cloud/api/v1/webhooks/asaas/
+URL: https://papermoon.cloud/api/v1/webhooks/asaas/
 ```
 
 Token: o mesmo valor de `ASAAS_WEBHOOK_TOKEN` no `.env.production`.
@@ -231,16 +256,19 @@ Eventos: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_DE
 ## Smoke Tests Pós-Deploy
 
 ```bash
-# Health check via Cloudflare (o hostname de webhook aponta direto para django-api)
-curl https://webhooks.papermoon.cloud/health/
+# No próprio host (o /health/ público em papermoon.cloud/health/ é interceptado pelo Next.js,
+# não chega no django-api — testar direto no container é mais confiável):
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T django-api \
+  curl -sf -H 'Host: django-api' http://localhost:8000/health/
 # Esperado: {"success":true,"data":{"status":"ok","db":"ok","redis":"ok"},"error":null}
 
-curl -I https://app.papermoon.cloud/
+curl -I https://papermoon.cloud/
 # Esperado: HTTP/2 200
 
-# Verificar rede
-docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}} {{end}}'
-# Deve conter: cloudflared papermoon-api papermoon-web
+# Verificar containers da stack (rede interna do Compose, não papermoon-network — ver aviso
+# no topo do guia sobre onde o cloudflared realmente está):
+docker compose -f docker-compose.prod.yml --env-file .env.production ps
+# Todos devem estar "Up" / "healthy"
 ```
 
 ---
@@ -250,7 +278,7 @@ docker network inspect papermoon-network --format '{{range .Containers}}{{.Name}
 Deploy automático via GitHub Actions em todo push para `main`. Para deploy manual:
 
 ```bash
-cd /opt/papermoon
+cd /opt/docker/papermoon
 bash deploy.sh           # pull + build + migrate + restart + health check
 ```
 
@@ -273,7 +301,7 @@ Cron de backup diário às 02:00 é instalado automaticamente pelo `setup.sh`.
 O `deploy.sh` faz rollback automático em caso de falha. Para rollback manual:
 
 ```bash
-cd /opt/papermoon
+cd /opt/docker/papermoon
 git checkout <commit-anterior>
 bash deploy.sh --skip-pull
 ```
