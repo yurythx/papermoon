@@ -1,4 +1,19 @@
 services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: papermoon-jaeger
+    restart: always
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    # Sem auth própria (Jaeger não tem login) — de propósito só em loopback,
+    # nunca 0.0.0.0. O ufw da VPS já nega tudo por padrão exceto as portas
+    # explicitamente liberadas (22, 9100, 3000, 8000 — ver `sudo ufw status`),
+    # então isso já ficaria inacessível de fora mesmo sem o bind em 127.0.0.1,
+    # mas não vale depender só do firewall pra isso. Acesso: túnel SSH
+    # (`ssh -L 16686:localhost:16686 papermoon`) e abrir localhost:16686.
+    ports:
+      - "127.0.0.1:16686:16686"
+
   postgres:
     image: postgres:16
     container_name: papermoon-postgres
@@ -50,11 +65,15 @@ services:
       - .env.production
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.production
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-django
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -sf -H 'Host: django-api' http://localhost:8000/health/ || exit 1"]
       interval: 30s
@@ -81,11 +100,15 @@ services:
       - .env.production
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.production
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-celery-worker
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "celery -A core.celery_app inspect ping --timeout 5 2>/dev/null | grep -q pong"]
       interval: 30s
@@ -108,11 +131,15 @@ services:
       - .env.production
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.production
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=papermoon-celery-beat
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid) 2>/dev/null"]
       interval: 30s
