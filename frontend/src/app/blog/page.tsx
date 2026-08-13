@@ -126,12 +126,19 @@ export default async function BlogIndexPage({
               >
                 <div className="aspect-video bg-surface-2 overflow-hidden flex items-center justify-center">
                   {post.cover_image_url ? (
+                    // unoptimized: cover_image_url é o domínio público do
+                    // próprio app (papermoon.cloud) — sem isso, o otimizador
+                    // do next/image tenta buscar essa URL de DENTRO do
+                    // container do Next.js, um fetch auto-referenciado que
+                    // trava em ETIMEDOUT (confirmado em produção). Mesmo
+                    // padrão já usado nos previews dos editores do backoffice.
                     <Image
                       src={post.cover_image_url}
                       alt={post.cover_image_alt || post.title}
                       width={480}
                       height={270}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      unoptimized
                     />
                   ) : (
                     <Newspaper size={24} className="text-text-tertiary" />

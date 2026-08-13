@@ -217,6 +217,12 @@ export default async function ServicePage({
             <div className="relative">
               {svc.heroImage ? (
                 <div className="rounded-2xl overflow-hidden border border-border-default shadow-2xl ring-1 ring-white/5">
+                  {/* unoptimized: heroImage pode vir do CMS (mergeService
+                      prioriza cms.hero_image_url — URL pública do próprio
+                      app) em vez do screenshot estático de marketing. Sem
+                      isso o otimizador do next/image faz um fetch
+                      auto-referenciado de dentro do container e trava
+                      quando é o caso do CMS (ver blog/page.tsx). */}
                   <Image
                     src={svc.heroImage}
                     alt={svc.heroImageAlt}
@@ -224,6 +230,7 @@ export default async function ServicePage({
                     height={720}
                     className="w-full h-auto"
                     priority
+                    unoptimized
                   />
                 </div>
               ) : (

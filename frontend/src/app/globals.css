@@ -195,6 +195,14 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Sem isso, o gesto de "puxar pra atualizar"/rubber-band do navegador
+     mobile (Chrome Android, Safari iOS) faz o conteúdo do topo da página
+     deslizar por baixo da navbar fixa (position: fixed, todo header do app
+     usa isso) durante o bounce — a navbar não acompanha o movimento do
+     scroll nativo do jeito que o conteúdo acompanha. `contain` bloqueia só
+     o bounce/pull-to-refresh do navegador; o scroll normal da página
+     continua igual. */
+  overscroll-behavior-y: contain;
 }
 
 * {
@@ -222,7 +230,11 @@ body {
   background-color: rgb(var(--surface-0));
   color: rgb(var(--text-primary));
   font-family: var(--font-geist), Inter, system-ui, sans-serif;
-  min-height: 100vh;
+  /* dvh (não vh) — 100vh no mobile é calculado com a chrome do navegador
+     (barra de endereço) recolhida, então o conteúdo real fica mais baixo
+     que a altura visível assim que a barra reaparece durante o scroll.
+     dvh acompanha a altura visível de verdade. */
+  min-height: 100dvh;
 }
 
 /* ── Focus visible ───────────────────────────────────────────────────────── */

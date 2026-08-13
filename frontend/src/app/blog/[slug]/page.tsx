@@ -163,6 +163,9 @@ export default async function BlogPostPage({
 
           {post.cover_image_url && (
             <div className="rounded-2xl overflow-hidden mb-10">
+              {/* unoptimized: URL pública do próprio app — sem isso o
+                  otimizador do next/image faz um fetch auto-referenciado
+                  de dentro do container e trava (ver blog/page.tsx). */}
               <Image
                 src={post.cover_image_url}
                 alt={post.cover_image_alt || post.title}
@@ -170,6 +173,7 @@ export default async function BlogPostPage({
                 height={630}
                 className="w-full h-auto"
                 priority
+                unoptimized
               />
             </div>
           )}

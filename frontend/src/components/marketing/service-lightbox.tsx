@@ -100,12 +100,17 @@ export function ServiceGallery({ images, colorBorder }: Props) {
             aria-label={img.alt || `Imagem ${i + 1}`}
           >
             <div className="relative aspect-video w-full">
+              {/* unoptimized: galeria vem do CMS, URL pública do próprio
+                  app — sem isso o otimizador do next/image faz um fetch
+                  auto-referenciado de dentro do container e trava
+                  (ver app/blog/page.tsx). */}
               <Image
                 src={img.url}
                 alt={img.alt}
                 fill
                 sizes="(max-width: 640px) 50vw, 33vw"
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
+                unoptimized
               />
             </div>
             {img.caption && (
@@ -159,11 +164,14 @@ export function ServiceGallery({ images, colorBorder }: Props) {
             <h2 id={titleId} className="sr-only">
               Galeria de imagens do serviço
             </h2>
+            {/* unoptimized: mesmo motivo do thumbnail acima — URL pública
+                do próprio app, fetch auto-referenciado trava o otimizador. */}
             <Image
               src={images[index].url}
               alt={images[index].alt}
               width={1200}
               height={720}
+              unoptimized
               className="object-contain max-h-[80vh] w-full rounded-xl shadow-2xl"
               priority
             />

@@ -786,12 +786,17 @@ export default async function LandingPage() {
                 >
                   <div className="aspect-video bg-surface-2 overflow-hidden flex items-center justify-center">
                     {post.cover_image_url ? (
+                      // unoptimized: URL pública do próprio app — sem isso o
+                      // otimizador do next/image faz um fetch
+                      // auto-referenciado de dentro do container e trava
+                      // (ver blog/page.tsx).
                       <Image
                         src={post.cover_image_url}
                         alt={post.cover_image_alt || post.title}
                         width={320}
                         height={180}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        unoptimized
                       />
                     ) : (
                       <FileText size={22} className="text-text-tertiary" />
