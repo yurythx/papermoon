@@ -8,7 +8,7 @@ test.describe("Nossos Serviços (catalog)", () => {
 
   test("shows contact team banner", async ({ page }) => {
     await page.goto("/dashboard/catalog");
-    await expect(page.locator("a[href='mailto:contato@papermoon.com.br']").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("a[href='mailto:contato@papermoon.cloud']").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("lists at least one service card", async ({ page }) => {

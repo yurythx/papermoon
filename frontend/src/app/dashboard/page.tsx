@@ -339,7 +339,7 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <a href="mailto:contato@papermoon.com.br">
+          <a href="mailto:contato@papermoon.cloud">
             <Button variant="secondary" size="sm">
               <Mail size={14} className="mr-1.5" />
               Falar com a equipe

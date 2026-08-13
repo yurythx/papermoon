@@ -45,7 +45,7 @@ import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services
 import { fetchBlogPosts } from "@/lib/blog";
 import { cn } from "@/lib/utils";
 
-const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 const _ogHome =
   `${_siteUrl}/api/og?` +
   new URLSearchParams({
@@ -483,11 +483,11 @@ const _orgSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "PaperMoon",
-  url: "https://app.papermoon.com.br",
+  url: "https://papermoon.cloud",
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer support",
-    email: "contato@papermoon.com.br",
+    email: "contato@papermoon.cloud",
     availableLanguage: "Portuguese",
   },
   sameAs: [],
@@ -886,7 +886,7 @@ export default async function LandingPage() {
                 </a>
 
                 <a
-                  href="mailto:contato@papermoon.com.br"
+                  href="mailto:contato@papermoon.cloud"
                   className={cardClass({ interactive: true, className: "flex items-center gap-4 p-4 group" })}
                 >
                   <div className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center shrink-0">
@@ -894,7 +894,7 @@ export default async function LandingPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-text-primary group-hover:text-brand-accent transition-colors">E-mail direto</p>
-                    <p className="text-xs text-text-tertiary mt-0.5">contato@papermoon.com.br</p>
+                    <p className="text-xs text-text-tertiary mt-0.5">contato@papermoon.cloud</p>
                   </div>
                 </a>
               </div>

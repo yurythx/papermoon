@@ -12,9 +12,10 @@ const nextConfig = {
       // Django media files — dev (local) e Docker-internal
       { protocol: "http", hostname: "localhost", port: "8000" },
       { protocol: "http", hostname: "django-api", port: "8000" },
-      // Produção real (deployment.md): papermoon.cloud, atrás do Cloudflare
-      // Tunnel — papermoon.com.br abaixo é um domínio ainda não usado no ar,
-      // mantido por segurança caso vire o domínio real no futuro.
+      // Produção real (deployment.md): papermoon.cloud (domínio único, sem
+      // subdomínio app.), atrás da Cloudflare — papermoon.com.br abaixo é o
+      // domínio antigo, mantido só de transição (ver mesmo comentário em
+      // middleware.ts).
       { protocol: "https", hostname: "papermoon.cloud" },
       { protocol: "https", hostname: "**.papermoon.cloud" },
       { protocol: "https", hostname: "**.papermoon.com.br" },

@@ -69,8 +69,8 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
 
         <p className="text-xs text-text-tertiary">
           Precisa de ajuda?{" "}
-          <a href="mailto:suporte@papermoon.com.br" className="underline hover:text-text-secondary transition-colors">
-            suporte@papermoon.com.br
+          <a href="mailto:suporte@papermoon.cloud" className="underline hover:text-text-secondary transition-colors">
+            suporte@papermoon.cloud
           </a>
         </p>
       </div>

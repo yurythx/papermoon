@@ -15,7 +15,7 @@ async function fetchAllBlogSlugs(): Promise<{ slug: string; published_at: string
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 
   const staticPages: MetadataRoute.Sitemap = [
     {

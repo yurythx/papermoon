@@ -54,7 +54,7 @@ test.describe("Landing page", () => {
 
   test("contato section visible with email and WhatsApp links", async ({ page }) => {
     await page.locator("#contato").scrollIntoViewIfNeeded();
-    await expect(page.locator("a[href='mailto:contato@papermoon.com.br']").first()).toBeVisible();
+    await expect(page.locator("a[href='mailto:contato@papermoon.cloud']").first()).toBeVisible();
     await expect(page.locator("a[href*='wa.me']").first()).toBeVisible();
   });
 
@@ -83,7 +83,7 @@ test.describe("Sobre page", () => {
 
   test("has contact CTA", async ({ page }) => {
     await page.goto("/sobre");
-    await expect(page.locator("a[href='mailto:contato@papermoon.com.br']")).toBeVisible();
+    await expect(page.locator("a[href='mailto:contato@papermoon.cloud']")).toBeVisible();
   });
 
   test("has link back to home", async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe("Service pages", () => {
   test("service page has contact CTA", async ({ page }) => {
     await page.goto("/servicos/glpi");
     await page.locator("#contato").scrollIntoViewIfNeeded();
-    await expect(page.locator("a[href='mailto:contato@papermoon.com.br']")).toBeVisible();
+    await expect(page.locator("a[href='mailto:contato@papermoon.cloud']")).toBeVisible();
   });
 
   test("service breadcrumb points to /servicos", async ({ page }) => {

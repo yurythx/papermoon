@@ -9,7 +9,7 @@ import { ArrowLink } from "@/components/compound/arrow-link";
 import { SERVICES } from "@/lib/services-content";
 import { fetchActiveServiceSlugs, isServiceVisible } from "@/lib/active-services";
 
-const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+const _siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 const _serviceCount = SERVICES.length;
 const _serviceCountText = `${_serviceCount} serviços de TI instalados, configurados e mantidos pela PaperMoon na sua infraestrutura.`;
 

@@ -88,7 +88,7 @@ export default function SubscriptionsPage() {
         <Mail size={14} className="text-text-tertiary shrink-0" />
         <p className="text-xs text-text-secondary flex-1">
           Precisa solicitar alterações, cancelamentos ou novos serviços?{" "}
-          <a href="mailto:contato@papermoon.com.br" className="text-brand-accent hover:underline font-medium">
+          <a href="mailto:contato@papermoon.cloud" className="text-brand-accent hover:underline font-medium">
             Fale com nossa equipe
           </a>
           .

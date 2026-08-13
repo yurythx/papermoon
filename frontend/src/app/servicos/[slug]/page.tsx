@@ -57,7 +57,7 @@ export async function generateMetadata({
   const cms = await fetchCmsServicePage(slug);
   const svc = mergeService(base, cms);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
   const pageUrl = `${siteUrl}/servicos/${slug}`;
   const ogImageUrl =
     `${siteUrl}/api/og?` +
@@ -129,7 +129,7 @@ export default async function ServicePage({
   const svc = mergeService(base, cms);
 
   const Icon = svc.icon;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
   const pageUrl = `${siteUrl}/servicos/${slug}`;
 
   const jsonLd = [
@@ -652,7 +652,7 @@ export default async function ServicePage({
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <a href="mailto:contato@papermoon.com.br" className={cardClass({ interactive: true, className: "flex items-center gap-3 px-6 py-4 group" })}>
+            <a href="mailto:contato@papermoon.cloud" className={cardClass({ interactive: true, className: "flex items-center gap-3 px-6 py-4 group" })}>
               <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center shrink-0">
                 <Mail size={16} className="text-brand-accent" />
               </div>
@@ -660,7 +660,7 @@ export default async function ServicePage({
                 <p className="text-sm font-semibold text-text-primary group-hover:text-brand-accent transition-colors">
                   E-mail
                 </p>
-                <p className="text-xs text-text-tertiary">contato@papermoon.com.br</p>
+                <p className="text-xs text-text-tertiary">contato@papermoon.cloud</p>
               </div>
             </a>
 

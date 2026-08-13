@@ -57,7 +57,7 @@ export default function CatalogPage() {
           </p>
         </div>
         <a
-          href="mailto:contato@papermoon.com.br"
+          href="mailto:contato@papermoon.cloud"
           className="shrink-0 text-xs font-semibold text-brand-accent border border-brand-accent/30 px-4 py-2 rounded-lg hover:bg-brand-accent/10 transition-colors"
         >
           Falar com a equipe

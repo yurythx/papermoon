@@ -298,7 +298,7 @@ function defaultUnavailableCopy(): UnavailableCopy {
     title: "Integração Keycloak ainda não está disponível",
     description:
       "Seu plano atual não inclui um realm Keycloak provisionado, ou o serviço ainda está sendo configurado pro seu contrato. Fale com a gente pra saber mais.",
-    action: { label: "Falar com a equipe", href: "mailto:contato@papermoon.com.br" },
+    action: { label: "Falar com a equipe", href: "mailto:contato@papermoon.cloud" },
   };
 }
 

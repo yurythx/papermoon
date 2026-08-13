@@ -219,10 +219,10 @@ export default function OnboardingPage() {
                 Tentar acessar o dashboard
               </Button>
             </Link>
+            {/* /suporte nunca existiu como página — apontava pra um 404 mascarado atrás de
+                um domínio antigo (papermoon.com.br). E-mail direto é o canal que existe hoje. */}
             <a
-              href="https://papermoon.com.br/suporte"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="mailto:contato@papermoon.cloud"
               className="flex items-center justify-center gap-1.5 text-sm text-text-tertiary hover:text-text-secondary transition-colors"
             >
               <ExternalLink size={12} />

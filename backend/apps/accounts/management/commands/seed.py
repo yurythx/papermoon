@@ -26,7 +26,7 @@ from django.utils import timezone
 
 class Command(BaseCommand):
     help = "Seed the database with demo data for development"
-    frontend_url = getattr(settings, "FRONTEND_URL", "https://app.papermoon.com.br").rstrip("/")
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
     def add_arguments(self, parser):
         parser.add_argument(

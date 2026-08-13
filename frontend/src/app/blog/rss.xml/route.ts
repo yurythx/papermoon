@@ -5,7 +5,7 @@ import { fetchBlogPosts } from "@/lib/blog";
 // via /api/revalidate mantém isso fresco entre publicações também.
 export const revalidate = 60;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 
 function escapeXml(value: string): string {
   return value

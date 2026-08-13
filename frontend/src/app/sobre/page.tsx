@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     title: "Sobre a PaperMoon — 10+ anos em infraestrutura de TI",
     description:
       "Mais de 10 anos implantando infraestrutura corporativa: redes, cabeamento, servidores e software open-source. Conheça nossa história.",
-    url: "https://papermoon.com.br/sobre",
+    url: "https://papermoon.cloud/sobre",
   },
 };
 
@@ -331,11 +331,11 @@ export default async function SobrePage() {
               Falar no WhatsApp
             </a>
             <a
-              href="mailto:contato@papermoon.com.br"
+              href="mailto:contato@papermoon.cloud"
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-surface-2 border border-border-default text-text-primary font-semibold text-sm hover:bg-surface-3 hover:border-border-focus transition-all"
             >
               <Mail size={15} />
-              contato@papermoon.com.br
+              contato@papermoon.cloud
             </a>
           </div>
 

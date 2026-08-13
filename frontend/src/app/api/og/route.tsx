@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
           }}
         >
           <div style={{ color: "#FBBF24", fontSize: 15, fontWeight: 600 }}>
-            papermoon.com.br
+            papermoon.cloud
           </div>
           <div style={{ color: "#334155", fontSize: 15 }}>·</div>
           <div style={{ color: "#475569", fontSize: 15 }}>

@@ -192,8 +192,8 @@ export default async function TermosPage() {
               </p>
               <p>
                 O cancelamento de planos mensais pode ser solicitado a qualquer momento via e-mail para{" "}
-                <a href="mailto:contato@papermoon.com.br" className="text-brand-accent hover:underline">
-                  contato@papermoon.com.br
+                <a href="mailto:contato@papermoon.cloud" className="text-brand-accent hover:underline">
+                  contato@papermoon.cloud
                 </a>
                 {" "}com 30 dias de antecedência. Não há multa por cancelamento após os primeiros 3 meses.
                 Após o cancelamento, os softwares permanecem instalados no servidor do cliente — a PaperMoon não realiza remoção remota.
@@ -250,8 +250,8 @@ export default async function TermosPage() {
               </p>
               <p>
                 Dúvidas sobre estes termos? Entre em contato:{" "}
-                <a href="mailto:contato@papermoon.com.br" className="text-brand-accent hover:underline">
-                  contato@papermoon.com.br
+                <a href="mailto:contato@papermoon.cloud" className="text-brand-accent hover:underline">
+                  contato@papermoon.cloud
                 </a>
               </p>
             </div>

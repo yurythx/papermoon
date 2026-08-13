@@ -36,7 +36,7 @@ test.describe("Meus Contratos", () => {
 
   test("support footer shows mailto link", async ({ page }) => {
     await page.goto("/dashboard/subscriptions");
-    await expect(page.locator("a[href='mailto:contato@papermoon.com.br']").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("a[href='mailto:contato@papermoon.cloud']").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("empty state shows team contact prompt", async ({ page }) => {

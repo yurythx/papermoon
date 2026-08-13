@@ -257,7 +257,7 @@ const PlanWidget = memo(function PlanWidget({ customerStatus, subscription }: Pl
         ) : (
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1">Nenhum contrato ativo</p>
-            <ArrowLink href="mailto:contato@papermoon.com.br" size="xs" external>
+            <ArrowLink href="mailto:contato@papermoon.cloud" size="xs" external>
               Falar com a equipe
             </ArrowLink>
           </div>

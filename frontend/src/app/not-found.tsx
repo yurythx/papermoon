@@ -52,7 +52,7 @@ export default function NotFound() {
 
         <p className="text-xs text-text-tertiary">
           Se o problema persistir,{" "}
-          <a href="mailto:suporte@papermoon.com.br" className="underline hover:text-text-secondary transition-colors">
+          <a href="mailto:suporte@papermoon.cloud" className="underline hover:text-text-secondary transition-colors">
             entre em contato com o suporte
           </a>
           .

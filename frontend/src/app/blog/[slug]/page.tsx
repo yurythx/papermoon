@@ -16,7 +16,7 @@ import { fetchBlogPost } from "@/lib/blog";
 // `revalidate = 60` que o Next ignoraria silenciosamente.
 export const dynamic = "force-dynamic";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 
 export async function generateMetadata({
   params,
