@@ -10,8 +10,6 @@ import type {
   BlogPostAdmin,
   BlogPostAdminListItem,
   BlogPostAdminPayload,
-  BlogPostDetail,
-  BlogPostListItem,
   CmsImage,
   CmsPageAdmin,
   CmsPageAdminListItem,
@@ -145,16 +143,6 @@ export const licenseService = {
 export const productService = {
   catalog: (): Promise<Product[]> =>
     api.get<{ success: boolean; data: Product[]; error: null }>("/proxy/products/catalog/").then(unwrap),
-};
-
-export const blogService = {
-  list: (params?: { page?: number }): Promise<PaginatedResponse<BlogPostListItem>> =>
-    api
-      .get<{ success: boolean; data: PaginatedResponse<BlogPostListItem>; error: null }>("/proxy/blog/", { params })
-      .then(unwrap),
-
-  getBySlug: (slug: string): Promise<BlogPostDetail> =>
-    api.get<{ success: boolean; data: BlogPostDetail; error: null }>(`/proxy/blog/${slug}/`).then(unwrap),
 };
 
 export const teamService = {

@@ -520,24 +520,6 @@ export interface BlogTag {
   slug: string;
 }
 
-export interface BlogPostListItem {
-  slug: string;
-  title: string;
-  excerpt: string;
-  cover_image_url: string | null;
-  cover_image_alt: string;
-  author_name: string;
-  published_at: string | null;
-  reading_time: number;
-  tags: BlogTag[];
-}
-
-export interface BlogPostDetail extends BlogPostListItem {
-  body: string;
-  meta_title: string;
-  meta_description: string;
-}
-
 export interface BlogPostAdmin {
   id: string;
   title: string;

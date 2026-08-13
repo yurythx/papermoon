@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 export type CardTone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -37,12 +36,3 @@ export function cardClass({ tone = "neutral", interactive = false, className }: 
     className
   );
 }
-
-interface CardProps extends CardStyleProps, React.HTMLAttributes<HTMLDivElement> {}
-
-export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
-  { tone, interactive, className, ...props },
-  ref
-) {
-  return <div ref={ref} className={cardClass({ tone, interactive, className })} {...props} />;
-});

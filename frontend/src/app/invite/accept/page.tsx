@@ -4,7 +4,7 @@ import axios from "axios";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { api } from "@/lib/api";
+import { invitationService } from "@/lib/services";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrength } from "@/components/ui/password-strength";
@@ -44,7 +44,7 @@ function AcceptInviteForm() {
 
     setLoading(true);
     try {
-      await api.post("/invitations/accept", { token, password });
+      await invitationService.accept(token, password);
       router.push("/login?invited=1");
     } catch (err) {
       if (axios.isAxiosError(err)) {

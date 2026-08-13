@@ -3084,6 +3084,3 @@ export const SERVICES: ServiceContent[] = [
 export function getService(slug: string): ServiceContent | undefined {
   return SERVICES.find((s) => s.slug === slug);
 }
-
-export const ACTIVE_SERVICES = SERVICES.filter((s) => !s.comingSoon);
-export const COMING_SOON_SERVICES = SERVICES.filter((s) => s.comingSoon);

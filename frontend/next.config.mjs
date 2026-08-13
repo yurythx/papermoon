@@ -47,10 +47,13 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // CSP is enforced by middleware in production (nonce-based, per-request).
-          // This static fallback covers dev mode and static export where middleware skips.
-          // Middleware sets CSP per-request in production.
-          // This static fallback applies only when middleware is bypassed (e.g. static export).
+          // middleware.ts sets the real per-request CSP in production (no
+          // nonce — ver o motivo lá). Este aqui é só o fallback estático,
+          // usado quando o middleware é pulado (dev mode, static export).
+          // Mantenha os dois img-src em sincronia — já divergiram uma vez
+          // (host do Chatwoot/n8n faltando aqui) sem quebrar nada na hora
+          // só porque essas imagens passam por next/image (mesma origem);
+          // qualquer <img> direto pegaria a CSP errada silenciosamente.
           {
             key: "Content-Security-Policy",
             value: [

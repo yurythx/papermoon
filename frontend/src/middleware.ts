@@ -46,7 +46,7 @@ export async function middleware(req: NextRequest) {
     // o rewrite de /media/* (next.config.mjs), a URL pública normal já cai
     // em 'self' (mesma origem do app) — os hosts extras aqui cobrem dev
     // local e o período de transição de posts com URL antiga em cache.
-    "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://papermoon.cloud https://*.papermoon.cloud https://*.papermoon.com.br",
+    "img-src 'self' data: blob: http://localhost:8000 http://django-api:8000 https://papermoon.cloud https://*.papermoon.cloud https://*.papermoon.com.br https://www.chatwoot.com https://n8niostorageaccount.blob.core.windows.net",
     "connect-src 'self' https://*.sentry.io",
     "frame-ancestors 'none'",
     "base-uri 'self'",
