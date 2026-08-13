@@ -383,7 +383,10 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed left-0 top-14 bottom-0 z-40 flex flex-col bg-surface-1 border-r border-border-subtle",
+          // transform-gpu: mesma correção do Topbar/LandingNav (ver
+          // globals.css e nav.tsx) — evita o bug do Safari iOS de
+          // "descolar" position: fixed durante o bounce do pull-to-refresh.
+          "fixed left-0 top-14 bottom-0 z-40 flex flex-col bg-surface-1 border-r border-border-subtle transform-gpu",
           "transition-all duration-200 ease-smooth overflow-hidden",
           mobileOpen ? "translate-x-0 w-72" : "-translate-x-full w-72",
           "md:translate-x-0",

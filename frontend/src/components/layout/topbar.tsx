@@ -273,7 +273,10 @@ export function Topbar() {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-surface-1 border-b border-border-subtle flex items-center px-4 gap-3">
+    // transform-gpu: mesma correção de nav.tsx (LandingNav) — força a
+    // topbar pra própria camada de composição, evita o bug do Safari iOS
+    // de "descolar" position: fixed durante o bounce do pull-to-refresh.
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-surface-1 border-b border-border-subtle flex items-center px-4 gap-3 transform-gpu">
       <button
         type="button"
         onClick={handleMenuToggle}

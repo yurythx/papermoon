@@ -121,7 +121,13 @@ export function LandingNav({
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        // transform-gpu (translateZ(0)) força a navbar pra própria camada de
+        // composição — sem isso, o Safari iOS tem um bug conhecido de
+        // "descolar" elementos position: fixed durante o bounce/rubber-band
+        // do pull-to-refresh, fazendo conteúdo aparecer sobreposto a ela por
+        // um instante (ver overscroll-behavior em globals.css, a outra
+        // metade dessa correção).
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 transform-gpu",
         scrolled
           ? "bg-surface-0/80 backdrop-blur-xl border-b border-border-subtle shadow-md"
           : "bg-transparent"

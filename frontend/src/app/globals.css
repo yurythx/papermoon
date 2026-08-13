@@ -199,10 +199,14 @@ html {
      mobile (Chrome Android, Safari iOS) faz o conteúdo do topo da página
      deslizar por baixo da navbar fixa (position: fixed, todo header do app
      usa isso) durante o bounce — a navbar não acompanha o movimento do
-     scroll nativo do jeito que o conteúdo acompanha. `contain` bloqueia só
-     o bounce/pull-to-refresh do navegador; o scroll normal da página
-     continua igual. */
-  overscroll-behavior-y: contain;
+     scroll nativo do jeito que o conteúdo acompanha. `none` (não `contain`)
+     de propósito: no elemento raiz da página não existe "pai" pra conter
+     contra, e o Safari iOS tem bug documentado de não respeitar
+     overscroll-behavior de forma confiável na página inteira quando é só
+     `contain` — `none` desliga o bounce/pull-to-refresh nativo por completo
+     nessa direção, sem afetar o scroll normal. Repetido no body por
+     compatibilidade (motores diferentes respeitam um ou outro). */
+  overscroll-behavior-y: none;
 }
 
 * {
@@ -235,6 +239,7 @@ body {
      que a altura visível assim que a barra reaparece durante o scroll.
      dvh acompanha a altura visível de verdade. */
   min-height: 100dvh;
+  overscroll-behavior-y: none;
 }
 
 /* ── Focus visible ───────────────────────────────────────────────────────── */
