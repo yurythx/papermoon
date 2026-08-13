@@ -12,7 +12,7 @@ import { fetchBlogPosts } from "@/lib/blog";
 export const revalidate = 60;
 
 const PAGE_SIZE = 20; // mirror do PAGE_SIZE global do DRF (core/settings/base.py)
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.papermoon.com.br";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://papermoon.cloud";
 
 const _breadcrumbSchema = {
   "@context": "https://schema.org",
@@ -117,14 +117,18 @@ export default async function BlogIndexPage({
             </p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="flex flex-col gap-5">
             {posts.map((post) => (
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className={cardClass({ interactive: true, className: "group flex flex-col p-0 overflow-hidden" })}
+                className={cardClass({
+                  interactive: true,
+                  className: "group flex flex-col sm:flex-row gap-5 p-0 overflow-hidden",
+                })}
               >
-                <div className="aspect-video bg-surface-2 overflow-hidden flex items-center justify-center">
+                {/* Imagem à esquerda (topo no mobile, onde uma coluna lateral fixa não cabe) */}
+                <div className="w-full sm:w-64 md:w-80 shrink-0 aspect-video sm:aspect-[4/3] bg-surface-2 overflow-hidden flex items-center justify-center">
                   {post.cover_image_url ? (
                     // unoptimized: cover_image_url é o domínio público do
                     // próprio app (papermoon.cloud) — sem isso, o otimizador
@@ -136,7 +140,7 @@ export default async function BlogIndexPage({
                       src={post.cover_image_url}
                       alt={post.cover_image_alt || post.title}
                       width={480}
-                      height={270}
+                      height={360}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       unoptimized
                     />
@@ -144,7 +148,7 @@ export default async function BlogIndexPage({
                     <Newspaper size={24} className="text-text-tertiary" />
                   )}
                 </div>
-                <div className="flex-1 flex flex-col gap-2 p-5">
+                <div className="flex-1 flex flex-col justify-center gap-2 p-5 sm:pl-0 min-w-0">
                   <p className="text-[11px] text-text-tertiary">
                     {formatDate(post.published_at)} · {post.author_name} · {post.reading_time} min
                   </p>
@@ -157,10 +161,10 @@ export default async function BlogIndexPage({
                       ))}
                     </div>
                   )}
-                  <h2 className="text-sm font-bold text-text-primary line-clamp-2 group-hover:text-brand-accent transition-colors">
+                  <h2 className="text-base sm:text-lg font-bold text-text-primary line-clamp-2 group-hover:text-brand-accent transition-colors">
                     {post.title}
                   </h2>
-                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-3 flex-1">
+                  <p className="text-xs sm:text-sm text-text-secondary leading-relaxed line-clamp-2 sm:line-clamp-3">
                     {post.excerpt}
                   </p>
                   <ArrowLink size="xs" className="mt-1">
