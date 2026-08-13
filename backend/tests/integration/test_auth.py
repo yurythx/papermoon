@@ -100,6 +100,33 @@ class TestMeEndpoint:
         assert data["customer"]["company_name"] == "Me Corp"
         assert data["role"] == "owner"
 
+    def test_me_includes_first_and_last_name(self, client, db):
+        # Regressão: o dict manual de MeView já esqueceu first_name/last_name
+        # uma vez, fazendo o nome do usuário sumir do topbar e reaparecer só o
+        # e-mail/username em qualquer tela que dependesse de /auth/me.
+        from apps.accounts.models import CustomUser
+
+        CustomUser.objects.create_user(
+            username="named",
+            email="named@papermoon.com",
+            password="pass123",
+            first_name="Yuri",
+            last_name="Menezes",
+        )
+
+        login = client.post(
+            "/api/v1/auth/login/",
+            {"email": "named@papermoon.com", "password": "pass123"},
+            format="json",
+        ).json()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login['data']['access']}")
+
+        resp = client.get("/api/v1/auth/me/")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["user"]["first_name"] == "Yuri"
+        assert data["user"]["last_name"] == "Menezes"
+
     def test_me_admin_returns_no_customer(self, client, db):
         from apps.accounts.models import CustomUser
 
@@ -386,6 +413,105 @@ class TestSSOEndpoints:
         ):
             resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
         assert resp.status_code == 200
+
+    def test_callback_jit_provisioning_populates_first_and_last_name(self, client, db):
+        # Regressão: contas criadas na hora (JIT) por um primeiro login SSO
+        # ficavam com first_name/last_name vazios porque SSOClaims nem
+        # capturava given_name/family_name — o autor de posts do blog (e o
+        # topbar) mostravam e-mail/username em vez do nome de verdade.
+        from unittest.mock import patch
+
+        from apps.accounts.models import CustomUser, SSOConfiguration
+        from apps.accounts.oidc import SSOClaims
+        from apps.accounts.sso_config import invalidate_sso_config_cache
+        from shared.crypto import encrypt_secret
+
+        SSOConfiguration.objects.update_or_create(
+            pk=1,
+            defaults={
+                "enabled": True,
+                "issuer": "https://keycloak.example.com/realms/papermoon",
+                "client_id": "papermoon-staff",
+                "client_secret_encrypted": encrypt_secret("shh"),
+                "staff_group": "papermoon-staff",
+            },
+        )
+        invalidate_sso_config_cache()
+
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(
+                email="new.staff@rondonopolis.mt.gov.br",
+                subject="kc-sub-new",
+                groups=("papermoon-staff",),
+                first_name="Yuri",
+                last_name="Menezes",
+            ),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+
+        assert resp.status_code == 200
+        created = CustomUser.objects.get(email="new.staff@rondonopolis.mt.gov.br")
+        assert created.first_name == "Yuri"
+        assert created.last_name == "Menezes"
+        assert created.is_staff is True
+
+    def test_callback_syncs_name_on_login_for_existing_account(self, client, db):
+        from unittest.mock import patch
+
+        from apps.accounts.models import CustomUser
+        from apps.accounts.oidc import SSOClaims
+
+        staff = CustomUser.objects.create_user(
+            username="oldstaffsso",
+            email="oldstaff@papermoon.com",
+            password="unused-password",
+            is_staff=True,
+            # Simula uma conta JIT criada antes desse sync existir.
+            first_name="",
+            last_name="",
+        )
+
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(
+                email=staff.email, subject="kc-sub-4", first_name="Yuri", last_name="Menezes"
+            ),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+
+        assert resp.status_code == 200
+        staff.refresh_from_db()
+        assert staff.first_name == "Yuri"
+        assert staff.last_name == "Menezes"
+
+    def test_callback_does_not_erase_existing_name_when_claims_have_no_name(self, client, db):
+        # Um id_token sem given_name/family_name/name (realm com mapper
+        # incompleto) nunca deve apagar um nome já sincronizado antes.
+        from unittest.mock import patch
+
+        from apps.accounts.models import CustomUser
+        from apps.accounts.oidc import SSOClaims
+
+        staff = CustomUser.objects.create_user(
+            username="namedstaffsso",
+            email="namedstaff@papermoon.com",
+            password="unused-password",
+            is_staff=True,
+            first_name="Yuri",
+            last_name="Menezes",
+        )
+
+        with patch(
+            "apps.accounts.views.exchange_code",
+            return_value=SSOClaims(email=staff.email, subject="kc-sub-5"),
+        ):
+            resp = client.post(self.CALLBACK_URL, {"code": "abc", "state": "s"}, format="json")
+
+        assert resp.status_code == 200
+        staff.refresh_from_db()
+        assert staff.first_name == "Yuri"
+        assert staff.last_name == "Menezes"
         data = resp.json()["data"]
         assert "access" in data
         assert "refresh" in data

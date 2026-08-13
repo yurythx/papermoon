@@ -22,6 +22,8 @@ class MeUserSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     email = serializers.EmailField()
     username = serializers.CharField()
+    first_name = serializers.CharField(allow_blank=True)
+    last_name = serializers.CharField(allow_blank=True)
     is_staff = serializers.BooleanField()
 
 

@@ -169,6 +169,8 @@ class MeView(APIView):
                 "id": str(user.id),
                 "email": user.email,
                 "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
                 "is_staff": user.is_staff,
             },
             "customer": None,
@@ -595,6 +597,8 @@ class SSOCallbackView(APIView):
             user = User.objects.create(
                 email=claims.email,
                 username=claims.email,
+                first_name=claims.first_name,
+                last_name=claims.last_name,
                 is_staff=True,
                 is_active=True,
             )
@@ -607,8 +611,21 @@ class SSOCallbackView(APIView):
                 changes={"email": user.email, "staff_group": config.staff_group},
                 request=request,
             )
-        elif not (user.is_staff and user.is_active):
-            return denied
+        else:
+            if not (user.is_staff and user.is_active):
+                return denied
+            # Sincroniza first_name/last_name a cada login — cobre contas JIT
+            # criadas antes desse claim existir (ficavam com o nome vazio e
+            # apareciam como e-mail/username em telas como autor do blog) e
+            # mudanças de nome no AD. Só sobrescreve quando o Keycloak mandou
+            # algo — nunca apaga um nome já preenchido por causa de um id_token
+            # sem given_name/family_name/name.
+            if (claims.first_name or claims.last_name) and (
+                user.first_name != claims.first_name or user.last_name != claims.last_name
+            ):
+                user.first_name = claims.first_name
+                user.last_name = claims.last_name
+                user.save(update_fields=["first_name", "last_name"])
 
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})

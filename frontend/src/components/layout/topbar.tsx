@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect } from "react";
-import { Menu, Bell, ChevronDown, LogOut, User, Building2, CheckCheck } from "lucide-react";
+import { Menu, Bell, ChevronDown, LogOut, User, Building2, CheckCheck, ExternalLink } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { useSidebarStore } from "@/store/sidebar";
 import { authService, notificationService } from "@/lib/services";
@@ -193,7 +193,20 @@ const UserMenu = memo(function UserMenu({ me, onLogout }: UserMenuProps) {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open]);
 
-  const initials = me?.user?.email?.slice(0, 2).toUpperCase() ?? "??";
+  // Nome completo prioriza first_name/last_name (preenchido no cadastro ou
+  // sincronizado do Keycloak a cada login SSO — ver oidc.py); cai pro e-mail
+  // só quando a conta não tem nome cadastrado (ex: contas SSO antigas antes
+  // dessa sincronização existir).
+  const fullName = [me?.user?.first_name, me?.user?.last_name].filter(Boolean).join(" ").trim();
+  const displayName = fullName || me?.user?.email || "";
+  const initials = fullName
+    ? fullName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+    : (me?.user?.email?.slice(0, 2).toUpperCase() ?? "??");
 
   return (
     <div ref={ref} className="relative">
@@ -206,9 +219,12 @@ const UserMenu = memo(function UserMenu({ me, onLogout }: UserMenuProps) {
         aria-controls="topbar-user-menu"
         className="flex items-center gap-2 p-1.5 rounded-md hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-1"
       >
-        <div className="w-7 h-7 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center">
+        <div className="w-7 h-7 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center shrink-0">
           <span className="text-xs font-semibold text-brand-accent">{initials}</span>
         </div>
+        <span className="text-sm text-text-primary font-medium hidden sm:block max-w-[140px] truncate">
+          {displayName}
+        </span>
         <ChevronDown size={13} className="text-text-tertiary hidden sm:block" />
       </button>
 
@@ -220,7 +236,10 @@ const UserMenu = memo(function UserMenu({ me, onLogout }: UserMenuProps) {
           className="absolute right-0 top-full mt-2 w-56 bg-surface-2 border border-border-default rounded-xl shadow-lg z-50 animate-slide-up overflow-hidden"
         >
           <div className="px-4 py-3 border-b border-border-subtle">
-            <p className="text-sm font-medium text-text-primary truncate">{me?.user?.email}</p>
+            <p className="text-sm font-medium text-text-primary truncate">{displayName}</p>
+            {fullName && (
+              <p className="text-xs text-text-tertiary truncate mt-0.5">{me?.user?.email}</p>
+            )}
             <p className="text-xs text-text-tertiary capitalize mt-0.5">{me?.role ?? "membro"}</p>
           </div>
 
@@ -289,12 +308,23 @@ export function Topbar() {
         <Menu size={18} />
       </button>
 
-      <div className="flex items-center gap-2 mr-4">
+      <Link href="/" className="flex items-center gap-2 mr-2">
         <PaperMoonMark idSuffix="topbar" glow />
         <span className="text-sm font-semibold text-text-primary hidden sm:block tracking-tight">
           PaperMoon
         </span>
-      </div>
+      </Link>
+
+      {/* Único jeito de sair do backoffice/dashboard de volta pro site público
+          sem digitar a URL na mão — antes o logo não era clicável e não havia
+          nenhum outro link pra fora daqui. */}
+      <Link
+        href="/"
+        className="hidden md:flex items-center gap-1.5 mr-4 px-2.5 py-1.5 rounded-md text-xs font-medium text-text-tertiary hover:text-text-primary hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-1"
+      >
+        <ExternalLink size={13} />
+        Ver site
+      </Link>
 
       {me?.customer && (
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-2">

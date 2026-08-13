@@ -55,6 +55,8 @@ class SSOClaims:
     email: str
     subject: str
     groups: tuple[str, ...] = ()
+    first_name: str = ""
+    last_name: str = ""
 
 
 def _normalize_group(name: str) -> str:
@@ -219,7 +221,27 @@ def exchange_code(code: str, state: str) -> SSOClaims:
     raw_groups = claims.get("groups") or []
     groups = tuple(raw_groups) if isinstance(raw_groups, list) else ()
 
-    return SSOClaims(email=email, subject=claims["sub"], groups=groups)
+    # given_name/family_name são claims padrão do OIDC, mas nem todo mapper do
+    # Keycloak as expõe — muitos realms só mandam "name" (nome completo). Faz o
+    # split como fallback pra não deixar first_name/last_name vazios à toa (isso
+    # é o que faz o autor de posts do blog aparecer como e-mail/username em vez
+    # do nome de verdade).
+    first_name = (claims.get("given_name") or "").strip()
+    last_name = (claims.get("family_name") or "").strip()
+    if not first_name and not last_name:
+        full_name = (claims.get("name") or "").strip()
+        if full_name:
+            parts = full_name.split(maxsplit=1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+
+    return SSOClaims(
+        email=email,
+        subject=claims["sub"],
+        groups=groups,
+        first_name=first_name[:150],
+        last_name=last_name[:150],
+    )
 
 
 def test_issuer_connectivity(issuer: str) -> dict[str, bool | str]:

@@ -265,6 +265,84 @@ class TestExchangeCode:
         assert claims.email == "adm.yuri@rondonopolis.mt.gov.br"
         assert claims.subject == "kc-sub-1"
 
+    def test_given_name_and_family_name_populate_claims(self):
+        from apps.accounts.oidc import _STATE_CACHE_PREFIX, build_authorize_url, exchange_code
+
+        _configure_sso()
+        url = build_authorize_url()
+        state = _state_from_url(url)
+        nonce = cache.get(f"{_STATE_CACHE_PREFIX}{state}")["nonce"]
+
+        with (
+            patch("apps.accounts.oidc.requests.post", return_value=_mock_token_response()),
+            patch("apps.accounts.oidc._get_jwks_client") as mock_jwks,
+            patch("apps.accounts.oidc.jwt.decode") as mock_decode,
+        ):
+            mock_jwks.return_value.get_signing_key_from_jwt.return_value = MagicMock(key="fake-key")
+            mock_decode.return_value = {
+                "email": "staff@papermoon.com",
+                "sub": "kc-sub-1",
+                "nonce": nonce,
+                "given_name": "Yuri",
+                "family_name": "Menezes",
+            }
+            claims = exchange_code("auth-code", state)
+
+        assert claims.first_name == "Yuri"
+        assert claims.last_name == "Menezes"
+
+    def test_name_claim_is_split_when_given_family_name_absent(self):
+        # Nem todo mapper do Keycloak expõe given_name/family_name — muitos
+        # realms só mandam "name" (nome completo) — ver docs/backend/
+        # sso-keycloak-integration.md.
+        from apps.accounts.oidc import _STATE_CACHE_PREFIX, build_authorize_url, exchange_code
+
+        _configure_sso()
+        url = build_authorize_url()
+        state = _state_from_url(url)
+        nonce = cache.get(f"{_STATE_CACHE_PREFIX}{state}")["nonce"]
+
+        with (
+            patch("apps.accounts.oidc.requests.post", return_value=_mock_token_response()),
+            patch("apps.accounts.oidc._get_jwks_client") as mock_jwks,
+            patch("apps.accounts.oidc.jwt.decode") as mock_decode,
+        ):
+            mock_jwks.return_value.get_signing_key_from_jwt.return_value = MagicMock(key="fake-key")
+            mock_decode.return_value = {
+                "email": "staff@papermoon.com",
+                "sub": "kc-sub-1",
+                "nonce": nonce,
+                "name": "Yuri Menezes da Silva",
+            }
+            claims = exchange_code("auth-code", state)
+
+        assert claims.first_name == "Yuri"
+        assert claims.last_name == "Menezes da Silva"
+
+    def test_no_name_claims_leaves_first_and_last_name_blank(self):
+        from apps.accounts.oidc import _STATE_CACHE_PREFIX, build_authorize_url, exchange_code
+
+        _configure_sso()
+        url = build_authorize_url()
+        state = _state_from_url(url)
+        nonce = cache.get(f"{_STATE_CACHE_PREFIX}{state}")["nonce"]
+
+        with (
+            patch("apps.accounts.oidc.requests.post", return_value=_mock_token_response()),
+            patch("apps.accounts.oidc._get_jwks_client") as mock_jwks,
+            patch("apps.accounts.oidc.jwt.decode") as mock_decode,
+        ):
+            mock_jwks.return_value.get_signing_key_from_jwt.return_value = MagicMock(key="fake-key")
+            mock_decode.return_value = {
+                "email": "staff@papermoon.com",
+                "sub": "kc-sub-1",
+                "nonce": nonce,
+            }
+            claims = exchange_code("auth-code", state)
+
+        assert claims.first_name == ""
+        assert claims.last_name == ""
+
 
 class TestTestIssuerConnectivity:
     def test_rejects_non_http_scheme(self):
