@@ -871,7 +871,7 @@ export default async function LandingPage() {
 
               <div className="space-y-3">
                 <a
-                  href="https://wa.me/5511999999999?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
+                  href="https://wa.me/5566992163988?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cardClass({ interactive: true, className: "flex items-center gap-4 p-4 group" })}

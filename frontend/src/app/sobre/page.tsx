@@ -322,7 +322,7 @@ export default async function SobrePage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="https://wa.me/5511999999999?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
+              href="https://wa.me/5566992163988?text=Olá%2C%20quero%20saber%20mais%20sobre%20a%20PaperMoon"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-brand-accent text-slate-950 font-semibold text-sm hover:bg-brand-accent/90 active:scale-95 transition-all shadow-xl shadow-glow-accent"
